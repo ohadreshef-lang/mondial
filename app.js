@@ -12,6 +12,12 @@ let state = {
     currentUser: null // { name: string, email: string }
 };
 
+// Check if admin mode via URL parameter
+function isAdminMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('admin') === 'true';
+}
+
 // DOM Elements
 const elements = {
     // Entrance elements
@@ -24,7 +30,8 @@ const elements = {
     alreadyVotedMessage: document.getElementById('alreadyVotedMessage'),
     mainApp: document.getElementById('mainApp'),
 
-    // Mode buttons
+    // Mode toggle (admin only)
+    modeToggle: document.getElementById('modeToggle'),
     userModeBtn: document.getElementById('userModeBtn'),
     adminModeBtn: document.getElementById('adminModeBtn'),
 
@@ -62,6 +69,32 @@ function init() {
     loadState();
     setupEventListeners();
     render();
+
+    // Check if admin mode
+    if (isAdminMode()) {
+        initAdminMode();
+    } else {
+        initUserMode();
+    }
+}
+
+// Initialize admin mode - skip entrance, show admin controls
+function initAdminMode() {
+    elements.entrancePanel.classList.add('hidden');
+    elements.mainApp.classList.remove('hidden');
+    elements.modeToggle.classList.remove('hidden');
+    elements.adminPanel.classList.remove('hidden');
+    elements.userPanel.classList.add('hidden');
+    elements.adminModeBtn.classList.add('active');
+    elements.userModeBtn.classList.remove('active');
+}
+
+// Initialize user mode - show entrance, hide admin controls
+function initUserMode() {
+    elements.entrancePanel.classList.remove('hidden');
+    elements.mainApp.classList.add('hidden');
+    elements.modeToggle.classList.add('hidden');
+    elements.adminPanel.classList.add('hidden');
 }
 
 // Load state from localStorage
@@ -184,8 +217,10 @@ function handleEntranceSubmit(e) {
     elements.mainApp.classList.remove('hidden');
 }
 
-// Switch between user and admin mode
+// Switch between user and admin mode (admin only)
 function switchMode(mode) {
+    if (!isAdminMode()) return; // Only allow mode switch in admin mode
+
     if (mode === 'user') {
         elements.userModeBtn.classList.add('active');
         elements.adminModeBtn.classList.remove('active');
