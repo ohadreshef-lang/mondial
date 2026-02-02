@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מי אשם בנפילת הדמוקרטיה?</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>מי אשם בנפילת הדמוקרטיה בישראל?</h1>
+            <p class="subtitle">חלקו 100% אחריות בין הגורמים השונים</p>
+        </header>
+
+        <nav class="mode-toggle">
+            <button id="userModeBtn" class="mode-btn active">מצב משתמש</button>
+            <button id="adminModeBtn" class="mode-btn">מצב מנהל</button>
+        </nav>
+
+        <!-- Admin Panel -->
+        <section id="adminPanel" class="panel hidden">
+            <h2>ניהול אפשרויות</h2>
+            <div class="admin-controls">
+                <div class="add-option">
+                    <input type="text" id="newOptionInput" placeholder="הוסף גורם חדש...">
+                    <button id="addOptionBtn" class="btn-primary">הוסף</button>
+                </div>
+                <div id="optionsList" class="options-list">
+                    <!-- Options will be populated here -->
+                </div>
+            </div>
+            <div class="admin-actions">
+                <button id="resetResultsBtn" class="btn-danger">אפס תוצאות</button>
+                <button id="exportDataBtn" class="btn-secondary">ייצא נתונים</button>
+            </div>
+        </section>
+
+        <!-- User Panel -->
+        <section id="userPanel" class="panel">
+            <div id="noOptionsMessage" class="message hidden">
+                <p>אין אפשרויות זמינות. המתן למנהל להגדיר את האפשרויות.</p>
+            </div>
+            <div id="allocationForm" class="allocation-form">
+                <div id="sliderContainer" class="slider-container">
+                    <!-- Sliders will be populated here -->
+                </div>
+                <div class="total-display">
+                    <span>סה"כ:</span>
+                    <span id="totalPercentage" class="total-value">0%</span>
+                    <span id="totalStatus" class="total-status"></span>
+                </div>
+                <button id="submitVoteBtn" class="btn-primary btn-large" disabled>שלח הצבעה</button>
+            </div>
+        </section>
+
+        <!-- Results Panel -->
+        <section id="resultsPanel" class="panel">
+            <h2>תוצאות</h2>
+            <div id="resultsContainer" class="results-container">
+                <!-- Results will be populated here -->
+            </div>
+            <p id="voteCount" class="vote-count"></p>
+        </section>
+
+        <!-- Thank You Message -->
+        <div id="thankYouMessage" class="thank-you hidden">
+            <h2>תודה על הצבעתך!</h2>
+            <p>הקולות נספרו</p>
+            <button id="voteAgainBtn" class="btn-secondary">הצבע שוב</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>אפליקציית הקצאת אשמה - 2026</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
