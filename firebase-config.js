@@ -34,8 +34,34 @@ try {
     if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
         firebase.initializeApp(firebaseConfig);
         db = firebase.database();
+
+        // Test database connection
+        db.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                console.log('Firebase connected successfully');
+                firebaseEnabled = true;
+            } else {
+                console.log('Firebase disconnected');
+            }
+        });
+
+        // Test write access
+        db.ref('connectionTest').set({ timestamp: Date.now() })
+            .then(() => {
+                console.log('Firebase write test successful');
+                firebaseEnabled = true;
+            })
+            .catch((error) => {
+                console.error('Firebase write test failed:', error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    console.error('Database rules are blocking writes. Please set rules to allow read/write.');
+                } else if (error.message.includes('404')) {
+                    console.error('Database not found. Please create a Realtime Database in Firebase Console.');
+                }
+            });
+
         firebaseEnabled = true;
-        console.log('Firebase initialized successfully');
+        console.log('Firebase initialized');
     } else {
         console.log('Firebase not configured - using localStorage only');
     }
