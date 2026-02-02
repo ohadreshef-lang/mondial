@@ -240,6 +240,24 @@ header h1 {
     background: rgba(220, 38, 38, 0.1);
 }
 
+.title-controls {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.title-controls .form-group {
+    margin-bottom: 1rem;
+}
+
+.title-controls .form-group input {
+    width: 100%;
+}
+
+.title-controls .btn-primary {
+    width: 100%;
+}
+
 .admin-actions {
     display: flex;
     gap: 0.5rem;

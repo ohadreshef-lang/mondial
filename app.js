@@ -3,13 +3,19 @@
 
 const APP_STORAGE_KEY = 'blameAllocationApp';
 
+// Default titles
+const DEFAULT_TITLE = 'מי אשם בנפילת הדמוקרטיה בישראל?';
+const DEFAULT_SUBTITLE = 'חלקו 100% אחריות בין הגורמים השונים';
+
 // Application State
 let state = {
     options: [], // { id: string, name: string }
     votes: [],   // { allocations: { [optionId]: number }, name: string, email: string }
     votedEmails: [], // List of emails that have already voted
     currentAllocations: {}, // Current user's allocation before submitting
-    currentUser: null // { name: string, email: string }
+    currentUser: null, // { name: string, email: string }
+    title: DEFAULT_TITLE,
+    subtitle: DEFAULT_SUBTITLE
 };
 
 // Check if admin mode via URL parameter
@@ -41,6 +47,11 @@ const elements = {
     resultsPanel: document.getElementById('resultsPanel'),
 
     // Admin elements
+    editMainTitle: document.getElementById('editMainTitle'),
+    editSubtitle: document.getElementById('editSubtitle'),
+    saveTitlesBtn: document.getElementById('saveTitlesBtn'),
+    mainTitle: document.getElementById('mainTitle'),
+    mainSubtitle: document.getElementById('mainSubtitle'),
     newOptionInput: document.getElementById('newOptionInput'),
     addOptionBtn: document.getElementById('addOptionBtn'),
     optionsList: document.getElementById('optionsList'),
@@ -87,6 +98,10 @@ function initAdminMode() {
     elements.userPanel.classList.add('hidden');
     elements.adminModeBtn.classList.add('active');
     elements.userModeBtn.classList.remove('active');
+
+    // Populate title edit fields with current values
+    elements.editMainTitle.value = state.title;
+    elements.editSubtitle.value = state.subtitle;
 }
 
 // Initialize user mode - show entrance, hide admin controls
@@ -106,6 +121,8 @@ function loadState() {
             state.options = parsed.options || [];
             state.votes = parsed.votes || [];
             state.votedEmails = parsed.votedEmails || [];
+            state.title = parsed.title || DEFAULT_TITLE;
+            state.subtitle = parsed.subtitle || DEFAULT_SUBTITLE;
         }
     } catch (e) {
         console.error('Error loading state:', e);
@@ -113,6 +130,9 @@ function loadState() {
 
     // Initialize current allocations
     resetCurrentAllocations();
+
+    // Apply titles to header
+    updateTitlesDisplay();
 }
 
 // Save state to localStorage
@@ -121,11 +141,36 @@ function saveState() {
         localStorage.setItem(APP_STORAGE_KEY, JSON.stringify({
             options: state.options,
             votes: state.votes,
-            votedEmails: state.votedEmails
+            votedEmails: state.votedEmails,
+            title: state.title,
+            subtitle: state.subtitle
         }));
     } catch (e) {
         console.error('Error saving state:', e);
     }
+}
+
+// Update titles display in header
+function updateTitlesDisplay() {
+    elements.mainTitle.textContent = state.title;
+    elements.mainSubtitle.textContent = state.subtitle;
+    document.title = state.title;
+}
+
+// Save titles (admin)
+function saveTitles() {
+    const newTitle = elements.editMainTitle.value.trim();
+    const newSubtitle = elements.editSubtitle.value.trim();
+
+    if (newTitle) {
+        state.title = newTitle;
+    }
+    if (newSubtitle) {
+        state.subtitle = newSubtitle;
+    }
+
+    saveState();
+    updateTitlesDisplay();
 }
 
 // Reset current allocations to zero
@@ -151,7 +196,10 @@ function setupEventListeners() {
     elements.userModeBtn.addEventListener('click', () => switchMode('user'));
     elements.adminModeBtn.addEventListener('click', () => switchMode('admin'));
 
-    // Admin actions
+    // Admin actions - titles
+    elements.saveTitlesBtn.addEventListener('click', saveTitles);
+
+    // Admin actions - options
     elements.addOptionBtn.addEventListener('click', addOption);
     elements.newOptionInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addOption();

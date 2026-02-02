@@ -9,8 +9,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>מי אשם בנפילת הדמוקרטיה בישראל?</h1>
-            <p class="subtitle">חלקו 100% אחריות בין הגורמים השונים</p>
+            <h1 id="mainTitle">מי אשם בנפילת הדמוקרטיה בישראל?</h1>
+            <p id="mainSubtitle" class="subtitle">חלקו 100% אחריות בין הגורמים השונים</p>
         </header>
 
         <!-- Entrance Screen -->
@@ -45,6 +45,19 @@
 
             <!-- Admin Panel -->
         <section id="adminPanel" class="panel hidden">
+            <h2>ניהול כותרות</h2>
+            <div class="admin-controls title-controls">
+                <div class="form-group">
+                    <label for="editMainTitle">כותרת ראשית</label>
+                    <input type="text" id="editMainTitle" placeholder="כותרת ראשית...">
+                </div>
+                <div class="form-group">
+                    <label for="editSubtitle">כותרת משנה</label>
+                    <input type="text" id="editSubtitle" placeholder="כותרת משנה...">
+                </div>
+                <button id="saveTitlesBtn" class="btn-primary">שמור כותרות</button>
+            </div>
+
             <h2>ניהול אפשרויות</h2>
             <div class="admin-controls">
                 <div class="add-option">
