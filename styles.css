@@ -442,6 +442,81 @@ input[type="range"]::-moz-range-thumb {
     color: var(--text-secondary);
 }
 
+/* Entrance Panel */
+.entrance-panel {
+    max-width: 450px;
+    margin: 0 auto 1.5rem;
+}
+
+.entrance-panel h2 {
+    text-align: center;
+    border-bottom: none;
+    font-size: 1.5rem;
+}
+
+.entrance-subtitle {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.entrance-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 500;
+    font-size: 0.9375rem;
+}
+
+.form-group input {
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.form-group input.error {
+    border-color: var(--danger-color);
+}
+
+.error-message {
+    color: var(--danger-color);
+    font-size: 0.875rem;
+}
+
+.already-voted {
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(220, 38, 38, 0.1);
+    border-radius: 0.75rem;
+    margin-top: 1rem;
+}
+
+.already-voted p {
+    color: var(--danger-color);
+    margin-bottom: 0.5rem;
+}
+
+.already-voted p:last-child {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
 /* Footer */
 footer {
     text-align: center;

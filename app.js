@@ -6,12 +6,24 @@ const APP_STORAGE_KEY = 'blameAllocationApp';
 // Application State
 let state = {
     options: [], // { id: string, name: string }
-    votes: [],   // { allocations: { [optionId]: number } }
-    currentAllocations: {} // Current user's allocation before submitting
+    votes: [],   // { allocations: { [optionId]: number }, name: string, email: string }
+    votedEmails: [], // List of emails that have already voted
+    currentAllocations: {}, // Current user's allocation before submitting
+    currentUser: null // { name: string, email: string }
 };
 
 // DOM Elements
 const elements = {
+    // Entrance elements
+    entrancePanel: document.getElementById('entrancePanel'),
+    entranceForm: document.getElementById('entranceForm'),
+    userName: document.getElementById('userName'),
+    userEmail: document.getElementById('userEmail'),
+    emailError: document.getElementById('emailError'),
+    enterBtn: document.getElementById('enterBtn'),
+    alreadyVotedMessage: document.getElementById('alreadyVotedMessage'),
+    mainApp: document.getElementById('mainApp'),
+
     // Mode buttons
     userModeBtn: document.getElementById('userModeBtn'),
     adminModeBtn: document.getElementById('adminModeBtn'),
@@ -60,6 +72,7 @@ function loadState() {
             const parsed = JSON.parse(saved);
             state.options = parsed.options || [];
             state.votes = parsed.votes || [];
+            state.votedEmails = parsed.votedEmails || [];
         }
     } catch (e) {
         console.error('Error loading state:', e);
@@ -74,7 +87,8 @@ function saveState() {
     try {
         localStorage.setItem(APP_STORAGE_KEY, JSON.stringify({
             options: state.options,
-            votes: state.votes
+            votes: state.votes,
+            votedEmails: state.votedEmails
         }));
     } catch (e) {
         console.error('Error saving state:', e);
@@ -96,6 +110,10 @@ function generateId() {
 
 // Setup event listeners
 function setupEventListeners() {
+    // Entrance form
+    elements.entranceForm.addEventListener('submit', handleEntranceSubmit);
+    elements.userEmail.addEventListener('input', clearEmailError);
+
     // Mode toggle
     elements.userModeBtn.addEventListener('click', () => switchMode('user'));
     elements.adminModeBtn.addEventListener('click', () => switchMode('admin'));
@@ -110,7 +128,60 @@ function setupEventListeners() {
 
     // User actions
     elements.submitVoteBtn.addEventListener('click', submitVote);
-    elements.voteAgainBtn.addEventListener('click', voteAgain);
+}
+
+// Validate email format
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// Check if email has already voted
+function hasAlreadyVoted(email) {
+    const normalizedEmail = email.toLowerCase().trim();
+    return state.votedEmails.includes(normalizedEmail);
+}
+
+// Clear email error message
+function clearEmailError() {
+    elements.emailError.classList.add('hidden');
+    elements.emailError.textContent = '';
+    elements.userEmail.classList.remove('error');
+    elements.alreadyVotedMessage.classList.add('hidden');
+    elements.entranceForm.classList.remove('hidden');
+}
+
+// Handle entrance form submission
+function handleEntranceSubmit(e) {
+    e.preventDefault();
+
+    const name = elements.userName.value.trim();
+    const email = elements.userEmail.value.trim();
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+        elements.emailError.textContent = 'אנא הזינו כתובת אימייל תקינה';
+        elements.emailError.classList.remove('hidden');
+        elements.userEmail.classList.add('error');
+        return;
+    }
+
+    // Check if email has already voted
+    if (hasAlreadyVoted(email)) {
+        elements.entranceForm.classList.add('hidden');
+        elements.alreadyVotedMessage.classList.remove('hidden');
+        return;
+    }
+
+    // Store current user and proceed to voting
+    state.currentUser = {
+        name: name,
+        email: email.toLowerCase().trim()
+    };
+
+    // Show main app
+    elements.entrancePanel.classList.add('hidden');
+    elements.mainApp.classList.remove('hidden');
 }
 
 // Switch between user and admin mode
@@ -295,11 +366,18 @@ function updateSliderDisplay(id, value) {
 function submitVote() {
     const total = Object.values(state.currentAllocations).reduce((sum, val) => sum + val, 0);
     if (total !== 100) return;
+    if (!state.currentUser) return;
 
+    // Add vote with user info
     state.votes.push({
         allocations: { ...state.currentAllocations },
+        name: state.currentUser.name,
+        email: state.currentUser.email,
         timestamp: new Date().toISOString()
     });
+
+    // Mark email as voted
+    state.votedEmails.push(state.currentUser.email);
 
     saveState();
 
@@ -308,15 +386,6 @@ function submitVote() {
     elements.thankYouMessage.classList.remove('hidden');
 
     renderResults();
-}
-
-// Vote again
-function voteAgain() {
-    resetCurrentAllocations();
-    elements.thankYouMessage.classList.add('hidden');
-    elements.userPanel.classList.remove('hidden');
-    renderSliders();
-    updateTotalDisplay();
 }
 
 // Calculate aggregated results

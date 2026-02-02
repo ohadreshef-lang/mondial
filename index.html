@@ -13,12 +13,36 @@
             <p class="subtitle">חלקו 100% אחריות בין הגורמים השונים</p>
         </header>
 
-        <nav class="mode-toggle">
-            <button id="userModeBtn" class="mode-btn active">מצב משתמש</button>
-            <button id="adminModeBtn" class="mode-btn">מצב מנהל</button>
-        </nav>
+        <!-- Entrance Screen -->
+        <section id="entrancePanel" class="panel entrance-panel">
+            <h2>הזדהות</h2>
+            <p class="entrance-subtitle">אנא הזינו את הפרטים שלכם כדי להצביע</p>
+            <form id="entranceForm" class="entrance-form">
+                <div class="form-group">
+                    <label for="userName">שם מלא</label>
+                    <input type="text" id="userName" placeholder="הזינו את שמכם..." required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">כתובת אימייל</label>
+                    <input type="email" id="userEmail" placeholder="example@email.com" required>
+                    <span id="emailError" class="error-message hidden"></span>
+                </div>
+                <button type="submit" id="enterBtn" class="btn-primary btn-large">כניסה להצבעה</button>
+            </form>
+            <div id="alreadyVotedMessage" class="already-voted hidden">
+                <p>כתובת האימייל הזו כבר הצביעה.</p>
+                <p>ניתן להצביע פעם אחת בלבד.</p>
+            </div>
+        </section>
 
-        <!-- Admin Panel -->
+        <!-- Main App Container (hidden until login) -->
+        <div id="mainApp" class="hidden">
+            <nav class="mode-toggle">
+                <button id="userModeBtn" class="mode-btn active">מצב משתמש</button>
+                <button id="adminModeBtn" class="mode-btn">מצב מנהל</button>
+            </nav>
+
+            <!-- Admin Panel -->
         <section id="adminPanel" class="panel hidden">
             <h2>ניהול אפשרויות</h2>
             <div class="admin-controls">
@@ -63,11 +87,11 @@
             <p id="voteCount" class="vote-count"></p>
         </section>
 
-        <!-- Thank You Message -->
-        <div id="thankYouMessage" class="thank-you hidden">
-            <h2>תודה על הצבעתך!</h2>
-            <p>הקולות נספרו</p>
-            <button id="voteAgainBtn" class="btn-secondary">הצבע שוב</button>
+            <!-- Thank You Message -->
+            <div id="thankYouMessage" class="thank-you hidden">
+                <h2>תודה על הצבעתך!</h2>
+                <p>הקולות נספרו</p>
+            </div>
         </div>
     </div>
 
