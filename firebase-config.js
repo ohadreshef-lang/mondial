@@ -16,13 +16,13 @@
 //    }
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAxE0_b23h9EBOd-BOhszpAU8f8b8Bm6JQ",
+    authDomain: "blameme-b9f66.firebaseapp.com",
+    databaseURL: "https://blameme-b9f66-default-rtdb.firebaseio.com",
+    projectId: "blameme-b9f66",
+    storageBucket: "blameme-b9f66.firebasestorage.app",
+    messagingSenderId: "369836750399",
+    appId: "1:369836750399:web:a866bcc343b4ad50186a8a"
 };
 
 // Initialize Firebase
