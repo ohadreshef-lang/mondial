@@ -528,6 +528,16 @@ function renderOptions() {
     });
 }
 
+// Shuffle array (Fisher-Yates algorithm)
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 // Render user sliders
 function renderSliders() {
     if (state.options.length === 0) {
@@ -541,7 +551,10 @@ function renderSliders() {
 
     elements.sliderContainer.innerHTML = '';
 
-    state.options.forEach(option => {
+    // Shuffle options for regular users, keep original order for admin
+    const displayOptions = isAdminMode() ? state.options : shuffleArray(state.options);
+
+    displayOptions.forEach(option => {
         const value = state.currentAllocations[option.id] || 0;
         const item = document.createElement('div');
         item.className = 'slider-item';
