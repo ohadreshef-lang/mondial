@@ -61,6 +61,7 @@ const elements = {
     optionsList: document.getElementById('optionsList'),
     resetResultsBtn: document.getElementById('resetResultsBtn'),
     exportDataBtn: document.getElementById('exportDataBtn'),
+    individualVotesContainer: document.getElementById('individualVotesContainer'),
 
     // User elements
     noOptionsMessage: document.getElementById('noOptionsMessage'),
@@ -602,6 +603,11 @@ function render() {
     renderSliders();
     renderResults();
     updateTotalDisplay();
+
+    // Render individual votes for admin
+    if (isAdminMode()) {
+        renderIndividualVotes();
+    }
 }
 
 // Render admin options list
@@ -693,6 +699,69 @@ function renderResults() {
     });
 
     elements.voteCount.textContent = `סה"כ ${state.votes.length} הצבעות`;
+}
+
+// Render individual votes (admin only)
+function renderIndividualVotes() {
+    if (!elements.individualVotesContainer) return;
+
+    if (state.votes.length === 0) {
+        elements.individualVotesContainer.innerHTML = '<p class="no-votes-message">אין הצבעות עדיין</p>';
+        return;
+    }
+
+    elements.individualVotesContainer.innerHTML = '';
+
+    // Create option name lookup
+    const optionNames = {};
+    state.options.forEach(opt => {
+        optionNames[opt.id] = opt.name;
+    });
+
+    // Sort votes by timestamp (newest first)
+    const sortedVotes = [...state.votes].sort((a, b) => {
+        return new Date(b.timestamp) - new Date(a.timestamp);
+    });
+
+    sortedVotes.forEach((vote, index) => {
+        const card = document.createElement('div');
+        card.className = 'vote-card';
+
+        // Format timestamp
+        let timeStr = '';
+        if (vote.timestamp) {
+            const date = new Date(vote.timestamp);
+            timeStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Build allocations HTML
+        let allocationsHtml = '';
+        Object.entries(vote.allocations).forEach(([optionId, value]) => {
+            const optionName = optionNames[optionId] || 'אפשרות שנמחקה';
+            const zeroClass = value === 0 ? 'zero' : '';
+            allocationsHtml += `
+                <div class="vote-allocation-item">
+                    <span class="vote-allocation-name">${escapeHtml(optionName)}</span>
+                    <span class="vote-allocation-value ${zeroClass}">${value}%</span>
+                </div>
+            `;
+        });
+
+        card.innerHTML = `
+            <div class="vote-card-header">
+                <div class="vote-card-user">
+                    <span class="vote-card-name">${escapeHtml(vote.name || 'אנונימי')}</span>
+                    <span class="vote-card-email">${escapeHtml(vote.email || '')}</span>
+                </div>
+                <span class="vote-card-time">${timeStr}</span>
+            </div>
+            <div class="vote-card-allocations">
+                ${allocationsHtml}
+            </div>
+        `;
+
+        elements.individualVotesContainer.appendChild(card);
+    });
 }
 
 // Utility: Escape HTML

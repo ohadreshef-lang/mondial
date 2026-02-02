@@ -561,6 +561,89 @@ input[type="range"]::-moz-range-thumb {
     display: none;
 }
 
+/* Individual Votes (Admin) */
+.individual-votes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.vote-card {
+    background: var(--background);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    border-right: 4px solid var(--primary-color);
+}
+
+.vote-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.vote-card-user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.vote-card-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.vote-card-email {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.vote-card-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: left;
+}
+
+.vote-card-allocations {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vote-allocation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.vote-allocation-name {
+    color: var(--text-primary);
+}
+
+.vote-allocation-value {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 45px;
+    text-align: left;
+}
+
+.vote-allocation-value.zero {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.no-votes-message {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
 /* Messages */
 .message {
     text-align: center;
