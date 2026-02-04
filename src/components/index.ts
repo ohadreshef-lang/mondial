@@ -1,0 +1,9 @@
+export { default as Header } from './Header';
+export { default as Footer } from './Footer';
+export { default as RatingStars } from './RatingStars';
+export { default as PlatformCard } from './PlatformCard';
+export { default as ComparisonTable } from './ComparisonTable';
+export { default as CategoryCard } from './CategoryCard';
+export { default as FAQ } from './FAQ';
+export { default as HowItWorks } from './HowItWorks';
+export { default as AffiliateDisclosure } from './AffiliateDisclosure';
