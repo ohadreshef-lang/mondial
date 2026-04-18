@@ -91,7 +91,7 @@ function formatDate(dateStr) {
 }
 
 function matchIsLocked(match) {
-    return new Date(match.date) <= new Date();
+    return new Date(match.date) - new Date() <= 60 * 60 * 1000; // lock 1 hour before kickoff
 }
 
 function $ (id) { return document.getElementById(id); }
@@ -200,7 +200,8 @@ async function handleLogin(e) {
             .catch(err => console.warn('Firebase user sync failed:', err.message));
     }
 
-    enterApp();
+    // Reload so the init picks up the saved user — same path that already works
+    window.location.reload();
 }
 
 function handleLogout() {
