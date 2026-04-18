@@ -9,7 +9,7 @@ const FB_ROOT = 'worldcup2026';
 const STAGE_LABELS = {
     group: 'שלב הבתים',
     R32:   'שלב 32',
-    R16:   'שמינייה',
+    R16:   'שלב 16',
     QF:    'רבע גמר',
     SF:    'חצי גמר',
     '3rd': 'מקום שלישי',
@@ -946,6 +946,9 @@ const SEED_MATCHES = [
     { team1:'קרואטיה', team2:'פנמה', date:'2026-06-24T01:00', stage:'group', group:'L' },
     { team1:'אנגליה', team2:'פנמה', date:'2026-06-28T04:00', stage:'group', group:'L' },
     { team1:'קרואטיה', team2:'גאנה', date:'2026-06-28T04:00', stage:'group', group:'L' },
+
+    // מקום שלישי
+    { team1:'TBD', team2:'TBD', date:'2026-07-18T22:00', stage:'3rd', group: null },
 ];
 
 async function adminSeedMatches() {
