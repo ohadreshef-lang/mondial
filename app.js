@@ -84,10 +84,16 @@ function emailToId(email) {
     return email.toLowerCase().replace(/[.#$[\]/]/g, '_');
 }
 
+// Stored dates have no timezone suffix and are intended as Israeli time (IDT = UTC+3).
+// Appending +03:00 ensures they're parsed correctly regardless of the host environment.
+function parseMatchDate(dateStr) {
+    if (!dateStr) return new Date(0);
+    return new Date(dateStr + '+03:00');
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleString('he-IL', {
+    return parseMatchDate(dateStr).toLocaleString('he-IL', {
         weekday: 'short', day: 'numeric', month: 'numeric',
         hour: '2-digit', minute: '2-digit',
         timeZone: 'Asia/Jerusalem',
@@ -95,7 +101,7 @@ function formatDate(dateStr) {
 }
 
 function matchIsLocked(match) {
-    return new Date(match.date) - new Date() <= 60 * 60 * 1000; // lock 1 hour before kickoff
+    return parseMatchDate(match.date) - new Date() <= 60 * 60 * 1000;
 }
 
 function $ (id) { return document.getElementById(id); }
@@ -308,7 +314,7 @@ function renderMatches() {
         .map(([id, m]) => ({ id, ...m }))
         .filter(m => stageFilter === 'all' || m.stage === stageFilter)
         .sort((a, b) => {
-            const diff = new Date(a.date) - new Date(b.date);
+            const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
             if (diff !== 0) return diff;
             return (a.group || '').localeCompare(b.group || '');
         });
@@ -493,7 +499,7 @@ function renderMyBets() {
     const sorted = betEntries
         .map(([matchId, bet]) => ({ matchId, bet, match: matches[matchId] }))
         .filter(x => x.match)
-        .sort((a, b) => new Date(a.match.date) - new Date(b.match.date));
+        .sort((a, b) => parseMatchDate(a.match.date) - parseMatchDate(b.match.date));
 
     let html = '';
     sorted.forEach(({ matchId, bet, match: m }) => {
@@ -626,7 +632,7 @@ function loadAdminMatches() {
 
 function renderAdminMatches(data) {
     const container = $('admin-matches-container');
-    const list = Object.entries(data).sort((a, b) => new Date(a[1].date) - new Date(b[1].date));
+    const list = Object.entries(data).sort((a, b) => parseMatchDate(a[1].date) - parseMatchDate(b[1].date));
 
     if (list.length === 0) {
         container.innerHTML = '<p class="state-msg">אין משחקים עדיין.</p>';
