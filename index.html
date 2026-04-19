@@ -79,6 +79,7 @@
                 </div>
                 <div class="group-switcher-wrap">
                     <button id="btn-group-switcher" class="group-switch-btn" type="button">
+                        <img id="active-group-logo" class="group-logo group-logo-sm hidden" alt="">
                         <span id="active-group-name">—</span>
                         <span class="group-switch-caret">▾</span>
                     </button>
@@ -113,6 +114,7 @@
         <main class="app-content">
             <!-- MATCHES TAB -->
             <div id="tab-matches" class="tab-panel active">
+                <div class="matches-lock-notice" data-i18n="match.lockNotice">⏰ כל הניחושים נסגרים שעה לפני פתיחת המשחק</div>
                 <div class="stage-filter" id="stage-filter">
                     <button class="filter-btn active" data-stage="all" data-i18n="stage.all">הכל</button>
                     <button class="filter-btn" data-stage="group" data-i18n="stage.groupShort">בתים</button>
@@ -188,6 +190,24 @@
             <!-- Admin Content (shown after auth) -->
             <div id="admin-content" style="display:none">
 
+                <nav class="tab-bar admin-tab-bar">
+                    <button class="tab-btn active" data-admin-tab="matches">
+                        <span class="tab-icon">📋</span><span data-i18n="admin.tabMatches">משחקים</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="users">
+                        <span class="tab-icon">👥</span><span data-i18n="admin.tabUsers">משתמשים</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="groups">
+                        <span class="tab-icon">👨‍👩‍👧</span><span data-i18n="admin.tabGroups">קבוצות</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="tournament">
+                        <span class="tab-icon">🏆</span><span data-i18n="admin.tabTournament">טורניר</span>
+                    </button>
+                </nav>
+
+                <!-- Admin Matches Tab -->
+                <div id="admin-tab-matches" class="tab-panel active">
+
                 <!-- Add Match -->
                 <div class="admin-section">
                     <h3 data-i18n="admin.addMatchTitle">➕ הוסף משחק</h3>
@@ -234,13 +254,30 @@
                     </div>
                 </div>
 
-                <!-- Users Management -->
-                <div class="admin-section">
-                    <h3 data-i18n="admin.usersTitle">👥 ניהול משתמשים</h3>
-                    <div id="admin-users-container">
-                        <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                </div><!-- /#admin-tab-matches -->
+
+                <!-- Admin Users Tab -->
+                <div id="admin-tab-users" class="tab-panel">
+                    <div class="admin-section">
+                        <h3 data-i18n="admin.usersTitle">👥 ניהול משתמשים</h3>
+                        <div id="admin-users-container">
+                            <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                        </div>
                     </div>
-                </div>
+                </div><!-- /#admin-tab-users -->
+
+                <!-- Admin Groups Tab -->
+                <div id="admin-tab-groups" class="tab-panel">
+                    <div class="admin-section">
+                        <h3 data-i18n="admin.groupsTitle">👨‍👩‍👧 ניהול קבוצות</h3>
+                        <div id="admin-groups-container">
+                            <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                        </div>
+                    </div>
+                </div><!-- /#admin-tab-groups -->
+
+                <!-- Admin Tournament Tab -->
+                <div id="admin-tab-tournament" class="tab-panel">
 
                 <!-- Tournament Bets Management -->
                 <div class="admin-section">
@@ -258,6 +295,7 @@
                         <button id="btn-save-tournament-result" class="btn btn-primary" data-i18n="admin.saveTournamentResult">שמור תוצאה ↦ חשב נקודות</button>
                     </div>
                 </div>
+                </div><!-- /#admin-tab-tournament -->
             </div>
         </div>
     </section>
@@ -381,6 +419,18 @@
                 <div class="form-row">
                     <input type="text" id="group-settings-name" maxlength="40">
                     <button id="btn-rename-group" class="btn btn-primary btn-sm" data-i18n="groupSettings.saveName">שמור שם</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label data-i18n="groupSettings.logoLabel">לוגו הקבוצה</label>
+                <div class="group-logo-preview-wrap">
+                    <img id="group-settings-logo" class="group-logo group-logo-lg hidden" alt="">
+                    <span id="group-settings-logo-placeholder" class="group-logo group-logo-lg group-logo-placeholder">?</span>
+                    <div id="group-logo-controls" class="group-logo-controls">
+                        <label for="group-logo-input" class="btn btn-secondary btn-sm" data-i18n="groupSettings.logoUpload">העלה לוגו</label>
+                        <input type="file" id="group-logo-input" accept="image/*" class="hidden">
+                        <button id="btn-remove-logo" type="button" class="btn btn-ghost btn-sm" data-i18n="groupSettings.logoRemove">הסר לוגו</button>
+                    </div>
                 </div>
             </div>
             <div class="field-group">

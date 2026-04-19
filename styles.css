@@ -1257,3 +1257,75 @@ section { display: block; }
 @media (max-width: 420px) {
     .lang-toggle-btn { padding: 3px 7px; font-size: .7rem; min-width: 28px; }
 }
+
+/* ===== Admin user group badges ===== */
+.admin-user-groups {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.group-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: .75rem;
+    background: #e5e7eb;
+    color: #374151;
+    border-radius: 999px;
+    font-weight: 500;
+}
+.group-badge-owner {
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 600;
+}
+.admin-tab-bar { margin-bottom: 16px; }
+
+/* ===== Matches lock notice ===== */
+.matches-lock-notice {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 0 0 10px 0;
+    font-size: .85rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* ===== Group logos ===== */
+.group-logo {
+    display: inline-block;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e5e7eb;
+    vertical-align: middle;
+}
+.group-logo-sm { width: 24px; height: 24px; margin-inline-end: 6px; }
+.group-logo-lg { width: 80px; height: 80px; }
+.group-logo-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary, #2563eb);
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.group-logo-sm.group-logo-placeholder { font-size: .8rem; }
+.group-logo-lg.group-logo-placeholder { font-size: 2rem; }
+.group-logo-preview-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.group-logo-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.group-switch-list .group-logo-sm { margin-inline-end: 8px; }
+

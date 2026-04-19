@@ -163,6 +163,25 @@ function matchIsLocked(match) {
     return parseMatchDate(match.date) - new Date() <= 60 * 60 * 1000;
 }
 
+function formatCountdown(ms) {
+    if (ms <= 0) return t('match.started');
+    const s = Math.floor(ms / 1000);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+setInterval(() => {
+    document.querySelectorAll('.match-countdown[data-match-date]').forEach(el => {
+        const diff = parseMatchDate(el.dataset.matchDate) - new Date();
+        el.textContent = formatCountdown(diff);
+    });
+}, 1000);
+
 function $ (id) { return document.getElementById(id); }
 
 function show(id)  { const e=$(id); e.classList.remove('hidden'); e.style.display=''; }
@@ -388,7 +407,7 @@ function startFirebaseListeners() {
             await Promise.all(gids.map(async gid => {
                 const gsnap = await ref(`groups/${gid}`).once('value');
                 const g = gsnap.val();
-                if (g) meta[gid] = { name: g.name, ownerId: g.ownerId, inviteCode: g.inviteCode };
+                if (g) meta[gid] = { name: g.name, ownerId: g.ownerId, inviteCode: g.inviteCode, logoUrl: g.logoUrl || null };
             }));
             userGroups = meta;
             // If the active group was deleted out from under us, bounce to picker or another group
@@ -520,7 +539,8 @@ function buildMatchCard(m) {
     } else if (locked) {
         badgeClass = 'badge-locked'; badgeText = t('match.status.locked');
     } else {
-        badgeClass = 'badge-upcoming'; badgeText = t('match.status.upcoming');
+        badgeClass = 'badge-upcoming match-countdown';
+        badgeText = formatCountdown(parseMatchDate(m.date) - new Date());
     }
 
     // Middle content
@@ -571,7 +591,7 @@ function buildMatchCard(m) {
     <div class="match-card" id="card-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
-            <span class="match-status-badge ${badgeClass}">${badgeText}</span>
+            <span class="match-status-badge ${badgeClass}" data-match-date="${m.date}">${badgeText}</span>
         </div>
         <div class="match-card-body">
             <div class="match-teams-row">
@@ -921,6 +941,16 @@ function setupAdminListeners() {
     $('btn-seed-matches').addEventListener('click', adminSeedMatches);
     $('btn-change-password').addEventListener('click', adminChangePassword);
     $('btn-save-tournament-result').addEventListener('click', adminSaveTournamentResult);
+
+    document.querySelectorAll('.admin-tab-bar .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.adminTab;
+            document.querySelectorAll('.admin-tab-bar .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+            document.querySelectorAll('#admin-content > .tab-panel').forEach(p => {
+                p.classList.toggle('active', p.id === `admin-tab-${target}`);
+            });
+        });
+    });
 }
 
 function attemptAdminLogin() {
@@ -935,6 +965,7 @@ function attemptAdminLogin() {
             show('admin-content');
             loadAdminMatches();
             loadAdminUsers();
+            loadAdminGroups();
             loadAdminTournament();
         } else {
             showEl(errEl);
@@ -1169,18 +1200,34 @@ async function renderAdminUsers(data) {
         return;
     }
 
-    // Count each user's groups (for display)
-    const userGroupsSnap = await ref('userGroups').once('value');
+    // Load all groups once for name + owner lookups
+    const [userGroupsSnap, groupsSnap] = await Promise.all([
+        ref('userGroups').once('value'),
+        ref('groups').once('value'),
+    ]);
     const ugData = userGroupsSnap.val() || {};
+    const groupsData = groupsSnap.val() || {};
 
     let html = '';
     list.forEach(([userId, u]) => {
-        const groupCount = Object.keys(ugData[userId] || {}).length;
+        const gids = Object.keys(ugData[userId] || {});
+        const groupBadges = gids.map(gid => {
+            const g = groupsData[gid];
+            if (!g) return '';
+            const isOwner = g.ownerId === userId;
+            const cls = isOwner ? 'group-badge group-badge-owner' : 'group-badge';
+            const label = isOwner ? ` 👑` : '';
+            return `<span class="${cls}">${escapeHtml(g.name)}${label}</span>`;
+        }).join('');
+        const groupsLine = gids.length
+            ? `<div class="admin-user-groups">${groupBadges}</div>`
+            : `<div class="admin-match-meta">${t('admin.noGroups')}</div>`;
         html += `
         <div class="admin-match-row" id="admin-user-row-${userId}">
             <div class="admin-match-info">
                 <div class="admin-match-teams">${escapeHtml(u.name)}</div>
-                <div class="admin-match-meta">${escapeHtml(u.email)} · ${groupCount} ${t('admin.groupsCount')}</div>
+                <div class="admin-match-meta">${escapeHtml(u.email)} · ${gids.length} ${t('admin.groupsCount')}</div>
+                ${groupsLine}
             </div>
             <div class="admin-match-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${userId}')">${t('admin.userEditName')}</button>
@@ -1228,6 +1275,88 @@ async function adminDeleteUser(userId, userName) {
     updates[`users/${userId}`] = null;
 
     await db.ref(FB_ROOT).update(updates);
+    loadAdminUsers();
+    loadAdminGroups();
+}
+
+// ============================================================
+// ADMIN: GROUPS MANAGEMENT
+// ============================================================
+
+function loadAdminGroups() {
+    if (!db) {
+        $('admin-groups-container').innerHTML = '<p class="state-msg">Firebase לא מחובר</p>';
+        return;
+    }
+    Promise.all([
+        ref('groups').once('value'),
+        ref('users').once('value'),
+    ]).then(([gSnap, uSnap]) => {
+        renderAdminGroups(gSnap.val() || {}, uSnap.val() || {});
+    }).catch(err => {
+        console.error('Failed to load groups:', err);
+        $('admin-groups-container').innerHTML =
+            '<p class="state-msg" style="color:#e53e3e">Error loading groups.</p>';
+    });
+}
+
+function renderAdminGroups(groupsData, usersData) {
+    const container = $('admin-groups-container');
+    const list = Object.entries(groupsData).sort((a, b) =>
+        (a[1].name || '').localeCompare(b[1].name || '')
+    );
+
+    if (list.length === 0) {
+        container.innerHTML = `<p class="state-msg">${t('admin.noGroupsYet')}</p>`;
+        return;
+    }
+
+    let html = '';
+    list.forEach(([gid, g]) => {
+        const owner = usersData[g.ownerId];
+        const ownerName = owner ? owner.name : '—';
+        const memberCount = Object.keys(g.members || {}).length;
+        const logo = g.logoUrl
+            ? `<img class="group-logo group-logo-sm" src="${escapeHtml(g.logoUrl)}" alt="">`
+            : `<span class="group-logo group-logo-sm group-logo-placeholder">${escapeHtml((g.name || '?').charAt(0))}</span>`;
+        html += `
+        <div class="admin-match-row" id="admin-group-row-${gid}">
+            <div class="admin-match-info">
+                <div class="admin-match-teams">${logo}${escapeHtml(g.name)}</div>
+                <div class="admin-match-meta">
+                    ${t('admin.groupOwner')}: ${escapeHtml(ownerName)} ·
+                    ${t('admin.groupCode')}: <code>${escapeHtml(g.inviteCode || '')}</code> ·
+                    ${memberCount} ${t('admin.groupsMembers')}
+                </div>
+            </div>
+            <div class="admin-match-actions">
+                <button class="btn btn-danger btn-sm" onclick="adminDeleteGroup('${gid}', '${escapeHtml(g.name).replace(/'/g, "\\'")}')">${t('common.delete')}</button>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+async function adminDeleteGroup(gid, groupName) {
+    if (!confirm(t('admin.deleteGroupConfirm', groupName))) return;
+    if (!db) return;
+
+    const gSnap = await ref(`groups/${gid}`).once('value');
+    const g = gSnap.val();
+    if (!g) return;
+    const memberIds = Object.keys(g.members || {});
+
+    const updates = {};
+    updates[`groups/${gid}`] = null;
+    updates[`bets/${gid}`] = null;
+    updates[`specialBets/${gid}`] = null;
+    if (g.inviteCode) updates[`inviteCodes/${g.inviteCode}`] = null;
+    for (const uid of memberIds) {
+        updates[`userGroups/${uid}/${gid}`] = null;
+    }
+    await db.ref(FB_ROOT).update(updates);
+    loadAdminGroups();
     loadAdminUsers();
 }
 
@@ -1406,9 +1535,19 @@ function toggleGroupSwitchMenu(forceState) {
 }
 
 function renderGroupSwitcher() {
-    // Active group label in app bar
+    // Active group label + logo in app bar
     const active = currentGroupId && userGroups[currentGroupId];
     $('active-group-name').textContent = active ? active.name : t('appBar.noGroup');
+    const hdrLogo = $('active-group-logo');
+    if (hdrLogo) {
+        if (active && active.logoUrl) {
+            hdrLogo.src = active.logoUrl;
+            hdrLogo.classList.remove('hidden');
+        } else {
+            hdrLogo.removeAttribute('src');
+            hdrLogo.classList.add('hidden');
+        }
+    }
 
     // Show/hide settings option based on ownership
     const settingsBtn = $('btn-open-group-settings');
@@ -1427,7 +1566,11 @@ function renderGroupSwitcher() {
     }
     list.innerHTML = entries.map(([gid, g]) => {
         const isActive = gid === currentGroupId;
+        const logo = g.logoUrl
+            ? `<img class="group-logo group-logo-sm" src="${escapeHtml(g.logoUrl)}" alt="">`
+            : `<span class="group-logo group-logo-sm group-logo-placeholder">${escapeHtml((g.name || '?').charAt(0))}</span>`;
         return `<button class="group-switch-item ${isActive ? 'active' : ''}" data-group-id="${gid}">
+            ${logo}
             <span>${escapeHtml(g.name)}</span>
             ${isActive ? '<span class="check-mark">✓</span>' : ''}
         </button>`;
@@ -1591,9 +1734,26 @@ async function openGroupSettingsModal() {
     $('settings-invite-code').textContent = g.inviteCode;
     hideEl($('group-settings-error'));
 
+    // Logo preview
+    const logoImg = $('group-settings-logo');
+    const logoPlaceholder = $('group-settings-logo-placeholder');
+    if (g.logoUrl) {
+        logoImg.src = g.logoUrl;
+        logoImg.classList.remove('hidden');
+        logoPlaceholder.classList.add('hidden');
+    } else {
+        logoImg.removeAttribute('src');
+        logoImg.classList.add('hidden');
+        logoPlaceholder.textContent = (g.name || '?').charAt(0);
+        logoPlaceholder.classList.remove('hidden');
+    }
+
     // Owner-only controls
     $('btn-rename-group').style.display = isOwner ? '' : 'none';
     $('group-settings-name').readOnly = !isOwner;
+    $('group-logo-controls').style.display = isOwner ? '' : 'none';
+    $('btn-remove-logo').style.display = (isOwner && g.logoUrl) ? '' : 'none';
+    $('group-logo-input').value = '';
     if (isOwner) $('btn-delete-group').classList.remove('hidden');
     else $('btn-delete-group').classList.add('hidden');
 
@@ -1778,6 +1938,80 @@ function setupGroupUIListeners() {
     $('btn-copy-settings-invite').addEventListener('click', (e) => {
         copyToClipboard($('settings-invite-code').textContent, e.currentTarget);
     });
+    $('group-logo-input').addEventListener('change', handleGroupLogoUpload);
+    $('btn-remove-logo').addEventListener('click', removeGroupLogo);
+}
+
+// ---- Group logo upload ----
+
+const LOGO_MAX_SIDE = 256;
+const LOGO_MAX_BYTES = 120 * 1024; // 120KB hard cap on stored data URL
+
+function resizeImageToDataUrl(file, maxSide) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = reject;
+            img.onload = () => {
+                const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                const w = Math.round(img.width * scale);
+                const h = Math.round(img.height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                // Try JPEG quality steps until under size cap
+                let q = 0.9;
+                let url = canvas.toDataURL('image/jpeg', q);
+                while (url.length > LOGO_MAX_BYTES && q > 0.4) {
+                    q -= 0.1;
+                    url = canvas.toDataURL('image/jpeg', q);
+                }
+                resolve(url);
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function handleGroupLogoUpload(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !currentGroupId || !db || !currentUser) return;
+    const g = userGroups[currentGroupId];
+    if (!g || g.ownerId !== currentUser.userId) return;
+    const errEl = $('group-settings-error');
+    hideEl(errEl);
+
+    if (!file.type.startsWith('image/')) {
+        errEl.textContent = t('groupSettings.logoNotImage');
+        showEl(errEl);
+        return;
+    }
+    try {
+        const dataUrl = await resizeImageToDataUrl(file, LOGO_MAX_SIDE);
+        await ref(`groups/${currentGroupId}/logoUrl`).set(dataUrl);
+        g.logoUrl = dataUrl;
+        // Refresh UI
+        openGroupSettingsModal();
+        renderGroupSwitcher();
+    } catch (err) {
+        console.error(err);
+        errEl.textContent = t('groupSettings.logoError');
+        showEl(errEl);
+    }
+}
+
+async function removeGroupLogo() {
+    if (!currentGroupId || !db || !currentUser) return;
+    const g = userGroups[currentGroupId];
+    if (!g || g.ownerId !== currentUser.userId) return;
+    await ref(`groups/${currentGroupId}/logoUrl`).remove();
+    g.logoUrl = null;
+    openGroupSettingsModal();
+    renderGroupSwitcher();
 }
 
 
