@@ -35,11 +35,50 @@
         </div>
     </section>
 
+    <!-- ===== GROUP PICKER SCREEN ===== -->
+    <section id="group-picker-screen" class="hidden">
+        <div class="group-picker-wrap">
+            <header class="group-picker-header">
+                <h1>⚽ מונדיאל 2026</h1>
+                <p class="group-picker-hello">שלום, <span id="picker-username"></span>!</p>
+                <p class="group-picker-subtitle">כדי להתחיל לנחש, הצטרף לקבוצה קיימת או צור חדשה</p>
+                <button id="btn-picker-logout" class="btn-text">יציאה</button>
+            </header>
+            <div class="group-picker-cards">
+                <div class="group-picker-card">
+                    <div class="group-picker-icon">➕</div>
+                    <h2>צור קבוצה חדשה</h2>
+                    <p>פתח קבוצה פרטית והזמן את החברים שלך עם קוד שיתוף</p>
+                    <button id="btn-picker-create" class="btn btn-primary btn-block">צור קבוצה</button>
+                </div>
+                <div class="group-picker-card">
+                    <div class="group-picker-icon">🔗</div>
+                    <h2>הצטרף לקבוצה</h2>
+                    <p>קיבלת קוד הזמנה מחבר? הכנס אותו כאן</p>
+                    <button id="btn-picker-join" class="btn btn-secondary btn-block">הצטרף עם קוד</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ===== MAIN APP ===== -->
     <section id="main-app" class="hidden">
         <header class="app-bar">
             <div class="app-bar-title">⚽ מונדיאל 2026</div>
             <div class="app-bar-user">
+                <div class="group-switcher-wrap">
+                    <button id="btn-group-switcher" class="group-switch-btn" type="button">
+                        <span id="active-group-name">—</span>
+                        <span class="group-switch-caret">▾</span>
+                    </button>
+                    <div id="group-switch-menu" class="group-switch-menu hidden">
+                        <div id="group-switch-list" class="group-switch-list"></div>
+                        <div class="group-switch-divider"></div>
+                        <button class="group-switch-action" id="btn-open-create-group" type="button">➕ קבוצה חדשה</button>
+                        <button class="group-switch-action" id="btn-open-join-group" type="button">🔗 הצטרף עם קוד</button>
+                        <button class="group-switch-action hidden" id="btn-open-group-settings" type="button">⚙️ הגדרות קבוצה</button>
+                    </div>
+                </div>
                 <span id="header-username"></span>
                 <button id="btn-logout" class="btn-text">יציאה</button>
             </div>
@@ -247,6 +286,78 @@
             <div class="modal-actions">
                 <button id="btn-save-edit-user" class="btn btn-primary">שמור שינויים</button>
                 <button id="btn-cancel-edit-user" class="btn btn-ghost">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Create Group ===== -->
+    <div id="create-group-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>צור קבוצה חדשה</h3>
+            <p class="modal-subtitle">תן לקבוצה שם שיזהה אותה</p>
+            <div class="field-group">
+                <label for="create-group-name">שם הקבוצה</label>
+                <input type="text" id="create-group-name" placeholder="למשל: החברים של יוסי" maxlength="40">
+            </div>
+            <p id="create-group-error" class="error-msg hidden"></p>
+            <div id="create-group-success" class="hidden">
+                <p class="modal-subtitle">הקבוצה נוצרה! שתף את הקוד עם החברים:</p>
+                <div class="invite-code-display">
+                    <span id="created-invite-code">------</span>
+                    <button id="btn-copy-invite" class="btn btn-secondary btn-sm" type="button">העתק</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-confirm-create-group" class="btn btn-primary">צור קבוצה</button>
+                <button id="btn-cancel-create-group" class="btn btn-ghost">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Join Group ===== -->
+    <div id="join-group-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>הצטרף לקבוצה</h3>
+            <p class="modal-subtitle">הכנס את קוד ההזמנה שקיבלת (6 תווים)</p>
+            <div class="field-group">
+                <label for="join-group-code">קוד הזמנה</label>
+                <input type="text" id="join-group-code" placeholder="ABC2F4" maxlength="6" class="invite-code-input">
+            </div>
+            <p id="join-group-error" class="error-msg hidden"></p>
+            <div class="modal-actions">
+                <button id="btn-confirm-join-group" class="btn btn-primary">הצטרף</button>
+                <button id="btn-cancel-join-group" class="btn btn-ghost">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Group Settings ===== -->
+    <div id="group-settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>הגדרות קבוצה</h3>
+            <div class="field-group">
+                <label for="group-settings-name">שם הקבוצה</label>
+                <div class="form-row">
+                    <input type="text" id="group-settings-name" maxlength="40">
+                    <button id="btn-rename-group" class="btn btn-primary btn-sm">שמור שם</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label>קוד הזמנה</label>
+                <div class="invite-code-display">
+                    <span id="settings-invite-code">------</span>
+                    <button id="btn-copy-settings-invite" class="btn btn-secondary btn-sm" type="button">העתק</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label>חברי הקבוצה</label>
+                <div id="group-members-list" class="group-members-list"></div>
+            </div>
+            <p id="group-settings-error" class="error-msg hidden"></p>
+            <div class="modal-actions">
+                <button id="btn-leave-group" class="btn btn-ghost">עזוב קבוצה</button>
+                <button id="btn-delete-group" class="btn btn-danger hidden">מחק קבוצה</button>
+                <button id="btn-close-group-settings" class="btn btn-ghost">סגור</button>
             </div>
         </div>
     </div>

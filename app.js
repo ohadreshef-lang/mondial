@@ -63,14 +63,29 @@ function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
 
 let currentUser = null; // { userId, name, email }
 let matches      = {};  // matchId → match object
-let userBets     = {};  // matchId → bet object (current user)
-let allUsers     = [];  // sorted by totalPoints desc
+let userBets     = {};  // matchId → bet object (current user, current group)
 let activeTab    = 'matches';
 let stageFilter  = 'all';
 let isAdminMode  = false;
 let isAdminAuthed = false;
 let pendingResultMatchId = null;
 let pendingEditMatchId   = null;
+
+// ---- Multi-group state ----
+let currentGroupId = null;          // active group the user is viewing
+let userGroups     = {};            // groupId → { name, ownerId, inviteCode }
+let groupMembers   = {};            // userId → { joinedAt, totalPoints } (current group)
+let groupUsersCache = {};           // userId → { name, email }  (for leaderboard display)
+let groupSwitchMenuOpen = false;
+
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
+function generateInviteCode() {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += INVITE_ALPHABET.charAt(Math.floor(Math.random() * INVITE_ALPHABET.length));
+    }
+    return code;
+}
 
 // ---- Firebase refs ----
 
@@ -130,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved) {
             try {
                 currentUser = JSON.parse(saved);
-                enterApp();
+                routeAfterLogin();
             } catch(e) {
                 showLoginScreen();
             }
@@ -163,16 +178,58 @@ document.addEventListener('DOMContentLoaded', () => {
     $('btn-admin-back').addEventListener('click', () => {
         window.location.href = window.location.pathname;
     });
+
+    // Group UI (switcher, picker, modals)
+    if (!isAdminMode) setupGroupUIListeners();
 });
 
 function showLoginScreen() {
     show('login-screen');
     hide('main-app');
     hide('admin-panel');
+    hide('group-picker-screen');
 }
 
-function enterApp() {
+function showGroupPicker() {
     hide('login-screen');
+    hide('main-app');
+    hide('admin-panel');
+    show('group-picker-screen');
+    if (currentUser) $('picker-username').textContent = currentUser.name;
+}
+
+// Called after login. Checks what groups the user belongs to and routes accordingly.
+async function routeAfterLogin() {
+    if (!db) {
+        // Offline fallback — no groups possible, just show a minimal state
+        showGroupPicker();
+        return;
+    }
+    try {
+        const snap = await ref(`userGroups/${currentUser.userId}`).once('value');
+        const groups = snap.val() || {};
+        const groupIds = Object.keys(groups);
+
+        if (groupIds.length === 0) {
+            showGroupPicker();
+            return;
+        }
+
+        // Restore last active group if still valid
+        const lastActive = localStorage.getItem('wc2026_activeGroup');
+        const chosen = (lastActive && groupIds.includes(lastActive)) ? lastActive : groupIds[0];
+        enterAppForGroup(chosen);
+    } catch (err) {
+        console.warn('routeAfterLogin error:', err.message);
+        showGroupPicker();
+    }
+}
+
+function enterAppForGroup(groupId) {
+    currentGroupId = groupId;
+    localStorage.setItem('wc2026_activeGroup', groupId);
+    hide('login-screen');
+    hide('group-picker-screen');
     show('main-app');
     $('header-username').textContent = currentUser.name;
     startFirebaseListeners();
@@ -183,7 +240,7 @@ function enterApp() {
 // AUTH
 // ============================================================
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const name  = $('input-name').value.trim();
     const email = $('input-email').value.trim().toLowerCase();
@@ -200,32 +257,44 @@ function handleLogin(e) {
     currentUser = { userId, name, email };
     localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
 
-    // Sync to Firebase in background — don't block login
+    // Sync to Firebase (awaited so we know the user node exists before routing)
     if (db) {
-        ref(`users/${userId}`).once('value')
-            .then(snap => {
-                if (!snap.exists()) {
-                    return ref(`users/${userId}`).set({ name, email, totalPoints: 0 });
-                }
-                return ref(`users/${userId}/name`).set(name);
-            })
-            .catch(err => console.warn('Firebase user sync failed:', err.message));
+        try {
+            const snap = await ref(`users/${userId}`).once('value');
+            if (!snap.exists()) {
+                await ref(`users/${userId}`).set({ name, email });
+            } else {
+                await ref(`users/${userId}/name`).set(name);
+            }
+        } catch (err) {
+            console.warn('Firebase user sync failed:', err.message);
+        }
     }
 
-    enterApp();
+    await routeAfterLogin();
+}
+
+function stopGroupListeners() {
+    if (!db || !currentGroupId || !currentUser) return;
+    ref(`groups/${currentGroupId}/members`).off();
+    ref(`bets/${currentGroupId}/${currentUser.userId}`).off();
 }
 
 function handleLogout() {
     if (db) {
         ref('matches').off();
-        ref('users').off();
-        if (currentUser) ref(`bets/${currentUser.userId}`).off();
+        stopGroupListeners();
+        if (currentUser) ref(`userGroups/${currentUser.userId}`).off();
     }
     currentUser = null;
+    currentGroupId = null;
+    userGroups = {};
+    groupMembers = {};
+    groupUsersCache = {};
     localStorage.removeItem('wc2026_user');
+    localStorage.removeItem('wc2026_activeGroup');
     matches  = {};
     userBets = {};
-    allUsers = [];
     showLoginScreen();
 }
 
@@ -246,25 +315,59 @@ function startFirebaseListeners() {
             '<p class="state-msg" style="color:#e53e3e">⚠️ שגיאת הרשאות Firebase.<br>עדכן את חוקי מסד הנתונים ל-read/write פתוח.<br><a href="https://console.firebase.google.com" target="_blank">פתח Firebase Console</a></p>';
     };
 
-    // Matches
+    // Matches (global — shared across groups)
     ref('matches').on('value', snap => {
         matches = snap.val() || {};
         if (activeTab === 'matches') renderMatches();
         if (activeTab === 'my-bets') renderMyBets();
     }, permissionError);
 
-    // All users (leaderboard)
-    ref('users').on('value', snap => {
-        const raw = snap.val() || {};
-        allUsers = Object.entries(raw)
-            .map(([id, u]) => ({ userId: id, ...u }))
-            .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+    // User's groups (for switcher UI + routing on group deletion)
+    if (currentUser) {
+        ref(`userGroups/${currentUser.userId}`).on('value', async snap => {
+            const gids = Object.keys(snap.val() || {});
+            // Fetch metadata for each group
+            const meta = {};
+            await Promise.all(gids.map(async gid => {
+                const gsnap = await ref(`groups/${gid}`).once('value');
+                const g = gsnap.val();
+                if (g) meta[gid] = { name: g.name, ownerId: g.ownerId, inviteCode: g.inviteCode };
+            }));
+            userGroups = meta;
+            // If the active group was deleted out from under us, bounce to picker or another group
+            if (currentGroupId && !meta[currentGroupId]) {
+                stopGroupListeners();
+                const fallback = Object.keys(meta)[0];
+                if (fallback) {
+                    enterAppForGroup(fallback);
+                } else {
+                    currentGroupId = null;
+                    showGroupPicker();
+                }
+                return;
+            }
+            renderGroupSwitcher();
+        }, () => {});
+    }
+
+    if (!currentGroupId) return;
+
+    // Group members (drives leaderboard + totals)
+    ref(`groups/${currentGroupId}/members`).on('value', async snap => {
+        groupMembers = snap.val() || {};
+        // Fetch user names for display
+        const missing = Object.keys(groupMembers).filter(uid => !groupUsersCache[uid]);
+        await Promise.all(missing.map(async uid => {
+            const usnap = await ref(`users/${uid}`).once('value');
+            const u = usnap.val();
+            if (u) groupUsersCache[uid] = { name: u.name, email: u.email };
+        }));
         if (activeTab === 'leaderboard') renderLeaderboard();
     }, () => {});
 
-    // Current user's bets
+    // Current user's bets, scoped to active group
     if (currentUser) {
-        ref(`bets/${currentUser.userId}`).on('value', snap => {
+        ref(`bets/${currentGroupId}/${currentUser.userId}`).on('value', snap => {
             userBets = snap.val() || {};
             if (activeTab === 'matches')  renderMatches();
             if (activeTab === 'my-bets') renderMyBets();
@@ -425,7 +528,7 @@ function buildMatchCard(m) {
 // ============================================================
 
 async function saveBet(matchId) {
-    if (!currentUser || !db) return;
+    if (!currentUser || !currentGroupId || !db) return;
     const m = matches[matchId];
     if (!m || matchIsLocked(m)) return;
 
@@ -434,7 +537,7 @@ async function saveBet(matchId) {
 
     if (isNaN(g1) || isNaN(g2) || g1 < 0 || g2 < 0) return;
 
-    await ref(`bets/${currentUser.userId}/${matchId}`).set({
+    await ref(`bets/${currentGroupId}/${currentUser.userId}/${matchId}`).set({
         team1Goals: g1,
         team2Goals: g2,
         placedAt:   Date.now(),
@@ -459,13 +562,21 @@ function unlockBetEdit(matchId) {
 function renderLeaderboard() {
     const container = $('leaderboard-container');
 
-    if (allUsers.length === 0) {
-        container.innerHTML = '<p class="state-msg">אין משתתפים עדיין.</p>';
+    const entries = Object.entries(groupMembers)
+        .map(([uid, m]) => ({
+            userId: uid,
+            name: (groupUsersCache[uid] && groupUsersCache[uid].name) || 'משתמש',
+            totalPoints: m.totalPoints || 0,
+        }))
+        .sort((a, b) => b.totalPoints - a.totalPoints);
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="state-msg">אין משתתפים עדיין בקבוצה זו.</p>';
         return;
     }
 
     let html = '<div class="leaderboard-table">';
-    allUsers.forEach((u, i) => {
+    entries.forEach((u, i) => {
         const rank    = i + 1;
         const isMe    = currentUser && u.userId === currentUser.userId;
         const medal   = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
@@ -474,7 +585,7 @@ function renderLeaderboard() {
         <div class="leaderboard-row ${isMe ? 'is-me' : ''}">
             <span class="lb-rank">${medal}</span>
             <span class="lb-name">${escapeHtml(u.name)} ${meTag}</span>
-            <span class="lb-points">${u.totalPoints || 0} <span class="lb-pts-label">נק'</span></span>
+            <span class="lb-points">${u.totalPoints} <span class="lb-pts-label">נק'</span></span>
         </div>`;
     });
     html += '</div>';
@@ -746,35 +857,35 @@ async function saveResult() {
 async function recalcPoints(matchId, resG1, resG2) {
     if (!db) return;
 
-    // Get all bets for this match
-    const usersSnap = await ref('users').once('value');
-    const usersData = usersSnap.val() || {};
-
+    const groupsSnap = await ref('groups').once('value');
+    const groupsData = groupsSnap.val() || {};
     const updates = {};
 
-    for (const userId of Object.keys(usersData)) {
-        const betSnap = await ref(`bets/${userId}/${matchId}`).once('value');
-        if (!betSnap.exists()) continue;
-
-        const bet = betSnap.val();
-        const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
-
-        // Update this bet's points
-        updates[`bets/${userId}/${matchId}/points`] = pts;
+    for (const groupId of Object.keys(groupsData)) {
+        const members = (groupsData[groupId] && groupsData[groupId].members) || {};
+        for (const userId of Object.keys(members)) {
+            const betSnap = await ref(`bets/${groupId}/${userId}/${matchId}`).once('value');
+            if (!betSnap.exists()) continue;
+            const bet = betSnap.val();
+            const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
+            updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
+        }
     }
 
-    // Apply all bet point updates
     if (Object.keys(updates).length > 0) {
         await db.ref(FB_ROOT).update(updates);
     }
 
-    // Now recompute each user's total points
-    for (const userId of Object.keys(usersData)) {
-        const allBetsSnap = await ref(`bets/${userId}`).once('value');
-        const allBets = allBetsSnap.val() || {};
-        const total = Object.values(allBets)
-            .reduce((sum, b) => sum + (b.points || 0), 0);
-        await ref(`users/${userId}/totalPoints`).set(total);
+    // Recompute each member's total, per group
+    for (const groupId of Object.keys(groupsData)) {
+        const members = (groupsData[groupId] && groupsData[groupId].members) || {};
+        for (const userId of Object.keys(members)) {
+            const allBetsSnap = await ref(`bets/${groupId}/${userId}`).once('value');
+            const allBets = allBetsSnap.val() || {};
+            const total = Object.values(allBets)
+                .reduce((sum, b) => sum + (b.points || 0), 0);
+            await ref(`groups/${groupId}/members/${userId}/totalPoints`).set(total);
+        }
     }
 }
 
@@ -797,23 +908,27 @@ function loadAdminUsers() {
     });
 }
 
-function renderAdminUsers(data) {
+async function renderAdminUsers(data) {
     const container = $('admin-users-container');
-    const list = Object.entries(data)
-        .sort((a, b) => (b[1].totalPoints || 0) - (a[1].totalPoints || 0));
+    const list = Object.entries(data).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''));
 
     if (list.length === 0) {
         container.innerHTML = '<p class="state-msg">אין משתמשים רשומים.</p>';
         return;
     }
 
+    // Count each user's groups (for display)
+    const userGroupsSnap = await ref('userGroups').once('value');
+    const ugData = userGroupsSnap.val() || {};
+
     let html = '';
     list.forEach(([userId, u]) => {
+        const groupCount = Object.keys(ugData[userId] || {}).length;
         html += `
         <div class="admin-match-row" id="admin-user-row-${userId}">
             <div class="admin-match-info">
                 <div class="admin-match-teams">${escapeHtml(u.name)}</div>
-                <div class="admin-match-meta">${escapeHtml(u.email)} · ${u.totalPoints || 0} נק'</div>
+                <div class="admin-match-meta">${escapeHtml(u.email)} · ${groupCount} קבוצות</div>
             </div>
             <div class="admin-match-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openEditUserModal('${userId}')">ערוך שם</button>
@@ -844,12 +959,23 @@ async function saveEditUser() {
 }
 
 async function adminDeleteUser(userId, userName) {
-    if (!confirm(`למחוק את המשתמש "${userName}" וכל ההימורים שלו?`)) return;
+    if (!confirm(`למחוק את המשתמש "${userName}" וכל ההימורים שלו מכל הקבוצות?`)) return;
     if (!db) return;
-    await Promise.all([
-        ref(`users/${userId}`).remove(),
-        ref(`bets/${userId}`).remove(),
-    ]);
+
+    // Remove from every group + bets in every group
+    const userGroupsSnap = await ref(`userGroups/${userId}`).once('value');
+    const gids = Object.keys(userGroupsSnap.val() || {});
+
+    const updates = {};
+    for (const gid of gids) {
+        updates[`groups/${gid}/members/${userId}`] = null;
+        updates[`bets/${gid}/${userId}`] = null;
+    }
+    updates[`userGroups/${userId}`] = null;
+    updates[`users/${userId}`] = null;
+
+    await db.ref(FB_ROOT).update(updates);
+    loadAdminUsers();
 }
 
 // ============================================================
@@ -972,6 +1098,396 @@ async function adminSeedMatches() {
     }
 
     alert(`נטענו ${total} משחקי שלב הבתים בהצלחה! ✅\nמשחקי שלב הנוקאאוט יתווספו לאחר שתוצאות הבתים ייקבעו.`);
+}
+
+
+// ============================================================
+// GROUP MANAGEMENT
+// ============================================================
+
+function toggleGroupSwitchMenu(forceState) {
+    const el = $('group-switch-menu');
+    if (!el) return;
+    const open = forceState !== undefined ? forceState : el.classList.contains('hidden');
+    if (open) {
+        el.classList.remove('hidden');
+        renderGroupSwitcher();
+    } else {
+        el.classList.add('hidden');
+    }
+    groupSwitchMenuOpen = !el.classList.contains('hidden');
+}
+
+function renderGroupSwitcher() {
+    // Active group label in app bar
+    const active = currentGroupId && userGroups[currentGroupId];
+    $('active-group-name').textContent = active ? active.name : '—';
+
+    // Show/hide settings option based on ownership
+    const settingsBtn = $('btn-open-group-settings');
+    if (settingsBtn) {
+        if (active) settingsBtn.classList.remove('hidden');
+        else settingsBtn.classList.add('hidden');
+    }
+
+    // Menu list
+    const list = $('group-switch-list');
+    if (!list) return;
+    const entries = Object.entries(userGroups);
+    if (entries.length === 0) {
+        list.innerHTML = '<p style="padding:10px;color:var(--text-light);font-size:.85rem">עדיין לא הצטרפת לקבוצה</p>';
+        return;
+    }
+    list.innerHTML = entries.map(([gid, g]) => {
+        const isActive = gid === currentGroupId;
+        return `<button class="group-switch-item ${isActive ? 'active' : ''}" data-group-id="${gid}">
+            <span>${escapeHtml(g.name)}</span>
+            ${isActive ? '<span class="check-mark">✓</span>' : ''}
+        </button>`;
+    }).join('');
+
+    list.querySelectorAll('.group-switch-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const gid = btn.dataset.groupId;
+            toggleGroupSwitchMenu(false);
+            if (gid !== currentGroupId) switchActiveGroup(gid);
+        });
+    });
+}
+
+function switchActiveGroup(groupId) {
+    if (!groupId || groupId === currentGroupId) return;
+    stopGroupListeners();
+    groupMembers = {};
+    userBets = {};
+    enterAppForGroup(groupId);
+}
+
+// ---- Create group ----
+
+function openCreateGroupModal() {
+    $('create-group-name').value = '';
+    hideEl($('create-group-error'));
+    hideEl($('create-group-success'));
+    showEl($('btn-confirm-create-group'));
+    show('create-group-modal');
+}
+
+async function confirmCreateGroup() {
+    const name = $('create-group-name').value.trim();
+    const errEl = $('create-group-error');
+    hideEl(errEl);
+    if (!name) {
+        errEl.textContent = 'נא להזין שם קבוצה';
+        showEl(errEl);
+        return;
+    }
+    if (!db || !currentUser) return;
+
+    try {
+        // Generate a unique invite code (retry on collision)
+        let code = generateInviteCode();
+        for (let i = 0; i < 5; i++) {
+            const s = await ref(`inviteCodes/${code}`).once('value');
+            if (!s.exists()) break;
+            code = generateInviteCode();
+        }
+
+        const newRef = ref('groups').push();
+        const groupId = newRef.key;
+        const now = Date.now();
+
+        const updates = {};
+        updates[`groups/${groupId}/name`] = name;
+        updates[`groups/${groupId}/ownerId`] = currentUser.userId;
+        updates[`groups/${groupId}/inviteCode`] = code;
+        updates[`groups/${groupId}/createdAt`] = now;
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`inviteCodes/${code}`] = groupId;
+        updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
+
+        await db.ref(FB_ROOT).update(updates);
+
+        // Show success with invite code
+        $('created-invite-code').textContent = code;
+        showEl($('create-group-success'));
+        hideEl($('btn-confirm-create-group'));
+
+        // Cache + switch into the new group
+        userGroups[groupId] = { name, ownerId: currentUser.userId, inviteCode: code };
+        currentGroupId = groupId;
+        localStorage.setItem('wc2026_activeGroup', groupId);
+
+        // Change cancel button to "enter group"
+        $('btn-cancel-create-group').textContent = 'כנס לקבוצה';
+    } catch (err) {
+        console.error(err);
+        errEl.textContent = 'שגיאה ביצירת הקבוצה';
+        showEl(errEl);
+    }
+}
+
+function closeCreateGroupModal() {
+    hide('create-group-modal');
+    $('btn-cancel-create-group').textContent = 'ביטול';
+    // If we created a group mid-flow, enter the app
+    if (currentUser && currentGroupId && $('group-picker-screen') && !$('group-picker-screen').classList.contains('hidden')) {
+        enterAppForGroup(currentGroupId);
+    } else if (currentGroupId) {
+        renderGroupSwitcher();
+    }
+}
+
+// ---- Join group ----
+
+function openJoinGroupModal() {
+    $('join-group-code').value = '';
+    hideEl($('join-group-error'));
+    show('join-group-modal');
+}
+
+async function confirmJoinGroup() {
+    const rawCode = $('join-group-code').value.trim().toUpperCase();
+    const errEl = $('join-group-error');
+    hideEl(errEl);
+    if (!rawCode || rawCode.length !== 6) {
+        errEl.textContent = 'קוד הזמנה חייב להיות בן 6 תווים';
+        showEl(errEl);
+        return;
+    }
+    if (!db || !currentUser) return;
+
+    try {
+        const snap = await ref(`inviteCodes/${rawCode}`).once('value');
+        if (!snap.exists()) {
+            errEl.textContent = 'קוד הזמנה לא תקין';
+            showEl(errEl);
+            return;
+        }
+        const groupId = snap.val();
+
+        const memberSnap = await ref(`groups/${groupId}/members/${currentUser.userId}`).once('value');
+        if (memberSnap.exists()) {
+            hide('join-group-modal');
+            switchActiveGroup(groupId);
+            return;
+        }
+
+        const now = Date.now();
+        const updates = {};
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
+        await db.ref(FB_ROOT).update(updates);
+
+        hide('join-group-modal');
+        // Switch into the joined group
+        if (currentGroupId) {
+            switchActiveGroup(groupId);
+        } else {
+            enterAppForGroup(groupId);
+        }
+    } catch (err) {
+        console.error(err);
+        errEl.textContent = 'שגיאה בהצטרפות לקבוצה';
+        showEl(errEl);
+    }
+}
+
+// ---- Group settings ----
+
+async function openGroupSettingsModal() {
+    if (!currentGroupId || !userGroups[currentGroupId]) return;
+    const g = userGroups[currentGroupId];
+    const isOwner = g.ownerId === currentUser.userId;
+
+    $('group-settings-name').value = g.name;
+    $('settings-invite-code').textContent = g.inviteCode;
+    hideEl($('group-settings-error'));
+
+    // Owner-only controls
+    $('btn-rename-group').style.display = isOwner ? '' : 'none';
+    $('group-settings-name').readOnly = !isOwner;
+    if (isOwner) $('btn-delete-group').classList.remove('hidden');
+    else $('btn-delete-group').classList.add('hidden');
+
+    // Members list
+    const mSnap = await ref(`groups/${currentGroupId}/members`).once('value');
+    const members = mSnap.val() || {};
+    const container = $('group-members-list');
+    const rows = [];
+    for (const uid of Object.keys(members)) {
+        let name = (groupUsersCache[uid] && groupUsersCache[uid].name);
+        if (!name) {
+            const us = await ref(`users/${uid}`).once('value');
+            const u = us.val();
+            if (u) {
+                groupUsersCache[uid] = { name: u.name, email: u.email };
+                name = u.name;
+            }
+        }
+        name = name || 'משתמש';
+        const isThisOwner = uid === g.ownerId;
+        const canKick = isOwner && !isThisOwner;
+        rows.push(`
+            <div class="group-member-row">
+                <div>
+                    <span class="member-name">${escapeHtml(name)}</span>
+                    ${isThisOwner ? '<span class="owner-badge">מנהל</span>' : ''}
+                    <span class="member-meta">${members[uid].totalPoints || 0} נק'</span>
+                </div>
+                ${canKick ? `<button class="btn btn-danger btn-sm" onclick="removeMember('${uid}')">הסר</button>` : ''}
+            </div>`);
+    }
+    container.innerHTML = rows.join('');
+
+    show('group-settings-modal');
+}
+
+async function renameGroup() {
+    const newName = $('group-settings-name').value.trim();
+    const errEl = $('group-settings-error');
+    hideEl(errEl);
+    if (!newName) {
+        errEl.textContent = 'נא להזין שם';
+        showEl(errEl);
+        return;
+    }
+    if (!db || !currentGroupId) return;
+    await ref(`groups/${currentGroupId}/name`).set(newName);
+    if (userGroups[currentGroupId]) userGroups[currentGroupId].name = newName;
+    renderGroupSwitcher();
+    errEl.textContent = 'השם נשמר ✓';
+    errEl.style.color = 'var(--green-mid)';
+    showEl(errEl);
+    setTimeout(() => { hideEl(errEl); errEl.style.color = ''; }, 2000);
+}
+
+async function removeMember(userId) {
+    if (!currentGroupId || !db) return;
+    if (!confirm('להסיר את החבר מהקבוצה?')) return;
+    const updates = {};
+    updates[`groups/${currentGroupId}/members/${userId}`] = null;
+    updates[`bets/${currentGroupId}/${userId}`] = null;
+    updates[`userGroups/${userId}/${currentGroupId}`] = null;
+    await db.ref(FB_ROOT).update(updates);
+    openGroupSettingsModal(); // refresh
+}
+
+async function leaveGroup() {
+    if (!currentGroupId || !db || !currentUser) return;
+    const g = userGroups[currentGroupId];
+    if (g && g.ownerId === currentUser.userId) {
+        alert('מנהל הקבוצה אינו יכול לעזוב — מחק את הקבוצה במקום זאת.');
+        return;
+    }
+    if (!confirm('לעזוב את הקבוצה?')) return;
+    const updates = {};
+    updates[`groups/${currentGroupId}/members/${currentUser.userId}`] = null;
+    updates[`bets/${currentGroupId}/${currentUser.userId}`] = null;
+    updates[`userGroups/${currentUser.userId}/${currentGroupId}`] = null;
+    await db.ref(FB_ROOT).update(updates);
+    hide('group-settings-modal');
+    // userGroups listener will route to another group or to the picker
+}
+
+async function deleteGroup() {
+    if (!currentGroupId || !db || !currentUser) return;
+    const g = userGroups[currentGroupId];
+    if (!g || g.ownerId !== currentUser.userId) return;
+    if (!confirm(`למחוק את הקבוצה "${g.name}" לצמיתות? כל ההימורים של חבריה יאבדו.`)) return;
+
+    const gid = currentGroupId;
+    // Collect member ids
+    const mSnap = await ref(`groups/${gid}/members`).once('value');
+    const memberIds = Object.keys(mSnap.val() || {});
+
+    const updates = {};
+    updates[`groups/${gid}`] = null;
+    updates[`bets/${gid}`] = null;
+    updates[`inviteCodes/${g.inviteCode}`] = null;
+    for (const uid of memberIds) {
+        updates[`userGroups/${uid}/${gid}`] = null;
+    }
+    await db.ref(FB_ROOT).update(updates);
+    hide('group-settings-modal');
+    // userGroups listener routes to next group or picker
+}
+
+function copyToClipboard(text, btn) {
+    const oldLabel = btn.textContent;
+    const done = () => {
+        btn.textContent = 'הועתק ✓';
+        setTimeout(() => { btn.textContent = oldLabel; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => done());
+    } else {
+        const t = document.createElement('textarea');
+        t.value = text;
+        document.body.appendChild(t);
+        t.select();
+        try { document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(t);
+        done();
+    }
+}
+
+function setupGroupUIListeners() {
+    // App bar switcher
+    $('btn-group-switcher').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleGroupSwitchMenu();
+    });
+    document.addEventListener('click', (e) => {
+        const menu = $('group-switch-menu');
+        const btn  = $('btn-group-switcher');
+        if (!menu || !btn) return;
+        if (menu.classList.contains('hidden')) return;
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    $('btn-open-create-group').addEventListener('click', () => {
+        toggleGroupSwitchMenu(false);
+        openCreateGroupModal();
+    });
+    $('btn-open-join-group').addEventListener('click', () => {
+        toggleGroupSwitchMenu(false);
+        openJoinGroupModal();
+    });
+    $('btn-open-group-settings').addEventListener('click', () => {
+        toggleGroupSwitchMenu(false);
+        openGroupSettingsModal();
+    });
+
+    // Group picker screen
+    $('btn-picker-create').addEventListener('click', openCreateGroupModal);
+    $('btn-picker-join').addEventListener('click', openJoinGroupModal);
+    $('btn-picker-logout').addEventListener('click', handleLogout);
+
+    // Create modal
+    $('btn-confirm-create-group').addEventListener('click', confirmCreateGroup);
+    $('btn-cancel-create-group').addEventListener('click', closeCreateGroupModal);
+    $('btn-copy-invite').addEventListener('click', (e) => {
+        copyToClipboard($('created-invite-code').textContent, e.currentTarget);
+    });
+
+    // Join modal
+    $('btn-confirm-join-group').addEventListener('click', confirmJoinGroup);
+    $('btn-cancel-join-group').addEventListener('click', () => hide('join-group-modal'));
+    $('join-group-code').addEventListener('input', (e) => {
+        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    });
+
+    // Settings modal
+    $('btn-rename-group').addEventListener('click', renameGroup);
+    $('btn-close-group-settings').addEventListener('click', () => hide('group-settings-modal'));
+    $('btn-leave-group').addEventListener('click', leaveGroup);
+    $('btn-delete-group').addEventListener('click', deleteGroup);
+    $('btn-copy-settings-invite').addEventListener('click', (e) => {
+        copyToClipboard($('settings-invite-code').textContent, e.currentTarget);
+    });
 }
 
 
