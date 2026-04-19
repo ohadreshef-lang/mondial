@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('login-form').addEventListener('submit', handleLogin);
     $('btn-logout').addEventListener('click', handleLogout);
 
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    document.querySelectorAll('.tab-bar:not(.admin-tab-bar) .tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
@@ -463,10 +463,10 @@ function startFirebaseListeners() {
 
 function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(b => {
+    document.querySelectorAll('.tab-bar:not(.admin-tab-bar) .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
     });
-    document.querySelectorAll('.tab-panel').forEach(p => {
+    document.querySelectorAll('#main-app .tab-panel').forEach(p => {
         p.classList.toggle('active', p.id === `tab-${tab}`);
         p.style.display = p.id === `tab-${tab}` ? 'block' : 'none';
     });
@@ -947,7 +947,9 @@ function setupAdminListeners() {
             const target = btn.dataset.adminTab;
             document.querySelectorAll('.admin-tab-bar .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
             document.querySelectorAll('#admin-content > .tab-panel').forEach(p => {
-                p.classList.toggle('active', p.id === `admin-tab-${target}`);
+                const on = p.id === `admin-tab-${target}`;
+                p.classList.toggle('active', on);
+                p.style.display = on ? 'block' : 'none';
             });
         });
     });
