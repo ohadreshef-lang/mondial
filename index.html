@@ -18,9 +18,11 @@
     <section id="login-screen">
         <div class="login-card">
             <div class="login-lang-toggle">
-                <button type="button" class="lang-toggle-btn" data-lang="he">עב</button>
-                <button type="button" class="lang-toggle-btn" data-lang="en">EN</button>
-                <button type="button" class="lang-toggle-btn" data-lang="es">ES</button>
+                <select class="lang-select" aria-label="Language">
+                    <option value="he">🇮🇱 עברית</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
             </div>
             <div class="login-logo">⚽</div>
             <h1 data-i18n="login.title">ניחושי מונדיאל 2026</h1>
@@ -73,9 +75,11 @@
             <div class="app-bar-title">⚽ <span data-i18n="groupPicker.title">מונדיאל 2026</span></div>
             <div class="app-bar-user">
                 <div class="lang-toggle-inline">
-                    <button type="button" class="lang-toggle-btn" data-lang="he">עב</button>
-                    <button type="button" class="lang-toggle-btn" data-lang="en">EN</button>
-                    <button type="button" class="lang-toggle-btn" data-lang="es">ES</button>
+                    <select class="lang-select" aria-label="Language">
+                        <option value="he">🇮🇱</option>
+                        <option value="en">🇬🇧</option>
+                        <option value="es">🇪🇸</option>
+                    </select>
                 </div>
                 <div class="group-switcher-wrap">
                     <button id="btn-group-switcher" class="group-switch-btn" type="button">
@@ -454,6 +458,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260420b"></script>
+    <script src="app.js?v=20260420c"></script>
 </body>
 </html>

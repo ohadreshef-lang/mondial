@@ -1255,30 +1255,24 @@ section { display: block; }
     gap: 4px;
     margin-inline-end: 8px;
 }
-.lang-toggle-btn {
-    padding: 4px 10px;
+.lang-select {
+    padding: 4px 8px;
     border: 1px solid var(--border);
     background: var(--surface, #fff);
-    color: var(--text-light);
-    border-radius: 999px;
-    font-size: .75rem;
+    color: var(--text);
+    border-radius: 6px;
+    font-size: .8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all .15s;
-    min-width: 34px;
+    line-height: 1.2;
 }
-.lang-toggle-btn:hover { background: var(--bg, #f3f4f6); color: var(--text); }
-.lang-toggle-btn.active {
-    background: var(--primary, #2563eb);
-    color: #fff;
-    border-color: var(--primary, #2563eb);
+.lang-toggle-inline .lang-select {
+    padding: 2px 4px;
+    font-size: .95rem;
+    min-width: 48px;
 }
 .lang-ltr { direction: ltr; }
 .lang-ltr .app-bar-user { flex-direction: row-reverse; }
-
-@media (max-width: 420px) {
-    .lang-toggle-btn { padding: 3px 7px; font-size: .7rem; min-width: 28px; }
-}
 
 /* ===== Admin user group badges ===== */
 .admin-user-groups {

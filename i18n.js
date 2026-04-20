@@ -768,15 +768,15 @@ function setLanguage(lang) {
 }
 
 function renderLangToggle() {
-    document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === currentLang);
+    document.querySelectorAll('.lang-select').forEach(sel => {
+        sel.value = currentLang;
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     applyTranslations();
     renderLangToggle();
-    document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
-        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    document.querySelectorAll('.lang-select').forEach(sel => {
+        sel.addEventListener('change', (e) => setLanguage(e.target.value));
     });
 });
