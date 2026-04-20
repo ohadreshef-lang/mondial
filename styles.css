@@ -933,6 +933,28 @@ section { display: block; }
 .group-switch-item.active:hover { background: var(--green-light); }
 .group-switch-item .check-mark { font-size: .85rem; }
 
+.group-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+}
+.group-switch-row.active { background: var(--green-light); }
+.group-switch-row .group-switch-item { flex: 1; background: none; }
+.group-switch-row.active .group-switch-item { color: #fff; font-weight: 700; }
+.group-share-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 10px;
+    font-size: 1.05rem;
+    border-radius: 6px;
+    color: var(--text);
+}
+.group-share-btn:hover { background: var(--bg); }
+.group-switch-row.active .group-share-btn { color: #fff; }
+.group-switch-row.active .group-share-btn:hover { background: rgba(255,255,255,.2); }
+
 .group-switch-divider {
     height: 1px;
     background: var(--border);

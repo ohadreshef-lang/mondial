@@ -41,6 +41,11 @@ const TRANSLATIONS = {
         // Group switcher
         'groupSwitch.createGroup': '➕ קבוצה חדשה',
         'groupSwitch.joinGroup': '🔗 הצטרף עם קוד',
+        'groupSwitch.share': 'שתף קבוצה',
+        'groupSwitch.shareTitle': (name) => `הצטרף לקבוצה ${name}`,
+        'groupSwitch.shareText': (name, code) => `הוזמנת להצטרף לקבוצת הניחושים "${name}" במונדיאל 2026. קוד הזמנה: ${code}`,
+        'groupSwitch.shareCopied': 'הקישור הועתק! שלח אותו לחברים',
+        'groupSwitch.shareCopyPrompt': 'העתק את הקישור ושלח לחברים:',
         'groupSwitch.settings': '⚙️ הגדרות קבוצה',
         'groupSwitch.emptyMsg': 'עדיין לא הצטרפת לקבוצה',
 
@@ -260,6 +265,11 @@ const TRANSLATIONS = {
 
         'groupSwitch.createGroup': '➕ New group',
         'groupSwitch.joinGroup': '🔗 Join with code',
+        'groupSwitch.share': 'Share group',
+        'groupSwitch.shareTitle': (name) => `Join ${name}`,
+        'groupSwitch.shareText': (name, code) => `You're invited to join "${name}" on Mondial 2026. Invite code: ${code}`,
+        'groupSwitch.shareCopied': 'Link copied! Send it to your friends',
+        'groupSwitch.shareCopyPrompt': 'Copy this link and share it with friends:',
         'groupSwitch.settings': '⚙️ Group settings',
         'groupSwitch.emptyMsg': 'You haven\'t joined any group yet',
 
@@ -467,6 +477,11 @@ const TRANSLATIONS = {
 
         'groupSwitch.createGroup': '➕ Nuevo grupo',
         'groupSwitch.joinGroup': '🔗 Unirse con código',
+        'groupSwitch.share': 'Compartir grupo',
+        'groupSwitch.shareTitle': (name) => `Únete a ${name}`,
+        'groupSwitch.shareText': (name, code) => `Estás invitado a unirte al grupo "${name}" en Mondial 2026. Código: ${code}`,
+        'groupSwitch.shareCopied': '¡Enlace copiado! Envíaselo a tus amigos',
+        'groupSwitch.shareCopyPrompt': 'Copia este enlace y compártelo:',
         'groupSwitch.settings': '⚙️ Ajustes del grupo',
         'groupSwitch.emptyMsg': 'Aún no te uniste a ningún grupo',
 

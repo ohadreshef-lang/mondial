@@ -114,6 +114,7 @@ let userGroups     = {};            // groupId → { name, ownerId, inviteCode }
 let groupMembers   = {};            // userId → { joinedAt, totalPoints } (current group)
 let groupUsersCache = {};           // userId → { name, email }  (for leaderboard display)
 let groupSwitchMenuOpen = false;
+let pendingJoinCode = null;
 
 // ---- Tournament bets state ----
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
@@ -195,7 +196,12 @@ function hideEl(el){ el.classList.add('hidden'); }
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    isAdminMode = new URLSearchParams(window.location.search).has('admin');
+    const params = new URLSearchParams(window.location.search);
+    isAdminMode = params.has('admin');
+    const joinCode = (params.get('join') || '').trim().toUpperCase();
+    if (joinCode && /^[A-Z0-9]{6}$/.test(joinCode)) {
+        pendingJoinCode = joinCode;
+    }
 
     if (isAdminMode) {
         show('admin-panel');
@@ -269,6 +275,15 @@ async function routeAfterLogin() {
         return;
     }
     try {
+        // Handle pending ?join=CODE from a share link
+        if (pendingJoinCode) {
+            const code = pendingJoinCode;
+            pendingJoinCode = null;
+            history.replaceState({}, '', location.pathname);
+            const joined = await autoJoinByCode(code);
+            if (joined) return; // already routed into the joined group
+        }
+
         const snap = await ref(`userGroups/${currentUser.userId}`).once('value');
         const groups = snap.val() || {};
         const groupIds = Object.keys(groups);
@@ -285,6 +300,29 @@ async function routeAfterLogin() {
     } catch (err) {
         console.warn('routeAfterLogin error:', err.message);
         showGroupPicker();
+    }
+}
+
+async function autoJoinByCode(code) {
+    try {
+        const snap = await ref(`inviteCodes/${code}`).once('value');
+        if (!snap.exists()) {
+            alert(t('joinGroup.errorInvalid'));
+            return false;
+        }
+        const groupId = snap.val();
+        const memberSnap = await ref(`groups/${groupId}/members/${currentUser.userId}`).once('value');
+        if (!memberSnap.exists()) {
+            const updates = {};
+            updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
+            await db.ref(FB_ROOT).update(updates);
+        }
+        enterAppForGroup(groupId);
+        return true;
+    } catch (err) {
+        console.warn('autoJoinByCode error:', err.message);
+        return false;
     }
 }
 
@@ -1579,11 +1617,14 @@ function renderGroupSwitcher() {
         const logo = g.logoUrl
             ? `<img class="group-logo group-logo-sm" src="${escapeHtml(g.logoUrl)}" alt="">`
             : `<span class="group-logo group-logo-sm group-logo-placeholder">${escapeHtml((g.name || '?').charAt(0))}</span>`;
-        return `<button class="group-switch-item ${isActive ? 'active' : ''}" data-group-id="${gid}">
-            ${logo}
-            <span>${escapeHtml(g.name)}</span>
-            ${isActive ? '<span class="check-mark">✓</span>' : ''}
-        </button>`;
+        return `<div class="group-switch-row ${isActive ? 'active' : ''}">
+            <button class="group-switch-item" data-group-id="${gid}">
+                ${logo}
+                <span>${escapeHtml(g.name)}</span>
+                ${isActive ? '<span class="check-mark">✓</span>' : ''}
+            </button>
+            <button class="group-share-btn" data-share-group-id="${gid}" title="${t('groupSwitch.share')}" aria-label="${t('groupSwitch.share')}">🔗</button>
+        </div>`;
     }).join('');
 
     list.querySelectorAll('.group-switch-item').forEach(btn => {
@@ -1593,6 +1634,42 @@ function renderGroupSwitcher() {
             if (gid !== currentGroupId) switchActiveGroup(gid);
         });
     });
+    list.querySelectorAll('.group-share-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            shareGroupLink(btn.dataset.shareGroupId);
+        });
+    });
+}
+
+function buildGroupJoinUrl(code) {
+    return `${location.origin}${location.pathname}?join=${encodeURIComponent(code)}`;
+}
+
+async function shareGroupLink(gid) {
+    const g = userGroups[gid];
+    if (!g || !g.inviteCode) return;
+    const url = buildGroupJoinUrl(g.inviteCode);
+    const title = t('groupSwitch.shareTitle', g.name);
+    const text = t('groupSwitch.shareText', g.name, g.inviteCode);
+
+    if (navigator.share) {
+        try {
+            await navigator.share({ title, text, url });
+            return;
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            // fall through to clipboard fallback
+        }
+    }
+
+    const payload = `${text}\n${url}`;
+    try {
+        await navigator.clipboard.writeText(payload);
+        alert(t('groupSwitch.shareCopied'));
+    } catch {
+        prompt(t('groupSwitch.shareCopyPrompt'), payload);
+    }
 }
 
 function switchActiveGroup(groupId) {
@@ -1947,6 +2024,9 @@ function setupGroupUIListeners() {
     $('btn-delete-group').addEventListener('click', deleteGroup);
     $('btn-copy-settings-invite').addEventListener('click', (e) => {
         copyToClipboard($('settings-invite-code').textContent, e.currentTarget);
+    });
+    $('btn-share-group').addEventListener('click', () => {
+        if (currentGroupId) shareGroupLink(currentGroupId);
     });
     $('group-logo-input').addEventListener('change', handleGroupLogoUpload);
     $('btn-remove-logo').addEventListener('click', removeGroupLogo);
