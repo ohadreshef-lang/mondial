@@ -204,27 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (isAdminMode) {
-        show('admin-panel');
-        hide('login-screen');
-        hide('main-app');
         setupAdminListeners();
-    } else {
-        // Try auto-login from localStorage
-        const saved = localStorage.getItem('wc2026_user');
-        if (saved) {
-            try {
-                currentUser = JSON.parse(saved);
-                routeAfterLogin();
-            } catch(e) {
-                showLoginScreen();
-            }
-        } else {
-            showLoginScreen();
-        }
     }
 
-    // Global UI listeners
-    $('login-form').addEventListener('submit', handleLogin);
+    // Google sign-in button
+    $('btn-google-login').addEventListener('click', handleGoogleLogin);
+
+    // Firebase Auth drives all routing
+    initAuth();
     $('btn-logout').addEventListener('click', handleLogout);
 
     document.querySelectorAll('.tab-bar:not(.admin-tab-bar) .tab-btn').forEach(btn => {
@@ -341,38 +328,56 @@ function enterAppForGroup(groupId) {
 // AUTH
 // ============================================================
 
-async function handleLogin(e) {
-    e.preventDefault();
-    const name  = $('input-name').value.trim();
-    const email = $('input-email').value.trim().toLowerCase();
-    const errEl = $('login-error');
-    hideEl(errEl);
+function initAuth() {
+    if (!auth) { showLoginScreen(); return; }
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            await setupUserFromAuth(user);
+            if (isAdminMode) {
+                show('admin-panel');
+                hide('login-screen');
+                hide('main-app');
+            } else {
+                await routeAfterLogin();
+            }
+        } else {
+            currentUser = null;
+            showLoginScreen();
+        }
+    });
+}
 
-    if (!name || !email) {
-        errEl.textContent = t('login.errorRequired');
-        showEl(errEl);
-        return;
-    }
-
-    const userId = emailToId(email);
-    currentUser = { userId, name, email };
-    localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
-
-    // Sync to Firebase (awaited so we know the user node exists before routing)
+async function setupUserFromAuth(firebaseUser) {
+    const userId = firebaseUser.uid;
+    const email  = firebaseUser.email || '';
+    let   name   = firebaseUser.displayName || email.split('@')[0] || 'User';
     if (db) {
         try {
             const snap = await ref(`users/${userId}`).once('value');
             if (!snap.exists()) {
                 await ref(`users/${userId}`).set({ name, email });
             } else {
-                await ref(`users/${userId}/name`).set(name);
+                name = snap.val().name || name;
             }
-        } catch (err) {
-            console.warn('Firebase user sync failed:', err.message);
-        }
+        } catch(err) { console.warn('User sync failed:', err); }
     }
+    currentUser = { userId, name, email };
+}
 
-    await routeAfterLogin();
+async function handleGoogleLogin() {
+    const errEl = $('login-error');
+    hideEl(errEl);
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await auth.signInWithPopup(provider);
+        // onAuthStateChanged handles routing
+    } catch (err) {
+        const msg = err.code === 'auth/popup-closed-by-user'
+            ? t('login.errorCancelled')
+            : err.message;
+        errEl.textContent = msg;
+        showEl(errEl);
+    }
 }
 
 function stopGroupListeners() {
@@ -392,11 +397,10 @@ function handleLogout() {
     userGroups = {};
     groupMembers = {};
     groupUsersCache = {};
-    localStorage.removeItem('wc2026_user');
     localStorage.removeItem('wc2026_activeGroup');
     matches  = {};
     userBets = {};
-    showLoginScreen();
+    if (auth) auth.signOut(); // triggers onAuthStateChanged → showLoginScreen
 }
 
 // ============================================================
@@ -2143,4 +2147,3 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 }
-
