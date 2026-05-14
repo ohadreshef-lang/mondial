@@ -60,6 +60,7 @@
         <main class="app-content">
             <!-- MATCHES TAB -->
             <div id="tab-matches" class="tab-panel active">
+                <div id="featured-matches-container"></div>
                 <div class="stage-filter" id="stage-filter">
                     <button class="filter-btn active" data-stage="all">הכל</button>
                     <button class="filter-btn" data-stage="group">בתים</button>
@@ -143,8 +144,14 @@
                                 <option value="SF">חצי גמר</option>
                                 <option value="3rd">מקום שלישי</option>
                                 <option value="Final">גמר</option>
+                                <option value="special">⭐ משחק מיוחד</option>
                             </select>
                             <input type="text" id="new-group-label" placeholder="בית (A–L, לשלב הבתים)">
+                        </div>
+                        <div class="form-row">
+                            <label class="no-points-label">
+                                <input type="checkbox" id="new-no-points"> ללא ניקוד (משחק מיוחד)
+                            </label>
                         </div>
                         <div class="form-row">
                             <button id="btn-add-match" class="btn btn-primary">הוסף משחק</button>
@@ -216,6 +223,7 @@
                     <option value="SF">חצי גמר</option>
                     <option value="3rd">מקום שלישי</option>
                     <option value="Final">גמר</option>
+                    <option value="special">⭐ משחק מיוחד</option>
                 </select>
                 <input type="text" id="edit-group-label" placeholder="בית (A–L)">
             </div>

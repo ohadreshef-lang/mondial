@@ -7,16 +7,17 @@ const FB_ROOT = 'worldcup2026';
 // ---- Stage / flag helpers ----
 
 const STAGE_LABELS = {
-    group: 'שלב הבתים',
-    R32:   'שלב 32',
-    R16:   'שמינייה',
-    QF:    'רבע גמר',
-    SF:    'חצי גמר',
-    '3rd': 'מקום שלישי',
-    Final: 'גמר',
+    group:   'שלב הבתים',
+    R32:     'שלב 32',
+    R16:     'שמינייה',
+    QF:      'רבע גמר',
+    SF:      'חצי גמר',
+    '3rd':   'מקום שלישי',
+    Final:   'גמר',
+    special: '⭐ משחק מיוחד',
 };
 
-const STAGE_ORDER = ['group','R32','R16','QF','SF','3rd','Final'];
+const STAGE_ORDER = ['group','R32','R16','QF','SF','3rd','Final','special'];
 
 const TEAM_FLAGS = {
     'ארצות הברית':'🇺🇸','קנדה':'🇨🇦','מקסיקו':'🇲🇽',
@@ -299,52 +300,72 @@ function setStageFilter(stage) {
 // ============================================================
 
 function renderMatches() {
-    const container = $('matches-container');
+    const container         = $('matches-container');
+    const featuredContainer = $('featured-matches-container');
 
-    const matchList = Object.entries(matches)
+    const allMatchList = Object.entries(matches)
         .map(([id, m]) => ({ id, ...m }))
-        .filter(m => stageFilter === 'all' || m.stage === stageFilter)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Special matches always shown pinned above the filter, regardless of stageFilter
+    const specialMatches = allMatchList.filter(m => m.stage === 'special');
+    const regularMatches = allMatchList.filter(m => m.stage !== 'special');
+
+    // Render featured (special) section
+    if (specialMatches.length > 0) {
+        let featuredHtml = '<div class="featured-section">';
+        featuredHtml += '<div class="featured-section-label">⭐ משחק מיוחד</div>';
+        specialMatches.forEach(m => { featuredHtml += buildMatchCard(m); });
+        featuredHtml += '</div><hr class="featured-section-divider">';
+        featuredContainer.innerHTML = featuredHtml;
+    } else {
+        featuredContainer.innerHTML = '';
+    }
+
+    // Render regular matches (with stage filter applied)
+    const matchList = regularMatches
+        .filter(m => stageFilter === 'all' || m.stage === stageFilter);
 
     if (matchList.length === 0) {
         container.innerHTML = '<p class="state-msg">אין משחקים להצגה. האדמין יכול לטעון את המשחקים.</p>';
-        return;
+    } else {
+        // Group by stage → then by group label (for group stage)
+        const grouped = {};
+        matchList.forEach(m => {
+            const key = m.stage === 'group' ? `group_${m.group || ''}` : m.stage;
+            if (!grouped[key]) grouped[key] = { stage: m.stage, group: m.group, items: [] };
+            grouped[key].items.push(m);
+        });
+
+        // Sort groups by stage order, then by group letter
+        const sortedKeys = Object.keys(grouped).sort((a, b) => {
+            const sa = STAGE_ORDER.indexOf(grouped[a].stage);
+            const sb = STAGE_ORDER.indexOf(grouped[b].stage);
+            if (sa !== sb) return sa - sb;
+            return (grouped[a].group || '').localeCompare(grouped[b].group || '');
+        });
+
+        let html = '';
+        sortedKeys.forEach(key => {
+            const g = grouped[key];
+            const label = g.stage === 'group'
+                ? `${STAGE_LABELS.group} – בית ${g.group || ''}`
+                : STAGE_LABELS[g.stage] || g.stage;
+            html += `<div class="stage-group-header">${label}</div>`;
+            g.items.forEach(m => { html += buildMatchCard(m); });
+        });
+
+        container.innerHTML = html;
     }
 
-    // Group by stage → then by group label (for group stage)
-    const grouped = {};
-    matchList.forEach(m => {
-        const key = m.stage === 'group' ? `group_${m.group || ''}` : m.stage;
-        if (!grouped[key]) grouped[key] = { stage: m.stage, group: m.group, items: [] };
-        grouped[key].items.push(m);
-    });
-
-    // Sort groups by stage order, then by group letter
-    const sortedKeys = Object.keys(grouped).sort((a, b) => {
-        const sa = STAGE_ORDER.indexOf(grouped[a].stage);
-        const sb = STAGE_ORDER.indexOf(grouped[b].stage);
-        if (sa !== sb) return sa - sb;
-        return (grouped[a].group || '').localeCompare(grouped[b].group || '');
-    });
-
-    let html = '';
-    sortedKeys.forEach(key => {
-        const g = grouped[key];
-        const label = g.stage === 'group'
-            ? `${STAGE_LABELS.group} – בית ${g.group || ''}`
-            : STAGE_LABELS[g.stage] || g.stage;
-        html += `<div class="stage-group-header">${label}</div>`;
-        g.items.forEach(m => { html += buildMatchCard(m); });
-    });
-
-    container.innerHTML = html;
-
-    // Attach bet-save listeners
-    container.querySelectorAll('.btn-save-bet').forEach(btn => {
-        btn.addEventListener('click', () => saveBet(btn.dataset.matchId));
-    });
-    container.querySelectorAll('.bet-edit-link').forEach(btn => {
-        btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
+    // Attach bet-save listeners to both containers
+    [container, featuredContainer].forEach(c => {
+        c.querySelectorAll('.btn-save-bet').forEach(btn => {
+            btn.addEventListener('click', () => saveBet(btn.dataset.matchId));
+        });
+        c.querySelectorAll('.bet-edit-link').forEach(btn => {
+            btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
+        });
     });
 }
 
@@ -396,15 +417,17 @@ function buildMatchCard(m) {
         }
     }
 
-    // Points row (only if match completed and user had a bet)
+    // Points row (only if match completed, has scoring, and user had a bet)
     let pointsHtml = '';
-    if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
-        const pts = bet.points;
-        const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
-        const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
-        pointsHtml = `<div class="match-points-row ${cls}">${emoji} ניחוש: ${bet.team1Goals}–${bet.team2Goals} | ${pts} נקודות</div>`;
-    } else if (hasResult && !bet) {
-        pointsHtml = `<div class="match-points-row points-na">לא הימרת על משחק זה</div>`;
+    if (!m.noPoints) {
+        if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
+            const pts = bet.points;
+            const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
+            pointsHtml = `<div class="match-points-row ${cls}">${emoji} ניחוש: ${bet.team1Goals}–${bet.team2Goals} | ${pts} נקודות</div>`;
+        } else if (hasResult && !bet) {
+            pointsHtml = `<div class="match-points-row points-na">לא הימרת על משחק זה</div>`;
+        }
     }
 
     return `
@@ -606,11 +629,12 @@ function adminChangePassword() {
 // ============================================================
 
 async function adminAddMatch() {
-    const t1    = $('new-team1').value.trim();
-    const t2    = $('new-team2').value.trim();
-    const date  = $('new-date').value;
-    const stage = $('new-stage').value;
-    const grp   = $('new-group-label').value.trim().toUpperCase();
+    const t1       = $('new-team1').value.trim();
+    const t2       = $('new-team2').value.trim();
+    const date     = $('new-date').value;
+    const stage    = $('new-stage').value;
+    const grp      = $('new-group-label').value.trim().toUpperCase();
+    const noPoints = $('new-no-points').checked;
 
     if (!t1 || !t2 || !date) { alert('נא למלא קבוצה 1, קבוצה 2 ותאריך'); return; }
 
@@ -621,6 +645,7 @@ async function adminAddMatch() {
         status: 'upcoming',
         result: null,
     };
+    if (noPoints) matchData.noPoints = true;
 
     if (db) {
         await ref('matches').push(matchData);
@@ -628,6 +653,7 @@ async function adminAddMatch() {
 
     // Reset form
     ['new-team1','new-team2','new-date','new-group-label'].forEach(id => { $(id).value = ''; });
+    $('new-no-points').checked = false;
     loadAdminMatches();
 }
 
@@ -739,6 +765,9 @@ async function saveResult() {
     const g2 = parseInt($('modal-score2').value, 10);
     if (isNaN(g1) || isNaN(g2)) return;
 
+    const matchSnap = await ref(`matches/${matchId}`).once('value');
+    const matchData = matchSnap.val();
+
     // Save result and mark completed
     await ref(`matches/${matchId}`).update({
         result: { team1Goals: g1, team2Goals: g2 },
@@ -747,9 +776,12 @@ async function saveResult() {
 
     hide('result-modal');
 
-    // Recalculate points for all users
-    await recalcPoints(matchId, g1, g2);
-    alert('תוצאה נשמרה! הנקודות חושבו מחדש.');
+    if (matchData && matchData.noPoints) {
+        alert('תוצאה נשמרה!');
+    } else {
+        await recalcPoints(matchId, g1, g2);
+        alert('תוצאה נשמרה! הנקודות חושבו מחדש.');
+    }
 }
 
 async function recalcPoints(matchId, resG1, resG2) {
