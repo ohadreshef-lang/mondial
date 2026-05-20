@@ -17,7 +17,7 @@
 
 const firebaseConfig = {
     apiKey: "AIzaSyCJkXJh0su5o8ISQEUQru6-LI1iYDymWPk",
-    authDomain: "worldcup2026-dd327.firebaseapp.com",
+    authDomain: "mondial.guru",
     databaseURL: "https://worldcup2026-dd327-default-rtdb.firebaseio.com",
     projectId: "worldcup2026-dd327",
     storageBucket: "worldcup2026-dd327.firebasestorage.app",
