@@ -122,6 +122,42 @@ section { display: block; }
     margin-top: 16px;
 }
 
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: #3c4043;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: box-shadow .18s, background .18s;
+    margin-bottom: 4px;
+}
+.btn-google:hover { box-shadow: 0 2px 8px rgba(0,0,0,.15); background: #f8f8f8; }
+.btn-google:disabled { opacity: .6; cursor: not-allowed; }
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-light);
+    font-size: .82rem;
+    margin: 14px 0;
+}
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
 /* ==========================================
    BUTTONS
    ========================================== */

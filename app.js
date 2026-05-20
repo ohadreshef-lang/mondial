@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Global UI listeners
+    $('btn-google-signin').addEventListener('click', handleGoogleSignIn);
     $('login-form').addEventListener('submit', handleLogin);
     $('btn-logout').addEventListener('click', handleLogout);
 
@@ -175,6 +176,43 @@ function enterApp() {
 // AUTH
 // ============================================================
 
+async function handleGoogleSignIn() {
+    if (!auth) {
+        alert('Firebase Auth לא זמין');
+        return;
+    }
+    const btn = $('btn-google-signin');
+    btn.disabled = true;
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result   = await auth.signInWithPopup(provider);
+        const { displayName, email } = result.user;
+
+        if (!email) throw new Error('לא התקבל אימייל מ-Google');
+
+        const userId   = emailToId(email);
+        currentUser    = { userId, name: displayName || email.split('@')[0], email };
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+
+        if (db) {
+            const snap = await ref(`users/${userId}`).once('value');
+            if (!snap.exists()) {
+                await ref(`users/${userId}`).set({ name: currentUser.name, email, totalPoints: 0 });
+            } else {
+                await ref(`users/${userId}/name`).set(currentUser.name);
+            }
+        }
+        enterApp();
+    } catch (err) {
+        if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+            $('login-error').textContent = 'כניסה עם Google נכשלה: ' + (err.message || err.code);
+            showEl($('login-error'));
+        }
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 function handleLogin(e) {
     e.preventDefault();
     const name  = $('input-name').value.trim();
@@ -213,6 +251,7 @@ function handleLogout() {
         ref('users').off();
         if (currentUser) ref(`bets/${currentUser.userId}`).off();
     }
+    if (auth) auth.signOut().catch(() => {});
     currentUser = null;
     localStorage.removeItem('wc2026_user');
     matches  = {};

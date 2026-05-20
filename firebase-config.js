@@ -26,14 +26,16 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let db = null;
+let db   = null;
+let auth = null;
 let firebaseEnabled = false;
 
 try {
     // Check if Firebase config is properly set
     if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
         firebase.initializeApp(firebaseConfig);
-        db = firebase.database();
+        db   = firebase.database();
+        auth = firebase.auth();
 
         // Test database connection
         db.ref('.info/connected').on('value', (snapshot) => {
