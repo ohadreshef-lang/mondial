@@ -210,6 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Google sign-in button
     $('btn-google-login').addEventListener('click', handleGoogleLogin);
 
+    // Email/name fallback login
+    $('email-login-form').addEventListener('submit', handleEmailLogin);
+
     // Firebase Auth drives all routing
     initAuth();
     $('btn-logout').addEventListener('click', handleLogout);
@@ -341,6 +344,23 @@ function initAuth() {
                 await routeAfterLogin();
             }
         } else {
+            // No Firebase Auth session — check for email-login fallback
+            const saved = localStorage.getItem('wc2026_emailUser');
+            if (saved) {
+                try {
+                    currentUser = JSON.parse(saved);
+                    if (isAdminMode) {
+                        show('admin-panel');
+                        hide('login-screen');
+                        hide('main-app');
+                    } else {
+                        await routeAfterLogin();
+                    }
+                    return;
+                } catch(e) {
+                    localStorage.removeItem('wc2026_emailUser');
+                }
+            }
             currentUser = null;
             showLoginScreen();
         }
@@ -380,6 +400,33 @@ async function handleGoogleLogin() {
     }
 }
 
+async function handleEmailLogin(e) {
+    e.preventDefault();
+    const errEl  = $('login-error');
+    hideEl(errEl);
+    const name  = $('input-name').value.trim();
+    const email = $('input-email').value.trim().toLowerCase();
+    if (!name || !email || !email.includes('@')) {
+        errEl.textContent = 'נא למלא שם ואימייל תקין';
+        showEl(errEl);
+        return;
+    }
+    const userId = emailToId(email);
+    if (db) {
+        try {
+            const snap = await ref(`users/${userId}`).once('value');
+            if (!snap.exists()) {
+                await ref(`users/${userId}`).set({ name, email });
+            } else {
+                name = snap.val().name || name;
+            }
+        } catch(err) { console.warn('User sync failed:', err); }
+    }
+    currentUser = { userId, name, email, emailLogin: true };
+    localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
+    await routeAfterLogin();
+}
+
 function stopGroupListeners() {
     if (!db || !currentGroupId || !currentUser) return;
     ref(`groups/${currentGroupId}/members`).off();
@@ -398,9 +445,14 @@ function handleLogout() {
     groupMembers = {};
     groupUsersCache = {};
     localStorage.removeItem('wc2026_activeGroup');
+    localStorage.removeItem('wc2026_emailUser');
     matches  = {};
     userBets = {};
-    if (auth) auth.signOut(); // triggers onAuthStateChanged → showLoginScreen
+    if (auth && auth.currentUser) {
+        auth.signOut(); // triggers onAuthStateChanged → showLoginScreen
+    } else {
+        showLoginScreen();
+    }
 }
 
 // ============================================================
