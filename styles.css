@@ -46,10 +46,11 @@ section { display: block; }
 #login-screen {
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 60%, var(--green-light) 100%);
-    padding: 20px;
+    padding: 40px 20px;
+    overflow-y: auto;
 }
 
 .login-card {
@@ -119,8 +120,26 @@ section { display: block; }
 .login-hint {
     color: var(--text-light);
     font-size: .8rem;
-    margin-top: 16px;
+    margin-top: 12px;
 }
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-light);
+    font-size: .82rem;
+    margin: 14px 0;
+}
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.login-actions { text-align: right; }
 
 /* ==========================================
    BUTTONS
