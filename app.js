@@ -675,6 +675,17 @@ function renderMyBets() {
 // ADMIN: SETUP LISTENERS
 // ============================================================
 
+function adminSwitchTournament(key) {
+    if (key === activeTournament) return;
+    if (db) ref('matches').off();
+    activeTournament = key;
+    ['worldcup2026','ucl2025'].forEach(k => {
+        const btn = $(`admin-t-${k}`);
+        if (btn) btn.classList.toggle('active', k === key);
+    });
+    loadAdminMatches();
+}
+
 function setupAdminListeners() {
     $('btn-admin-login').addEventListener('click', attemptAdminLogin);
     $('admin-password-input').addEventListener('keydown', e => {
@@ -901,7 +912,7 @@ async function recalcPoints(matchId, resG1, resG2) {
 
     // Apply all bet point updates
     if (Object.keys(updates).length > 0) {
-        await db.ref(FB_ROOT).update(updates);
+        await db.ref(activeTournament).update(updates);
     }
 
     // Now recompute each user's total points

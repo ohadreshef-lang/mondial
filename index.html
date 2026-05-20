@@ -141,6 +141,12 @@
             <!-- Admin Content (shown after auth) -->
             <div id="admin-content" style="display:none">
 
+                <!-- Tournament selector -->
+                <div class="tournament-bar" style="background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;">
+                    <button class="tournament-btn active" data-tournament="worldcup2026" id="admin-t-worldcup2026" onclick="adminSwitchTournament('worldcup2026')" style="color:var(--green-dark);border-color:var(--green-dark);">⚽ מונדיאל 2026</button>
+                    <button class="tournament-btn" data-tournament="ucl2025" id="admin-t-ucl2025" onclick="adminSwitchTournament('ucl2025')" style="color:var(--green-dark);border-color:var(--green-dark);">🏆 ליגת האלופות</button>
+                </div>
+
                 <!-- Add Match -->
                 <div class="admin-section">
                     <h3>➕ הוסף משחק</h3>
