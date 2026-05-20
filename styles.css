@@ -46,10 +46,11 @@ section { display: block; }
 #login-screen {
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 60%, var(--green-light) 100%);
-    padding: 20px;
+    padding: 40px 20px;
+    overflow-y: auto;
 }
 
 .login-card {
