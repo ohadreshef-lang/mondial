@@ -256,6 +256,28 @@ section { display: block; }
    TAB BAR
    ========================================== */
 
+.tournament-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--green-dark);
+    justify-content: center;
+}
+
+.tournament-btn {
+    padding: 7px 18px;
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 20px;
+    background: transparent;
+    color: rgba(255,255,255,.75);
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s;
+}
+.tournament-btn:hover  { background: rgba(255,255,255,.12); color: #fff; }
+.tournament-btn.active { background: #fff; color: var(--green-dark); border-color: #fff; }
+
 .tab-bar {
     display: flex;
     background: var(--card-bg);

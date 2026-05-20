@@ -49,12 +49,17 @@
     <!-- ===== MAIN APP ===== -->
     <section id="main-app" class="hidden">
         <header class="app-bar">
-            <div class="app-bar-title">⚽ מונדיאל 2026</div>
+            <div class="app-bar-title" id="app-bar-title">⚽ מונדיאל 2026</div>
             <div class="app-bar-user">
                 <span id="header-username"></span>
                 <button id="btn-logout" class="btn-text">יציאה</button>
             </div>
         </header>
+
+        <div class="tournament-bar">
+            <button class="tournament-btn active" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
+            <button class="tournament-btn" data-tournament="ucl2025">🏆 ליגת האלופות</button>
+        </div>
 
         <nav class="tab-bar">
             <button class="tab-btn active" data-tab="matches">

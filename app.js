@@ -2,7 +2,22 @@
 // WORLD CUP 2026 BETTING APP
 // ============================================================
 
-const FB_ROOT = 'worldcup2026';
+// ---- Tournament config ----
+
+const TOURNAMENTS = {
+    worldcup2026: {
+        label: 'מונדיאל 2026',
+        icon:  '⚽',
+        stages: ['group','R32','R16','QF','SF','3rd','Final','special'],
+    },
+    ucl2025: {
+        label: "ליגת האלופות '25",
+        icon:  '🏆',
+        stages: ['SF','Final','special'],
+    },
+};
+
+let activeTournament = 'worldcup2026';
 
 // ---- Stage / flag helpers ----
 
@@ -17,6 +32,7 @@ const STAGE_LABELS = {
     special: '⭐ משחק מיוחד',
 };
 
+// kept for reference; actual order comes from TOURNAMENTS[activeTournament].stages
 const STAGE_ORDER = ['group','R32','R16','QF','SF','3rd','Final','special'];
 
 const TEAM_FLAGS = {
@@ -76,7 +92,7 @@ let pendingEditMatchId   = null;
 // ---- Firebase refs ----
 
 function ref(path) {
-    return db.ref(`${FB_ROOT}/${path}`);
+    return db.ref(`${activeTournament}/${path}`);
 }
 
 // ---- Utilities ----
@@ -144,6 +160,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => setStageFilter(btn.dataset.stage));
+    });
+
+    document.querySelectorAll('.tournament-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTournament(btn.dataset.tournament));
     });
 
     // Modal cancel buttons
@@ -333,6 +353,41 @@ function setStageFilter(stage) {
     renderMatches();
 }
 
+function switchTournament(key) {
+    if (key === activeTournament) return;
+
+    if (db) {
+        ref('matches').off();
+        ref('users').off();
+        if (currentUser) ref(`bets/${currentUser.userId}`).off();
+    }
+
+    activeTournament = key;
+    matches  = {};
+    userBets = {};
+    allUsers = [];
+    stageFilter = 'all';
+
+    const t = TOURNAMENTS[key];
+    $('app-bar-title').textContent = `${t.icon} ${t.label}`;
+
+    document.querySelectorAll('.tournament-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tournament === key);
+    });
+
+    // Show only stage filter buttons relevant to this tournament
+    document.querySelectorAll('.filter-btn[data-stage]').forEach(b => {
+        const s = b.dataset.stage;
+        b.style.display = (s === 'all' || t.stages.includes(s)) ? '' : 'none';
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.stage === 'all');
+    });
+
+    startFirebaseListeners();
+}
+
 
 // ============================================================
 // RENDER: MATCHES TAB
@@ -377,9 +432,10 @@ function renderMatches() {
         });
 
         // Sort groups by stage order, then by group letter
+        const currentStages = TOURNAMENTS[activeTournament].stages;
         const sortedKeys = Object.keys(grouped).sort((a, b) => {
-            const sa = STAGE_ORDER.indexOf(grouped[a].stage);
-            const sb = STAGE_ORDER.indexOf(grouped[b].stage);
+            const sa = currentStages.indexOf(grouped[a].stage);
+            const sb = currentStages.indexOf(grouped[b].stage);
             if (sa !== sb) return sa - sb;
             return (grouped[a].group || '').localeCompare(grouped[b].group || '');
         });
