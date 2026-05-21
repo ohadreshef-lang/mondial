@@ -368,6 +368,13 @@ function initAuth() {
 }
 
 async function setupUserFromAuth(firebaseUser) {
+    // Anonymous sign-in is used as an auth token for email-login users
+    if (firebaseUser.isAnonymous) {
+        const saved = localStorage.getItem('wc2026_emailUser');
+        if (saved) {
+            try { currentUser = JSON.parse(saved); return; } catch(e) {}
+        }
+    }
     const userId = firebaseUser.uid;
     const email  = firebaseUser.email || '';
     let   name   = firebaseUser.displayName || email.split('@')[0] || 'User';
@@ -404,7 +411,7 @@ async function handleEmailLogin(e) {
     e.preventDefault();
     const errEl  = $('login-error');
     hideEl(errEl);
-    const name  = $('input-name').value.trim();
+    let   name  = $('input-name').value.trim();
     const email = $('input-email').value.trim().toLowerCase();
     if (!name || !email || !email.includes('@')) {
         errEl.textContent = 'נא למלא שם ואימייל תקין';
@@ -424,6 +431,14 @@ async function handleEmailLogin(e) {
     }
     currentUser = { userId, name, email, emailLogin: true };
     localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
+    // Sign in anonymously so email-login users have a Firebase Auth token
+    // (required for database writes when security rules check auth != null)
+    if (auth) {
+        try {
+            await auth.signInAnonymously();
+            return; // onAuthStateChanged will call routeAfterLogin
+        } catch(e) { console.warn('Anonymous auth failed:', e); }
+    }
     await routeAfterLogin();
 }
 
