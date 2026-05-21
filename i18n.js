@@ -26,6 +26,7 @@ const TRANSLATIONS = {
 
         // Footer + rules
         'footer.rules': '📖 חוקי המשחק',
+        'footer.contact': '✉️ צרו קשר',
         'rules.title': '📖 חוקי המשחק',
         'rules.html': `
             <h4>🎯 איך משחקים?</h4>
@@ -300,6 +301,7 @@ const TRANSLATIONS = {
         'common.backToApp': 'Back to app',
 
         'footer.rules': '📖 Game rules',
+        'footer.contact': '✉️ Contact us',
         'rules.title': '📖 Game rules',
         'rules.html': `
             <h4>🎯 How to play</h4>
@@ -559,6 +561,7 @@ const TRANSLATIONS = {
         'common.backToApp': 'Volver a la app',
 
         'footer.rules': '📖 Reglas del juego',
+        'footer.contact': '✉️ Contáctanos',
         'rules.title': '📖 Reglas del juego',
         'rules.html': `
             <h4>🎯 Cómo jugar</h4>
