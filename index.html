@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניחושי מונדיאל 2026 ⚽</title>
+    <meta property="og:title" content="ניחושי מונדיאל 2026">
+    <meta property="og:description" content="נחש את התוצאות, תתחרה עם החברים!">
+    <link rel="stylesheet" href="styles.css?v=20260420e">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="i18n.js?v=20260420e"></script>
+</head>
+<body>
+
+    <!-- ===== LOGIN SCREEN ===== -->
+    <section id="login-screen">
+        <div class="login-card">
+            <div class="login-lang-toggle">
+                <select class="lang-select" aria-label="Language">
+                    <option value="he">🇮🇱 עברית</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+            </div>
+            <div class="login-logo">⚽</div>
+            <h1 data-i18n="login.title">ניחושי מונדיאל 2026</h1>
+            <p class="login-subtitle" data-i18n="login.subtitle">נחש תוצאות, צבור נקודות, תתחרה עם החברים!</p>
+            <div class="login-actions">
+                <button id="btn-google-login" class="btn btn-google btn-block">
+                    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    <span data-i18n="login.googleBtn">כניסה עם Google</span>
+                </button>
+                <div class="login-divider"><span>או</span></div>
+                <form id="email-login-form" novalidate>
+                    <div class="field-group">
+                        <label for="input-name">שם מלא</label>
+                        <input type="text" id="input-name" placeholder="הכנס את שמך..." autocomplete="name" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="input-email">אימייל</label>
+                        <input type="text" id="input-email" placeholder="your@email.com" autocomplete="username" inputmode="email" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">כניסה / הרשמה</button>
+                </form>
+                <p class="login-hint">אם נרשמת בעבר עם אותו אימייל – תחזור לפרופיל שלך</p>
+                <p id="login-error" class="error-msg hidden"></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== GROUP PICKER SCREEN ===== -->
+    <section id="group-picker-screen" class="hidden">
+        <div class="group-picker-wrap">
+            <header class="group-picker-header">
+                <h1 data-i18n="groupPicker.title">⚽ מונדיאל 2026</h1>
+                <p class="group-picker-hello"><span data-i18n="groupPicker.hello">שלום,</span> <span id="picker-username"></span>!</p>
+                <p class="group-picker-subtitle" data-i18n="groupPicker.subtitle">כדי להתחיל לנחש, הצטרף לקבוצה קיימת או צור חדשה</p>
+                <button id="btn-picker-logout" class="btn-text" data-i18n="appBar.logout">יציאה</button>
+            </header>
+            <div class="group-picker-cards">
+                <div class="group-picker-card">
+                    <div class="group-picker-icon">➕</div>
+                    <h2 data-i18n="groupPicker.createTitle">צור קבוצה חדשה</h2>
+                    <p data-i18n="groupPicker.createDesc">פתח קבוצה פרטית והזמן את החברים שלך עם קוד שיתוף</p>
+                    <button id="btn-picker-create" class="btn btn-primary btn-block" data-i18n="groupPicker.createBtn">צור קבוצה</button>
+                </div>
+                <div class="group-picker-card">
+                    <div class="group-picker-icon">🔗</div>
+                    <h2 data-i18n="groupPicker.joinTitle">הצטרף לקבוצה</h2>
+                    <p data-i18n="groupPicker.joinDesc">קיבלת קוד הזמנה מחבר? הכנס אותו כאן</p>
+                    <button id="btn-picker-join" class="btn btn-secondary btn-block" data-i18n="groupPicker.joinBtn">הצטרף עם קוד</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== MAIN APP ===== -->
+    <section id="main-app" class="hidden">
+        <header class="app-bar">
+            <div class="app-bar-title" id="app-bar-title">⚽ <span data-i18n="groupPicker.title">מונדיאל 2026</span></div>
+            <div class="app-bar-user">
+                <div class="lang-toggle-inline">
+                    <select class="lang-select" aria-label="Language">
+                        <option value="he">🇮🇱</option>
+                        <option value="en">🇬🇧</option>
+                        <option value="es">🇪🇸</option>
+                    </select>
+                </div>
+                <div class="group-switcher-wrap">
+                    <button id="btn-group-switcher" class="group-switch-btn" type="button">
+                        <img id="active-group-logo" class="group-logo group-logo-sm hidden" alt="">
+                        <span id="active-group-name">—</span>
+                        <span class="group-switch-caret">▾</span>
+                    </button>
+                    <div id="group-switch-menu" class="group-switch-menu hidden">
+                        <div id="group-switch-list" class="group-switch-list"></div>
+                        <div class="group-switch-divider"></div>
+                        <button class="group-switch-action" id="btn-open-create-group" type="button" data-i18n="groupSwitch.createGroup">➕ קבוצה חדשה</button>
+                        <button class="group-switch-action" id="btn-open-join-group" type="button" data-i18n="groupSwitch.joinGroup">🔗 הצטרף עם קוד</button>
+                        <button class="group-switch-action hidden" id="btn-share-active-group" type="button" data-i18n="groupSwitch.shareActive">📤 שתף קבוצה נוכחית</button>
+                        <button class="group-switch-action hidden" id="btn-open-group-settings" type="button" data-i18n="groupSwitch.settings">⚙️ הגדרות קבוצה</button>
+                    </div>
+                </div>
+                <span id="header-username"></span>
+                <button id="btn-logout" class="btn-text" data-i18n="appBar.logout">יציאה</button>
+            </div>
+        </header>
+
+        <div class="tournament-bar">
+            <button class="tournament-btn" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
+            <button class="tournament-btn active" data-tournament="ucl2025">🏆 ליגת האלופות</button>
+        </div>
+
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-tab="matches">
+                <span class="tab-icon">🏟️</span><span data-i18n="tabs.matches">משחקים</span>
+            </button>
+            <button class="tab-btn" data-tab="leaderboard">
+                <span class="tab-icon">🏆</span><span data-i18n="tabs.leaderboard">לידרבורד</span>
+            </button>
+            <button class="tab-btn" data-tab="my-bets">
+                <span class="tab-icon">🎯</span><span data-i18n="tabs.myBets">הניחושים שלי</span>
+            </button>
+            <button class="tab-btn" data-tab="tournament">
+                <span class="tab-icon">🏆</span><span data-i18n="tabs.tournament">טורניר</span>
+            </button>
+        </nav>
+
+        <main class="app-content">
+            <!-- MATCHES TAB -->
+            <div id="tab-matches" class="tab-panel active">
+                <div id="featured-matches-container"></div>
+                <div class="matches-lock-notice" data-i18n="match.lockNotice">⏰ כל הניחושים נסגרים שעה לפני פתיחת המשחק</div>
+                <div class="stage-filter" id="stage-filter">
+                    <button class="filter-btn active" data-stage="all" data-i18n="stage.all">הכל</button>
+                    <button class="filter-btn" data-stage="group" data-i18n="stage.groupShort">בתים</button>
+                    <button class="filter-btn" data-stage="R32" data-i18n="stage.R32">שלב 32</button>
+                    <button class="filter-btn" data-stage="R16" data-i18n="stage.R16">שלב 16</button>
+                    <button class="filter-btn" data-stage="QF" data-i18n="stage.QF">רבע גמר</button>
+                    <button class="filter-btn" data-stage="SF" data-i18n="stage.SF">חצי גמר</button>
+                    <button class="filter-btn" data-stage="3rd" data-i18n="stage.3rd">מקום שלישי</button>
+                    <button class="filter-btn" data-stage="Final" data-i18n="stage.Final">גמר</button>
+                </div>
+                <div id="matches-container">
+                    <p class="state-msg" data-i18n="match.loadingMatches">טוען משחקים...</p>
+                </div>
+            </div>
+
+            <!-- LEADERBOARD TAB -->
+            <div id="tab-leaderboard" class="tab-panel">
+                <div class="leaderboard-header">
+                    <h2 data-i18n="leaderboard.title">🏆 טבלת דירוג</h2>
+                    <div class="scoring-legend">
+                        <span class="legend-item" data-i18n="leaderboard.scoringExact">תוצאה מדויקת = 3 נק'</span>
+                        <span class="legend-sep">|</span>
+                        <span class="legend-item" data-i18n="leaderboard.scoringWinner">מנצח נכון = 1 נק'</span>
+                    </div>
+                </div>
+                <div id="leaderboard-container">
+                    <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                </div>
+            </div>
+
+            <!-- MY BETS TAB -->
+            <div id="tab-my-bets" class="tab-panel">
+                <h2 class="my-bets-title" data-i18n="myBets.title">🎯 הניחושים שלי</h2>
+                <div id="my-bets-container">
+                    <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                </div>
+            </div>
+
+            <!-- TOURNAMENT TAB -->
+            <div id="tab-tournament" class="tab-panel">
+                <h2 class="my-bets-title" data-i18n="tournament.title">🏆 ניחושי טורניר</h2>
+                <p class="tournament-subtitle" data-i18n="tournament.subtitle">10 נקודות לכל ניחוש נכון. נסגר שעה לפני פתיחת הטורניר.</p>
+                <div id="tournament-countdown" class="tournament-countdown"></div>
+                <div id="tournament-container">
+                    <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <button id="btn-open-rules" class="btn-text" type="button" data-i18n="footer.rules">📖 חוקי המשחק</button>
+            <span class="footer-sep">·</span>
+            <span class="footer-copy">⚽ Mondial 2026</span>
+        </footer>
+    </section>
+
+    <!-- ===== ADMIN PANEL ===== -->
+    <section id="admin-panel" class="hidden">
+        <header class="app-bar admin-bar">
+            <div class="app-bar-title" data-i18n="admin.title">🔧 פאנל אדמין</div>
+            <button id="btn-admin-back" class="btn btn-secondary btn-sm" data-i18n="common.backToApp">חזרה לאפליקציה</button>
+        </header>
+
+        <div class="app-content">
+            <!-- Password Gate -->
+            <div id="admin-auth">
+                <div class="admin-auth-card">
+                    <h2 data-i18n="admin.passwordTitle">כניסת מנהל</h2>
+                    <div class="field-group">
+                        <label for="admin-password-input" data-i18n="admin.passwordLabel">סיסמת מנהל</label>
+                        <input type="password" id="admin-password-input" data-i18n-placeholder="admin.passwordPlaceholder" placeholder="סיסמה...">
+                    </div>
+                    <p id="admin-auth-error" class="error-msg hidden" data-i18n="admin.passwordWrong">סיסמה שגויה</p>
+                    <button id="btn-admin-login" class="btn btn-primary btn-block" data-i18n="admin.login">כניסה</button>
+                    <p class="login-hint" data-i18n="admin.passwordHint">סיסמה ברירת מחדל: admin2026</p>
+                </div>
+            </div>
+
+            <!-- Admin Content (shown after auth) -->
+            <div id="admin-content" style="display:none">
+
+                <!-- Tournament selector -->
+                <div class="tournament-bar" style="background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;">
+                    <button class="tournament-btn active" data-tournament="worldcup2026" id="admin-t-worldcup2026" onclick="adminSwitchTournament('worldcup2026')" style="color:var(--green-dark);border-color:var(--green-dark);">⚽ מונדיאל 2026</button>
+                    <button class="tournament-btn" data-tournament="ucl2025" id="admin-t-ucl2025" onclick="adminSwitchTournament('ucl2025')" style="color:var(--green-dark);border-color:var(--green-dark);">🏆 ליגת האלופות</button>
+                </div>
+
+                <nav class="tab-bar admin-tab-bar">
+                    <button class="tab-btn active" data-admin-tab="matches">
+                        <span class="tab-icon">📋</span><span data-i18n="admin.tabMatches">משחקים</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="users">
+                        <span class="tab-icon">👥</span><span data-i18n="admin.tabUsers">משתמשים</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="groups">
+                        <span class="tab-icon">👨‍👩‍👧</span><span data-i18n="admin.tabGroups">קבוצות</span>
+                    </button>
+                    <button class="tab-btn" data-admin-tab="tournament">
+                        <span class="tab-icon">🏆</span><span data-i18n="admin.tabTournament">טורניר</span>
+                    </button>
+                </nav>
+
+                <!-- Admin Matches Tab -->
+                <div id="admin-tab-matches" class="tab-panel active">
+
+                <!-- Add Match -->
+                <div class="admin-section">
+                    <h3 data-i18n="admin.addMatchTitle">➕ הוסף משחק</h3>
+                    <div class="add-match-form">
+                        <div class="form-row">
+                            <input type="text" id="new-team1" data-i18n-placeholder="admin.team1Placeholder" placeholder="קבוצה 1 (למשל: ברזיל)">
+                            <span class="vs-label">vs</span>
+                            <input type="text" id="new-team2" data-i18n-placeholder="admin.team2Placeholder" placeholder="קבוצה 2 (למשל: ארגנטינה)">
+                        </div>
+                        <div class="form-row">
+                            <input type="datetime-local" id="new-date">
+                            <select id="new-stage">
+                                <option value="group" data-i18n="stage.group">שלב הבתים</option>
+                                <option value="R32" data-i18n="stage.R32">שלב 32</option>
+                                <option value="R16" data-i18n="stage.R16">שלב 16</option>
+                                <option value="QF" data-i18n="stage.QF">רבע גמר</option>
+                                <option value="SF" data-i18n="stage.SF">חצי גמר</option>
+                                <option value="3rd" data-i18n="stage.3rd">מקום שלישי</option>
+                                <option value="Final" data-i18n="stage.Final">גמר</option>
+                                <option value="special">⭐ משחק מיוחד</option>
+                            </select>
+                            <input type="text" id="new-group-label" data-i18n-placeholder="admin.groupLabelPlaceholder" placeholder="בית (A–L, לשלב הבתים)">
+                        </div>
+                        <div class="form-row">
+                            <label class="no-points-label">
+                                <input type="checkbox" id="new-no-points"> ללא ניקוד (משחק מיוחד)
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <button id="btn-add-match" class="btn btn-primary" data-i18n="admin.addMatchBtn">הוסף משחק</button>
+                            <button id="btn-seed-matches" class="btn btn-secondary" data-i18n="admin.seedBtn">⚡ טען משחקי מונדיאל 2026</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="admin-section">
+                    <h3 data-i18n="admin.changePwdTitle">🔑 שנה סיסמה</h3>
+                    <div class="form-row">
+                        <input type="password" id="new-password-input" data-i18n-placeholder="admin.newPwdPlaceholder" placeholder="סיסמה חדשה">
+                        <button id="btn-change-password" class="btn btn-secondary" data-i18n="common.save">שמור</button>
+                    </div>
+                </div>
+
+                <!-- Matches Management -->
+                <div class="admin-section">
+                    <h3 data-i18n="admin.matchesTitle">📋 ניהול משחקים</h3>
+                    <div id="admin-matches-container">
+                        <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                    </div>
+                </div>
+
+                </div><!-- /#admin-tab-matches -->
+
+                <!-- Admin Users Tab -->
+                <div id="admin-tab-users" class="tab-panel">
+                    <div class="admin-section">
+                        <h3 data-i18n="admin.usersTitle">👥 ניהול משתמשים</h3>
+                        <div id="admin-users-container">
+                            <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                        </div>
+                    </div>
+                </div><!-- /#admin-tab-users -->
+
+                <!-- Admin Groups Tab -->
+                <div id="admin-tab-groups" class="tab-panel">
+                    <div class="admin-section">
+                        <h3 data-i18n="admin.groupsTitle">👨‍👩‍👧 ניהול קבוצות</h3>
+                        <div id="admin-groups-container">
+                            <p class="state-msg" data-i18n="common.loading">טוען...</p>
+                        </div>
+                    </div>
+                </div><!-- /#admin-tab-groups -->
+
+                <!-- Admin Tournament Tab -->
+                <div id="admin-tab-tournament" class="tab-panel">
+
+                <!-- Tournament Bets Management -->
+                <div class="admin-section">
+                    <h3 data-i18n="admin.tournamentTitle">🏆 ניחושי טורניר</h3>
+                    <p class="admin-hint" data-i18n="admin.tournamentHint1">רשימות האלופה ומלך השערים מוגדרות אוטומטית.</p>
+
+                    <p class="admin-hint" data-i18n="admin.tournamentHint2">תוצאות סופיות (הזן רק בתום הטורניר — מחשב 10 נק' לכל ניחוש נכון בכל קבוצה):</p>
+                    <div class="form-row">
+                        <select id="admin-final-winner">
+                            <option value="" data-i18n="admin.finalWinnerPlaceholder">— אלופה —</option>
+                        </select>
+                        <select id="admin-final-scorer">
+                            <option value="" data-i18n="admin.finalScorerPlaceholder">— מלך השערים —</option>
+                        </select>
+                        <button id="btn-save-tournament-result" class="btn btn-primary" data-i18n="admin.saveTournamentResult">שמור תוצאה ↦ חשב נקודות</button>
+                    </div>
+                </div>
+                </div><!-- /#admin-tab-tournament -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== MODAL: Enter Result ===== -->
+    <div id="result-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="modal.enterResultTitle">הזן תוצאת משחק</h3>
+            <p id="modal-match-title" class="modal-subtitle"></p>
+            <div class="result-form">
+                <div class="result-team">
+                    <span id="modal-team1-name" class="result-team-name"></span>
+                    <input type="number" id="modal-score1" min="0" max="30" value="0" class="score-big" onfocus="this.select()">
+                </div>
+                <span class="result-sep">–</span>
+                <div class="result-team">
+                    <input type="number" id="modal-score2" min="0" max="30" value="0" class="score-big" onfocus="this.select()">
+                    <span id="modal-team2-name" class="result-team-name"></span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-save-result" class="btn btn-primary" data-i18n="modal.saveAndRecalc">שמור ↦ חשב נקודות</button>
+                <button id="btn-cancel-result" class="btn btn-ghost" data-i18n="common.cancel">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Edit Match ===== -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="modal.editMatchTitle">ערוך משחק</h3>
+            <input type="hidden" id="edit-match-id">
+            <div class="form-row">
+                <input type="text" id="edit-team1" data-i18n-placeholder="admin.team1Placeholder" placeholder="קבוצה 1">
+                <span class="vs-label">vs</span>
+                <input type="text" id="edit-team2" data-i18n-placeholder="admin.team2Placeholder" placeholder="קבוצה 2">
+            </div>
+            <div class="form-row">
+                <input type="datetime-local" id="edit-date">
+                <select id="edit-stage">
+                    <option value="group" data-i18n="stage.group">שלב הבתים</option>
+                    <option value="R32" data-i18n="stage.R32">שלב 32</option>
+                    <option value="R16" data-i18n="stage.R16">שלב 16</option>
+                    <option value="QF" data-i18n="stage.QF">רבע גמר</option>
+                    <option value="SF" data-i18n="stage.SF">חצי גמר</option>
+                    <option value="3rd" data-i18n="stage.3rd">מקום שלישי</option>
+                    <option value="Final" data-i18n="stage.Final">גמר</option>
+                    <option value="special">⭐ משחק מיוחד</option>
+                </select>
+                <input type="text" id="edit-group-label" data-i18n-placeholder="admin.groupLabelPlaceholder" placeholder="בית (A–L)">
+            </div>
+            <div class="modal-actions">
+                <button id="btn-save-edit" class="btn btn-primary" data-i18n="modal.saveChanges">שמור שינויים</button>
+                <button id="btn-cancel-edit" class="btn btn-ghost" data-i18n="common.cancel">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Edit User ===== -->
+    <div id="edit-user-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="modal.editUserTitle">ערוך משתמש</h3>
+            <input type="hidden" id="edit-user-id">
+            <div class="field-group">
+                <label for="edit-user-name" data-i18n="login.nameLabel">שם מלא</label>
+                <input type="text" id="edit-user-name" data-i18n-placeholder="login.namePlaceholder" placeholder="שם מלא...">
+            </div>
+            <div class="modal-actions">
+                <button id="btn-save-edit-user" class="btn btn-primary" data-i18n="modal.saveChanges">שמור שינויים</button>
+                <button id="btn-cancel-edit-user" class="btn btn-ghost" data-i18n="common.cancel">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Create Group ===== -->
+    <div id="create-group-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="createGroup.title">צור קבוצה חדשה</h3>
+            <p class="modal-subtitle" data-i18n="createGroup.subtitle">תן לקבוצה שם שיזהה אותה</p>
+            <div class="field-group">
+                <label for="create-group-name" data-i18n="createGroup.nameLabel">שם הקבוצה</label>
+                <input type="text" id="create-group-name" data-i18n-placeholder="createGroup.namePlaceholder" placeholder="למשל: החברים של יוסי" maxlength="40">
+            </div>
+            <p id="create-group-error" class="error-msg hidden"></p>
+            <div id="create-group-success" class="hidden">
+                <p class="modal-subtitle" data-i18n="createGroup.success">הקבוצה נוצרה! שתף את הקוד עם החברים:</p>
+                <div class="invite-code-display">
+                    <span id="created-invite-code">------</span>
+                    <button id="btn-copy-invite" class="btn btn-secondary btn-sm" type="button" data-i18n="common.copy">העתק</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-confirm-create-group" class="btn btn-primary" data-i18n="createGroup.submit">צור קבוצה</button>
+                <button id="btn-cancel-create-group" class="btn btn-ghost" data-i18n="common.cancel">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Join Group ===== -->
+    <div id="join-group-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="joinGroup.title">הצטרף לקבוצה</h3>
+            <p class="modal-subtitle" data-i18n="joinGroup.subtitle">הכנס את קוד ההזמנה שקיבלת (6 תווים)</p>
+            <div class="field-group">
+                <label for="join-group-code" data-i18n="joinGroup.codeLabel">קוד הזמנה</label>
+                <input type="text" id="join-group-code" placeholder="ABC2F4" maxlength="6" class="invite-code-input">
+            </div>
+            <p id="join-group-error" class="error-msg hidden"></p>
+            <div class="modal-actions">
+                <button id="btn-confirm-join-group" class="btn btn-primary" data-i18n="joinGroup.submit">הצטרף</button>
+                <button id="btn-cancel-join-group" class="btn btn-ghost" data-i18n="common.cancel">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Group Settings ===== -->
+    <div id="group-settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3 data-i18n="groupSettings.title">הגדרות קבוצה</h3>
+            <div class="field-group">
+                <label for="group-settings-name" data-i18n="groupSettings.nameLabel">שם הקבוצה</label>
+                <div class="form-row">
+                    <input type="text" id="group-settings-name" maxlength="40">
+                    <button id="btn-rename-group" class="btn btn-primary btn-sm" data-i18n="groupSettings.saveName">שמור שם</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label data-i18n="groupSettings.logoLabel">לוגו הקבוצה</label>
+                <div class="group-logo-preview-wrap">
+                    <img id="group-settings-logo" class="group-logo group-logo-lg hidden" alt="">
+                    <span id="group-settings-logo-placeholder" class="group-logo group-logo-lg group-logo-placeholder">?</span>
+                    <div id="group-logo-controls" class="group-logo-controls">
+                        <label for="group-logo-input" class="btn btn-secondary btn-sm" data-i18n="groupSettings.logoUpload">העלה לוגו</label>
+                        <input type="file" id="group-logo-input" accept="image/*" class="hidden">
+                        <button id="btn-remove-logo" type="button" class="btn btn-ghost btn-sm" data-i18n="groupSettings.logoRemove">הסר לוגו</button>
+                    </div>
+                </div>
+            </div>
+            <div class="field-group">
+                <label data-i18n="groupSettings.inviteLabel">קוד הזמנה</label>
+                <div class="invite-code-display">
+                    <span id="settings-invite-code">------</span>
+                    <button id="btn-copy-settings-invite" class="btn btn-secondary btn-sm" type="button" data-i18n="common.copy">העתק</button>
+                    <button id="btn-share-group" class="btn btn-primary btn-sm" type="button" data-i18n="groupSwitch.share">🔗 שתף</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label data-i18n="groupSettings.membersLabel">חברי הקבוצה</label>
+                <div id="group-members-list" class="group-members-list"></div>
+            </div>
+            <p id="group-settings-error" class="error-msg hidden"></p>
+            <div class="modal-actions">
+                <button id="btn-leave-group" class="btn btn-ghost" data-i18n="groupSettings.leave">עזוב קבוצה</button>
+                <button id="btn-delete-group" class="btn btn-danger hidden" data-i18n="groupSettings.delete">מחק קבוצה</button>
+                <button id="btn-close-group-settings" class="btn btn-ghost" data-i18n="common.close">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: Rules ===== -->
+    <div id="rules-modal" class="modal-overlay hidden">
+        <div class="modal-card modal-card-wide">
+            <h3 data-i18n="rules.title">📖 חוקי המשחק</h3>
+            <div class="rules-body" id="rules-body"></div>
+            <div class="modal-actions">
+                <button id="btn-close-rules" class="btn btn-primary" data-i18n="common.close">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=20260521e"></script>
+</body>
+</html>
