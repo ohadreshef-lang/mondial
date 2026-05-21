@@ -120,28 +120,8 @@ section { display: block; }
 .login-hint {
     color: var(--text-light);
     font-size: .8rem;
-    margin-top: 16px;
+    margin-top: 12px;
 }
-
-.btn-google {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    padding: 11px 18px;
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    background: #fff;
-    color: #3c4043;
-    font-size: .95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: box-shadow .18s, background .18s;
-    margin-bottom: 4px;
-}
-.btn-google:hover { box-shadow: 0 2px 8px rgba(0,0,0,.15); background: #f8f8f8; }
-.btn-google:disabled { opacity: .6; cursor: not-allowed; }
 
 .login-divider {
     display: flex;
@@ -158,6 +138,9 @@ section { display: block; }
     height: 1px;
     background: var(--border);
 }
+
+.login-actions { text-align: right; }
+
 
 /* ==========================================
    BUTTONS
@@ -200,6 +183,16 @@ section { display: block; }
     color: #fff;
 }
 .btn-danger:hover { background: #c53030; }
+
+.btn-google {
+    background: #fff;
+    color: #3c4043;
+    border: 1.5px solid #dadce0;
+    font-size: 1rem;
+    padding: 12px 20px;
+    gap: 10px;
+}
+.btn-google:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 
 .btn-ghost {
     background: transparent;
@@ -972,6 +965,369 @@ section { display: block; }
 }
 
 /* ==========================================
+   GROUP SWITCHER (app bar)
+   ========================================== */
+
+.group-switcher-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.group-switch-btn {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 200px;
+}
+.group-switch-btn:hover { background: rgba(255,255,255,.25); }
+.group-switch-btn #active-group-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+}
+.group-switch-caret { font-size: .7rem; opacity: .8; }
+
+.group-switch-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: auto;
+    min-width: 240px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    padding: 8px;
+    z-index: 1000;
+    border: 1px solid var(--border);
+}
+
+.group-switch-list { display: flex; flex-direction: column; }
+
+.group-switch-item {
+    background: none;
+    border: none;
+    text-align: right;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: .9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.group-switch-item:hover { background: var(--bg); }
+.group-switch-item.active {
+    background: var(--green-light);
+    color: #fff;
+    font-weight: 700;
+}
+.group-switch-item.active:hover { background: var(--green-light); }
+.group-switch-item .check-mark { font-size: .85rem; }
+
+.group-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+}
+.group-switch-row.active { background: var(--green-light); }
+.group-switch-row .group-switch-item { flex: 1; background: none; }
+.group-switch-row.active .group-switch-item { color: #fff; font-weight: 700; }
+.group-share-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 10px;
+    font-size: 1.05rem;
+    border-radius: 6px;
+    color: var(--text);
+}
+.group-share-btn:hover { background: var(--bg); }
+.group-switch-row.active .group-share-btn { color: #fff; }
+.group-switch-row.active .group-share-btn:hover { background: rgba(255,255,255,.2); }
+
+.group-switch-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+}
+
+.group-switch-action {
+    background: none;
+    border: none;
+    text-align: right;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--green-mid);
+    font-size: .88rem;
+    font-weight: 600;
+    width: 100%;
+}
+.group-switch-action:hover { background: var(--bg); }
+
+/* ==========================================
+   GROUP PICKER SCREEN
+   ========================================== */
+
+#group-picker-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 60%, var(--green-light) 100%);
+    padding: 20px;
+}
+
+.group-picker-wrap {
+    width: 100%;
+    max-width: 780px;
+}
+
+.group-picker-header {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 28px;
+    position: relative;
+}
+.group-picker-header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+}
+.group-picker-hello {
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+    opacity: .95;
+}
+.group-picker-subtitle {
+    opacity: .85;
+    font-size: .95rem;
+}
+#btn-picker-logout {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: #fff;
+    opacity: .85;
+}
+
+.group-picker-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.group-picker-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 30px 24px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+}
+.group-picker-card h2 {
+    font-size: 1.2rem;
+    color: var(--green-dark);
+    margin-bottom: 8px;
+}
+.group-picker-card p {
+    color: var(--text-light);
+    font-size: .9rem;
+    margin-bottom: 20px;
+    min-height: 40px;
+}
+.group-picker-icon {
+    font-size: 42px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+    .group-picker-cards { grid-template-columns: 1fr; }
+}
+
+/* ==========================================
+   INVITE CODE DISPLAY
+   ========================================== */
+
+.invite-code-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg);
+    border: 2px dashed var(--green-light);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 8px 0 4px;
+}
+.invite-code-display span {
+    font-family: 'Courier New', monospace;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--green-dark);
+    letter-spacing: 4px;
+}
+
+.invite-code-input {
+    font-family: 'Courier New', monospace;
+    font-size: 1.3rem !important;
+    letter-spacing: 4px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* ==========================================
+   GROUP MEMBERS LIST
+   ========================================== */
+
+.group-members-list {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+}
+.group-member-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+.group-member-row + .group-member-row {
+    border-top: 1px solid var(--border);
+}
+.group-member-row .member-name { font-weight: 600; }
+.group-member-row .member-meta {
+    font-size: .8rem;
+    color: var(--text-light);
+    margin-right: 8px;
+}
+.group-member-row .owner-badge {
+    background: var(--gold);
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: .7rem;
+    margin-right: 6px;
+}
+
+.btn-danger {
+    background: #c0392b;
+    color: #fff;
+    border: none;
+}
+.btn-danger:hover { background: #a33224; }
+
+/* ==========================================
+   TOURNAMENT TAB
+   ========================================== */
+
+.tournament-subtitle {
+    color: var(--text-light);
+    margin-bottom: 12px;
+    font-size: .9rem;
+}
+.tournament-countdown {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    text-align: center;
+    font-size: .95rem;
+}
+.tournament-countdown .locked-badge { color: var(--text-light); font-weight: 700; }
+
+.tournament-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 12px;
+}
+.tournament-card-title {
+    font-weight: 800;
+    color: var(--green-dark);
+    margin-bottom: 10px;
+    font-size: 1.05rem;
+}
+.tournament-card-body {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.tournament-select {
+    flex: 1;
+    min-width: 160px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    font-family: inherit;
+    font-size: .95rem;
+}
+.tournament-locked {
+    flex: 1;
+    color: var(--text-light);
+    padding: 6px 0;
+}
+.tournament-result {
+    flex-basis: 100%;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    font-size: .95rem;
+}
+.tournament-result .points-3 {
+    background: var(--green-light);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+}
+.tournament-result .points-0 {
+    margin-right: 6px;
+}
+
+/* Admin tournament */
+.tournament-admin-col {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.tournament-admin-col textarea {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: .9rem;
+    resize: vertical;
+}
+.admin-hint {
+    color: var(--text-light);
+    font-size: .85rem;
+    margin-bottom: 8px;
+}
+.admin-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+}
+
+/* ==========================================
    RESPONSIVE
    ========================================== */
 
@@ -984,3 +1340,150 @@ section { display: block; }
     .my-bet-score { font-size: 1.1rem; }
     .btn-save-bet { font-size: .78rem; padding: 6px 10px; }
 }
+
+/* ==========================================
+   LANGUAGE TOGGLE
+   ========================================== */
+
+.login-lang-toggle {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+.lang-toggle-inline {
+    display: inline-flex;
+    gap: 4px;
+    margin-inline-end: 8px;
+}
+.lang-select {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    background: var(--surface, #fff);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.2;
+}
+.lang-toggle-inline .lang-select {
+    padding: 2px 4px;
+    font-size: .95rem;
+    min-width: 48px;
+}
+.lang-ltr { direction: ltr; }
+.lang-ltr .app-bar-user { flex-direction: row-reverse; }
+
+/* ===== Footer ===== */
+.app-footer {
+    max-width: 680px;
+    margin: 24px auto 0;
+    padding: 16px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: .85rem;
+    border-top: 1px solid var(--border);
+}
+.app-footer .btn-text { text-decoration: underline; }
+.footer-sep { margin: 0 8px; opacity: .5; }
+
+/* ===== Rules modal ===== */
+.modal-card-wide { max-width: 560px; }
+.rules-body {
+    max-height: 65vh;
+    overflow-y: auto;
+    text-align: start;
+    line-height: 1.65;
+    font-size: .92rem;
+    padding: 4px 2px;
+}
+.rules-body h4 {
+    margin: 14px 0 6px;
+    color: var(--primary, #2563eb);
+    font-size: 1rem;
+}
+.rules-body h4:first-child { margin-top: 0; }
+.rules-body ul { padding-inline-start: 22px; margin: 4px 0 8px; }
+.rules-body li { margin-bottom: 4px; }
+.rules-body .rule-points {
+    display: inline-block;
+    background: var(--green-light, #d1fae5);
+    color: #065f46;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: .8rem;
+    margin-inline-end: 4px;
+}
+
+/* ===== Admin user group badges ===== */
+.admin-user-groups {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.group-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: .75rem;
+    background: #e5e7eb;
+    color: #374151;
+    border-radius: 999px;
+    font-weight: 500;
+}
+.group-badge-owner {
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 600;
+}
+.admin-tab-bar { margin-bottom: 16px; }
+
+/* ===== Matches lock notice ===== */
+.matches-lock-notice {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 0 0 10px 0;
+    font-size: .85rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* ===== Group logos ===== */
+.group-logo {
+    display: inline-block;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e5e7eb;
+    vertical-align: middle;
+}
+.group-logo-sm { width: 24px; height: 24px; margin-inline-end: 6px; }
+.group-logo-lg { width: 80px; height: 80px; }
+.group-logo-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary, #2563eb);
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.group-logo-sm.group-logo-placeholder { font-size: .8rem; }
+.group-logo-lg.group-logo-placeholder { font-size: 2rem; }
+.group-logo-preview-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.group-logo-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.group-switch-list .group-logo-sm { margin-inline-end: 8px; }
