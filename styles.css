@@ -1386,6 +1386,8 @@ section { display: block; }
     border-top: 1px solid var(--border);
 }
 .app-footer .btn-text { text-decoration: underline; }
+.footer-contact { color: var(--text-light); text-decoration: underline; }
+.footer-contact:hover { color: var(--primary); }
 .footer-sep { margin: 0 8px; opacity: .5; }
 
 /* ===== Rules modal ===== */
