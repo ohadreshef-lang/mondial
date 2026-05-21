@@ -84,15 +84,40 @@ const TEAM_FLAGS = {
     'איאקס':'🔴','פורטו':'🔵','בנפיקה':'🔴',
 };
 
+// Teams that have a real SVG badge — takes priority over TEAM_FLAGS emoji.
+// Keys are lowercased for matching; value is the path to the SVG.
+const TEAM_LOGOS = {
+    'arsenal':              'assets/flags/arsenal.svg',
+    'arsenal fc':           'assets/flags/arsenal.svg',
+    'ארסנל':                'assets/flags/arsenal.svg',
+    'ארסנל fc':             'assets/flags/arsenal.svg',
+    'psg':                  'assets/flags/psg.svg',
+    'paris saint-germain':  'assets/flags/psg.svg',
+    'paris saint germain':  'assets/flags/psg.svg',
+    'paris sg':             'assets/flags/psg.svg',
+    "פריז סן ז'רמן":        'assets/flags/psg.svg',
+    'פריז סן גרמן':         'assets/flags/psg.svg',
+    'פריז':                 'assets/flags/psg.svg',
+    "פ.ס.ז'":               'assets/flags/psg.svg',
+    'פ.ס.ז':                'assets/flags/psg.svg',
+    'פ.ס.ג':                'assets/flags/psg.svg',
+    "פ.ס.ג'":               'assets/flags/psg.svg',
+    'פסז':                  'assets/flags/psg.svg',
+};
+
 function getFlag(name) {
     if (!name) return '🏳️';
-    if (TEAM_FLAGS[name]) return TEAM_FLAGS[name];
-    // Case-insensitive fallback
     const lower = name.trim().toLowerCase();
+    // SVG logo takes priority
+    if (TEAM_LOGOS[lower]) {
+        return `<img class="team-logo-img" src="${TEAM_LOGOS[lower]}" alt="${name}">`;
+    }
+    // Exact emoji match
+    if (TEAM_FLAGS[name]) return TEAM_FLAGS[name];
+    // Case-insensitive emoji fallback
     for (const key of Object.keys(TEAM_FLAGS)) {
         if (key.toLowerCase() === lower) return TEAM_FLAGS[key];
     }
-    // Log unmatched names so admin can see exact stored value in browser console
     console.log('[flag] no match for:', JSON.stringify(name));
     return '🏳️';
 }
