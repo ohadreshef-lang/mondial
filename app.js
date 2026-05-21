@@ -691,6 +691,7 @@ function renderMatches() {
 
     const allMatchList = Object.entries(matches)
         .map(([id, m]) => ({ id, ...m }))
+        .filter(m => (m.tournament || 'worldcup2026') === activeTournament)
         .sort((a, b) => {
             const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
             if (diff !== 0) return diff;
@@ -1241,9 +1242,10 @@ async function adminAddMatch() {
     const matchData = {
         team1: t1, team2: t2,
         date, stage,
-        group:  stage === 'group' ? (grp || null) : null,
-        status: 'upcoming',
-        result: null,
+        group:      stage === 'group' ? (grp || null) : null,
+        tournament: activeTournament,
+        status:     'upcoming',
+        result:     null,
     };
     if (noPoints) matchData.noPoints = true;
 
@@ -1724,7 +1726,7 @@ async function adminSeedMatches() {
     for (const m of SEED_MATCHES) {
         const key = seedMatchKey(m);
         if (existingKeys.has(key)) { skipped++; continue; }
-        await ref(`matches/${key}`).set({ ...m, status: 'upcoming', result: null });
+        await ref(`matches/${key}`).set({ ...m, status: 'upcoming', result: null, tournament: activeTournament });
         added++;
     }
 
