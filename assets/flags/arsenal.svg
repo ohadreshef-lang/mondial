@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72">
+  <!-- Red shield -->
+  <path d="M32 2 L60 13 L60 42 Q60 60 32 70 Q4 60 4 42 L4 13 Z" fill="#EF0107"/>
+  <!-- Gold border -->
+  <path d="M32 2 L60 13 L60 42 Q60 60 32 70 Q4 60 4 42 L4 13 Z"
+        fill="none" stroke="#FFCC00" stroke-width="2.5"/>
+  <!-- Cannon barrel -->
+  <rect x="16" y="28" width="32" height="9" rx="4.5" fill="white"/>
+  <rect x="42" y="30" width="11" height="5" rx="2.5" fill="white"/>
+  <!-- Wheels -->
+  <circle cx="21" cy="40" r="4.5" fill="white"/>
+  <circle cx="37" cy="40" r="4.5" fill="white"/>
+  <!-- Cannon base -->
+  <rect x="18" y="36" width="22" height="3" rx="1.5" fill="white"/>
+</svg>

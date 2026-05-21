@@ -2,7 +2,22 @@
 // WORLD CUP 2026 BETTING APP
 // ============================================================
 
-const FB_ROOT = 'worldcup2026';
+// ---- Tournament config ----
+
+const TOURNAMENTS = {
+    worldcup2026: {
+        label: 'מונדיאל 2026',
+        icon:  '⚽',
+        stages: ['group','R32','R16','QF','SF','3rd','Final','special'],
+    },
+    ucl2025: {
+        label: "ליגת האלופות '25",
+        icon:  '🏆',
+        stages: ['SF','Final','special'],
+    },
+};
+
+let activeTournament = 'worldcup2026';
 
 // ---- Stage / flag helpers ----
 
@@ -11,7 +26,8 @@ function getStageLabel(stage) {
 }
 function getGroupPrefix() { return t('stage.groupPrefix'); }
 
-const STAGE_ORDER = ['group','R32','R16','QF','SF','3rd','Final'];
+// kept for reference; actual order comes from TOURNAMENTS[activeTournament].stages
+const STAGE_ORDER = ['group','R32','R16','QF','SF','3rd','Final','special'];
 
 const TEAM_FLAGS = {
     'ארצות הברית':'🇺🇸','קנדה':'🇨🇦','מקסיקו':'🇲🇽',
@@ -34,10 +50,70 @@ const TEAM_FLAGS = {
     "צ'כיה":'🇨🇿','קטאר':'🇶🇦','בוסניה והרצגובינה':'🇧🇦',
     'האיטי':'🇭🇹','קוראסאו':'🇨🇼','שוודיה':'🇸🇪',
     'קאבו ורדה':'🇨🇻','נורווגיה':'🇳🇴',"קונגו DR":'🇨🇩','גאנה':'🇬🇭',
+    // Club teams – English names
+    // Note: using team-color circles instead of subdivision flag emojis
+    // (🏴󠁧󠁢󠁥󠁮󠁧󠁿 uses tag characters and renders blank on Android/some browsers)
+    'Arsenal':'🔴','Arsenal FC':'🔴',
+    'Chelsea':'🔵','Liverpool':'🔴',
+    'Manchester City':'🩵','Man City':'🩵',
+    'Manchester United':'🔴','Man United':'🔴','Man Utd':'🔴',
+    'Tottenham':'⚪','Spurs':'⚪',
+    'Paris Saint-Germain':'🔵','Paris Saint Germain':'🔵','Paris SG':'🔵','PSG':'🔵',
+    'Real Madrid':'⚪','Barcelona':'🔵','Atletico Madrid':'🔴','Atlético Madrid':'🔴',
+    'Bayern Munich':'🔴','Bayern':'🔴','Borussia Dortmund':'🟡','Dortmund':'🟡','BVB':'🟡',
+    'Juventus':'⚫','AC Milan':'🔴','Inter Milan':'🔵','Inter':'🔵',
+    'Ajax':'🔴','Porto':'🔵','Benfica':'🔴',
+    'Celtic':'🟢','Rangers':'🔵',
+    // Club teams – Hebrew names (multiple common spellings)
+    'ארסנל':'🔴','ארסנל FC':'🔴',
+    "צ'לסי":'🔵','ליברפול':'🔴',
+    "מנצ'סטר סיטי":'🩵','מנצ סיטי':'🩵',
+    "מנצ'סטר יונייטד":'🔴','מנצ יונייטד':'🔴',
+    'טוטנהאם':'⚪',
+    "פריז סן ז'רמן":'🔵','פריז סן גרמן':'🔵','פריז':'🔵',
+    "פ.ס.ז'":'🔵','פ.ס.ז':'🔵','פ.ס.ג':'🔵',"פ.ס.ג'":'🔵','פסז':'🔵',
+    'ריאל מדריד':'⚪','ברצלונה':'🔵','אטלטיקו מדריד':'🔴',
+    'באיירן מינכן':'🔴','באיירן':'🔴','בורוסיה דורטמונד':'🟡','דורטמונד':'🟡',
+    'יובנטוס':'⚫','מילאן':'🔴','אינטר מילאן':'🔵','אינטר':'🔵',
+    'איאקס':'🔴','פורטו':'🔵','בנפיקה':'🔴',
+};
+
+// Teams that have a real SVG badge — takes priority over TEAM_FLAGS emoji.
+// Keys are lowercased for matching; value is the path to the SVG.
+const TEAM_LOGOS = {
+    'arsenal':              'assets/flags/arsenal.svg',
+    'arsenal fc':           'assets/flags/arsenal.svg',
+    'ארסנל':                'assets/flags/arsenal.svg',
+    'ארסנל fc':             'assets/flags/arsenal.svg',
+    'psg':                  'assets/flags/psg.svg',
+    'paris saint-germain':  'assets/flags/psg.svg',
+    'paris saint germain':  'assets/flags/psg.svg',
+    'paris sg':             'assets/flags/psg.svg',
+    "פריז סן ז'רמן":        'assets/flags/psg.svg',
+    'פריז סן גרמן':         'assets/flags/psg.svg',
+    'פריז':                 'assets/flags/psg.svg',
+    "פ.ס.ז'":               'assets/flags/psg.svg',
+    'פ.ס.ז':                'assets/flags/psg.svg',
+    'פ.ס.ג':                'assets/flags/psg.svg',
+    "פ.ס.ג'":               'assets/flags/psg.svg',
+    'פסז':                  'assets/flags/psg.svg',
 };
 
 function getFlag(name) {
-    return TEAM_FLAGS[name] || '🏳️';
+    if (!name) return '🏳️';
+    const lower = name.trim().toLowerCase();
+    // SVG logo takes priority
+    if (TEAM_LOGOS[lower]) {
+        return `<img class="team-logo-img" src="${TEAM_LOGOS[lower]}" alt="${name}">`;
+    }
+    // Exact emoji match
+    if (TEAM_FLAGS[name]) return TEAM_FLAGS[name];
+    // Case-insensitive emoji fallback
+    for (const key of Object.keys(TEAM_FLAGS)) {
+        if (key.toLowerCase() === lower) return TEAM_FLAGS[key];
+    }
+    console.log('[flag] no match for:', JSON.stringify(name));
+    return '🏳️';
 }
 
 // All 48 teams participating in World Cup 2026 (Hebrew keys, canonical DB form)
@@ -135,7 +211,7 @@ function generateInviteCode() {
 // ---- Firebase refs ----
 
 function ref(path) {
-    return db.ref(`${FB_ROOT}/${path}`);
+    return db.ref(`${activeTournament}/${path}`);
 }
 
 // ---- Utilities ----
@@ -223,6 +299,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => setStageFilter(btn.dataset.stage));
+    });
+
+    document.querySelectorAll('.tournament-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTournament(btn.dataset.tournament));
     });
 
     // Modal cancel buttons
@@ -454,6 +534,7 @@ function handleLogout() {
         stopGroupListeners();
         if (currentUser) ref(`userGroups/${currentUser.userId}`).off();
     }
+    if (auth) auth.signOut().catch(() => {});
     currentUser = null;
     currentGroupId = null;
     userGroups = {};
@@ -600,39 +681,118 @@ function setStageFilter(stage) {
     renderMatches();
 }
 
+function switchTournament(key) {
+    if (key === activeTournament) return;
+
+    if (db) {
+        ref('matches').off();
+        ref('users').off();
+        if (currentUser) ref(`bets/${currentUser.userId}`).off();
+    }
+
+    activeTournament = key;
+    matches  = {};
+    userBets = {};
+    allUsers = [];
+    stageFilter = 'all';
+
+    const t = TOURNAMENTS[key];
+    $('app-bar-title').textContent = `${t.icon} ${t.label}`;
+
+    document.querySelectorAll('.tournament-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tournament === key);
+    });
+
+    // Show only stage filter buttons relevant to this tournament
+    document.querySelectorAll('.filter-btn[data-stage]').forEach(b => {
+        const s = b.dataset.stage;
+        b.style.display = (s === 'all' || t.stages.includes(s)) ? '' : 'none';
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.stage === 'all');
+    });
+
+    startFirebaseListeners();
+}
+
 
 // ============================================================
 // RENDER: MATCHES TAB
 // ============================================================
 
 function renderMatches() {
-    const container = $('matches-container');
+    const container         = $('matches-container');
+    const featuredContainer = $('featured-matches-container');
 
-    const matchList = Object.entries(matches)
+    const allMatchList = Object.entries(matches)
         .map(([id, m]) => ({ id, ...m }))
-        .filter(m => stageFilter === 'all' || m.stage === stageFilter)
         .sort((a, b) => {
             const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
             if (diff !== 0) return diff;
             return (a.group || '').localeCompare(b.group || '');
         });
 
-    if (matchList.length === 0) {
-        container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
-        return;
+    // Special matches always shown pinned above the filter, regardless of stageFilter
+    const specialMatches = allMatchList.filter(m => m.stage === 'special');
+    const regularMatches = allMatchList.filter(m => m.stage !== 'special');
+
+    // Render featured (special) section
+    if (specialMatches.length > 0) {
+        let featuredHtml = '<div class="featured-section">';
+        featuredHtml += '<div class="featured-section-label">⭐ משחק מיוחד</div>';
+        specialMatches.forEach(m => { featuredHtml += buildMatchCard(m); });
+        featuredHtml += '</div><hr class="featured-section-divider">';
+        featuredContainer.innerHTML = featuredHtml;
+    } else {
+        featuredContainer.innerHTML = '';
     }
 
-    let html = '';
-    matchList.forEach(m => { html += buildMatchCard(m); });
+    // Render regular matches (with stage filter applied)
+    const matchList = regularMatches
+        .filter(m => stageFilter === 'all' || m.stage === stageFilter);
 
-    container.innerHTML = html;
+    if (matchList.length === 0) {
+        container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
+    } else {
+        // Group by stage → then by group label (for group stage)
+        const grouped = {};
+        matchList.forEach(m => {
+            const key = m.stage === 'group' ? `group_${m.group || ''}` : m.stage;
+            if (!grouped[key]) grouped[key] = { stage: m.stage, group: m.group, items: [] };
+            grouped[key].items.push(m);
+        });
 
-    // Attach bet-save listeners
-    container.querySelectorAll('.btn-save-bet').forEach(btn => {
-        btn.addEventListener('click', () => saveBet(btn.dataset.matchId));
-    });
-    container.querySelectorAll('.bet-edit-link').forEach(btn => {
-        btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
+        // Sort groups by stage order, then by group letter
+        const currentStages = TOURNAMENTS[activeTournament].stages;
+        const sortedKeys = Object.keys(grouped).sort((a, b) => {
+            const sa = currentStages.indexOf(grouped[a].stage);
+            const sb = currentStages.indexOf(grouped[b].stage);
+            if (sa !== sb) return sa - sb;
+            return (grouped[a].group || '').localeCompare(grouped[b].group || '');
+        });
+
+        let html = '';
+        sortedKeys.forEach(key => {
+            const g = grouped[key];
+            const label = g.stage === 'group'
+                ? `${getStageLabel('group')} – ${getGroupPrefix()} ${g.group || ''}`
+                : getStageLabel(g.stage);
+            html += `<div class="stage-group-header">${label}</div>`;
+            g.items.forEach(m => { html += buildMatchCard(m); });
+        });
+
+        container.innerHTML = html;
+    }
+
+    // Attach bet-save listeners to both containers
+    [container, featuredContainer].forEach(c => {
+        c.querySelectorAll('.btn-save-bet').forEach(btn => {
+            btn.addEventListener('click', () => saveBet(btn.dataset.matchId));
+        });
+        c.querySelectorAll('.bet-edit-link').forEach(btn => {
+            btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
+        });
     });
 }
 
@@ -685,15 +845,17 @@ function buildMatchCard(m) {
         }
     }
 
-    // Points row (only if match completed and user had a bet)
+    // Points row (only if match completed, has scoring, and user had a bet)
     let pointsHtml = '';
-    if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
-        const pts = bet.points;
-        const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
-        const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
-        pointsHtml = `<div class="match-points-row ${cls}">${emoji} ${t('match.pointsRow')}: ${bet.team1Goals}–${bet.team2Goals} | ${pts} ${t('match.pointsLabel')}</div>`;
-    } else if (hasResult && !bet) {
-        pointsHtml = `<div class="match-points-row points-na">${t('match.noBetRow')}</div>`;
+    if (!m.noPoints) {
+        if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
+            const pts = bet.points;
+            const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
+            pointsHtml = `<div class="match-points-row ${cls}">${emoji} ${t('match.pointsRow')}: ${bet.team1Goals}–${bet.team2Goals} | ${pts} ${t('match.pointsLabel')}</div>`;
+        } else if (hasResult && !bet) {
+            pointsHtml = `<div class="match-points-row points-na">${t('match.noBetRow')}</div>`;
+        }
     }
 
     return `
@@ -1041,6 +1203,17 @@ async function recalcTournamentPoints() {
 // ADMIN: SETUP LISTENERS
 // ============================================================
 
+function adminSwitchTournament(key) {
+    if (key === activeTournament) return;
+    if (db) ref('matches').off();
+    activeTournament = key;
+    ['worldcup2026','ucl2025'].forEach(k => {
+        const btn = $(`admin-t-${k}`);
+        if (btn) btn.classList.toggle('active', k === key);
+    });
+    loadAdminMatches();
+}
+
 function setupAdminListeners() {
     $('btn-admin-login').addEventListener('click', attemptAdminLogin);
     $('admin-password-input').addEventListener('keydown', e => {
@@ -1106,11 +1279,12 @@ function adminChangePassword() {
 // ============================================================
 
 async function adminAddMatch() {
-    const t1    = $('new-team1').value.trim();
-    const t2    = $('new-team2').value.trim();
-    const date  = $('new-date').value;
-    const stage = $('new-stage').value;
-    const grp   = $('new-group-label').value.trim().toUpperCase();
+    const t1       = $('new-team1').value.trim();
+    const t2       = $('new-team2').value.trim();
+    const date     = $('new-date').value;
+    const stage    = $('new-stage').value;
+    const grp      = $('new-group-label').value.trim().toUpperCase();
+    const noPoints = $('new-no-points').checked;
 
     if (!t1 || !t2 || !date) { alert(t('admin.addMatchMissing')); return; }
 
@@ -1121,6 +1295,7 @@ async function adminAddMatch() {
         status: 'upcoming',
         result: null,
     };
+    if (noPoints) matchData.noPoints = true;
 
     if (db) {
         await ref('matches').push(matchData);
@@ -1128,6 +1303,7 @@ async function adminAddMatch() {
 
     // Reset form
     ['new-team1','new-team2','new-date','new-group-label'].forEach(id => { $(id).value = ''; });
+    $('new-no-points').checked = false;
     loadAdminMatches();
 }
 
@@ -1239,6 +1415,9 @@ async function saveResult() {
     const g2 = parseInt($('modal-score2').value, 10);
     if (isNaN(g1) || isNaN(g2)) return;
 
+    const matchSnap = await ref(`matches/${matchId}`).once('value');
+    const matchData = matchSnap.val();
+
     // Save result and mark completed
     await ref(`matches/${matchId}`).update({
         result: { team1Goals: g1, team2Goals: g2 },
@@ -1247,9 +1426,12 @@ async function saveResult() {
 
     hide('result-modal');
 
-    // Recalculate points for all users
-    await recalcPoints(matchId, g1, g2);
-    alert(t('admin.resultSaved'));
+    if (matchData && matchData.noPoints) {
+        alert(t('admin.resultSaved'));
+    } else {
+        await recalcPoints(matchId, g1, g2);
+        alert(t('admin.resultSaved'));
+    }
 }
 
 async function recalcPoints(matchId, resG1, resG2) {
@@ -1271,7 +1453,7 @@ async function recalcPoints(matchId, resG1, resG2) {
     }
 
     if (Object.keys(updates).length > 0) {
-        await db.ref(FB_ROOT).update(updates);
+        await db.ref(activeTournament).update(updates);
     }
 
     // Recompute each member's total (match + special), per group

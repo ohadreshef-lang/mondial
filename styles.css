@@ -141,6 +141,7 @@ section { display: block; }
 
 .login-actions { text-align: right; }
 
+
 /* ==========================================
    BUTTONS
    ========================================== */
@@ -248,6 +249,28 @@ section { display: block; }
    TAB BAR
    ========================================== */
 
+.tournament-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--green-dark);
+    justify-content: center;
+}
+
+.tournament-btn {
+    padding: 7px 18px;
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 20px;
+    background: transparent;
+    color: rgba(255,255,255,.75);
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s;
+}
+.tournament-btn:hover  { background: rgba(255,255,255,.12); color: #fff; }
+.tournament-btn.active { background: #fff; color: var(--green-dark); border-color: #fff; }
+
 .tab-bar {
     display: flex;
     background: var(--card-bg);
@@ -295,6 +318,47 @@ section { display: block; }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+
+/* ==========================================
+   FEATURED (SPECIAL) MATCH SECTION
+   ========================================== */
+
+.featured-section {
+    margin-bottom: 20px;
+}
+
+.featured-section-label {
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--gold-dark);
+    padding: 6px 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.featured-section .match-card {
+    border: 2px solid var(--gold);
+    background: linear-gradient(135deg, #fff9f0 0%, #ffffff 60%);
+}
+
+.featured-section-divider {
+    border: none;
+    border-top: 2px dashed var(--border);
+    margin: 0 0 16px;
+}
+
+/* Admin form: no-points checkbox */
+.no-points-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    color: var(--text-light);
+    cursor: pointer;
+    user-select: none;
+}
 
 /* ==========================================
    STAGE FILTER
@@ -422,6 +486,14 @@ section { display: block; }
 }
 
 .team-flag { font-size: 2rem; }
+.team-logo-img {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    vertical-align: middle;
+    display: block;
+    margin: 0 auto;
+}
 .team-name {
     font-size: .88rem;
     font-weight: 700;
