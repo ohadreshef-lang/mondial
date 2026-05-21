@@ -17,7 +17,7 @@ const TOURNAMENTS = {
     },
 };
 
-let activeTournament = 'worldcup2026';
+let activeTournament = 'ucl2025';
 
 // ---- Stage / flag helpers ----
 
