@@ -56,40 +56,44 @@ const TEAM_FLAGS = {
     "צ'כיה":'🇨🇿','קטאר':'🇶🇦','בוסניה והרצגובינה':'🇧🇦',
     'האיטי':'🇭🇹','קוראסאו':'🇨🇼','שוודיה':'🇸🇪',
     'קאבו ורדה':'🇨🇻','נורווגיה':'🇳🇴',"קונגו DR":'🇨🇩','גאנה':'🇬🇭',
-    // Club teams – English names (also covers common abbreviations / spellings)
-    'Arsenal':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Arsenal FC':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Chelsea':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Liverpool':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Manchester City':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Man City':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Manchester United':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Man United':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Man Utd':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Tottenham':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Spurs':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'Paris Saint-Germain':'🇫🇷','Paris Saint Germain':'🇫🇷','Paris SG':'🇫🇷','PSG':'🇫🇷',
-    'Real Madrid':'🇪🇸','Barcelona':'🇪🇸','Atletico Madrid':'🇪🇸','Atlético Madrid':'🇪🇸',
-    'Bayern Munich':'🇩🇪','Bayern':'🇩🇪','Borussia Dortmund':'🇩🇪','Dortmund':'🇩🇪','BVB':'🇩🇪',
-    'Juventus':'🇮🇹','AC Milan':'🇮🇹','Inter Milan':'🇮🇹','Inter':'🇮🇹',
-    'Ajax':'🇳🇱','Porto':'🇵🇹','Benfica':'🇵🇹',
-    'Celtic':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Rangers':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+    // Club teams – English names
+    // Note: using team-color circles instead of subdivision flag emojis
+    // (🏴󠁧󠁢󠁥󠁮󠁧󠁿 uses tag characters and renders blank on Android/some browsers)
+    'Arsenal':'🔴','Arsenal FC':'🔴',
+    'Chelsea':'🔵','Liverpool':'🔴',
+    'Manchester City':'🩵','Man City':'🩵',
+    'Manchester United':'🔴','Man United':'🔴','Man Utd':'🔴',
+    'Tottenham':'⚪','Spurs':'⚪',
+    'Paris Saint-Germain':'🔵','Paris Saint Germain':'🔵','Paris SG':'🔵','PSG':'🔵',
+    'Real Madrid':'⚪','Barcelona':'🔵','Atletico Madrid':'🔴','Atlético Madrid':'🔴',
+    'Bayern Munich':'🔴','Bayern':'🔴','Borussia Dortmund':'🟡','Dortmund':'🟡','BVB':'🟡',
+    'Juventus':'⚫','AC Milan':'🔴','Inter Milan':'🔵','Inter':'🔵',
+    'Ajax':'🔴','Porto':'🔵','Benfica':'🔴',
+    'Celtic':'🟢','Rangers':'🔵',
     // Club teams – Hebrew names (multiple common spellings)
-    'ארסנל':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','ארסנל FC':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    "צ'לסי":'🏴󠁧󠁢󠁥󠁮󠁧󠁿','ליברפול':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    "מנצ'סטר סיטי":'🏴󠁧󠁢󠁥󠁮󠁧󠁿','מנצ סיטי':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    "מנצ'סטר יונייטד":'🏴󠁧󠁢󠁥󠁮󠁧󠁿','מנצ יונייטד':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'טוטנהאם':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    "פריז סן ז'רמן":'🇫🇷','פריז סן גרמן':'🇫🇷','פריז':'🇫🇷',
-    "פ.ס.ז'":'🇫🇷','פ.ס.ז':'🇫🇷','פ.ס.ג':'🇫🇷',"פ.ס.ג'":'🇫🇷','פסז':'🇫🇷',
-    'ריאל מדריד':'🇪🇸','ברצלונה':'🇪🇸','אטלטיקו מדריד':'🇪🇸',
-    'באיירן מינכן':'🇩🇪','באיירן':'🇩🇪','בורוסיה דורטמונד':'🇩🇪','דורטמונד':'🇩🇪',
-    'יובנטוס':'🇮🇹','מילאן':'🇮🇹','אינטר מילאן':'🇮🇹','אינטר':'🇮🇹',
-    'איאקס':'🇳🇱','פורטו':'🇵🇹','בנפיקה':'🇵🇹',
+    'ארסנל':'🔴','ארסנל FC':'🔴',
+    "צ'לסי":'🔵','ליברפול':'🔴',
+    "מנצ'סטר סיטי":'🩵','מנצ סיטי':'🩵',
+    "מנצ'סטר יונייטד":'🔴','מנצ יונייטד':'🔴',
+    'טוטנהאם':'⚪',
+    "פריז סן ז'רמן":'🔵','פריז סן גרמן':'🔵','פריז':'🔵',
+    "פ.ס.ז'":'🔵','פ.ס.ז':'🔵','פ.ס.ג':'🔵',"פ.ס.ג'":'🔵','פסז':'🔵',
+    'ריאל מדריד':'⚪','ברצלונה':'🔵','אטלטיקו מדריד':'🔴',
+    'באיירן מינכן':'🔴','באיירן':'🔴','בורוסיה דורטמונד':'🟡','דורטמונד':'🟡',
+    'יובנטוס':'⚫','מילאן':'🔴','אינטר מילאן':'🔵','אינטר':'🔵',
+    'איאקס':'🔴','פורטו':'🔵','בנפיקה':'🔴',
 };
 
 function getFlag(name) {
     if (!name) return '🏳️';
     if (TEAM_FLAGS[name]) return TEAM_FLAGS[name];
-    // Case-insensitive fallback (handles "arsenal", "ARSENAL", etc.)
+    // Case-insensitive fallback
     const lower = name.trim().toLowerCase();
     for (const key of Object.keys(TEAM_FLAGS)) {
         if (key.toLowerCase() === lower) return TEAM_FLAGS[key];
     }
+    // Log unmatched names so admin can see exact stored value in browser console
+    console.log('[flag] no match for:', JSON.stringify(name));
     return '🏳️';
 }
 
