@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72">
+  <defs>
+    <clipPath id="atm-shield">
+      <path d="M32 2 L60 13 L60 42 Q60 60 32 70 Q4 60 4 42 L4 13 Z"/>
+    </clipPath>
+  </defs>
+  <!-- White base -->
+  <path d="M32 2 L60 13 L60 42 Q60 60 32 70 Q4 60 4 42 L4 13 Z" fill="white"/>
+  <!-- Red/white vertical stripes clipped to shield -->
+  <g clip-path="url(#atm-shield)">
+    <rect x="4"  y="0" width="9" height="72" fill="#CB3524"/>
+    <rect x="13" y="0" width="9" height="72" fill="white"/>
+    <rect x="22" y="0" width="9" height="72" fill="#CB3524"/>
+    <rect x="31" y="0" width="9" height="72" fill="white"/>
+    <rect x="40" y="0" width="9" height="72" fill="#CB3524"/>
+    <rect x="49" y="0" width="9" height="72" fill="white"/>
+    <rect x="58" y="0" width="9" height="72" fill="#CB3524"/>
+  </g>
+  <!-- Shield border -->
+  <path d="M32 2 L60 13 L60 42 Q60 60 32 70 Q4 60 4 42 L4 13 Z"
+        fill="none" stroke="#1A1A4E" stroke-width="3"/>
+</svg>

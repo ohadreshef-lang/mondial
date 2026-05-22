@@ -51,8 +51,6 @@ const TEAM_FLAGS = {
     'האיטי':'🇭🇹','קוראסאו':'🇨🇼','שוודיה':'🇸🇪',
     'קאבו ורדה':'🇨🇻','נורווגיה':'🇳🇴',"קונגו DR":'🇨🇩','גאנה':'🇬🇭',
     // Club teams – English names
-    // Note: using team-color circles instead of subdivision flag emojis
-    // (🏴󠁧󠁢󠁥󠁮󠁧󠁿 uses tag characters and renders blank on Android/some browsers)
     'Arsenal':'🔴','Arsenal FC':'🔴',
     'Chelsea':'🔵','Liverpool':'🔴',
     'Manchester City':'🩵','Man City':'🩵',
@@ -64,7 +62,7 @@ const TEAM_FLAGS = {
     'Juventus':'⚫','AC Milan':'🔴','Inter Milan':'🔵','Inter':'🔵',
     'Ajax':'🔴','Porto':'🔵','Benfica':'🔴',
     'Celtic':'🟢','Rangers':'🔵',
-    // Club teams – Hebrew names (multiple common spellings)
+    // Club teams – Hebrew names
     'ארסנל':'🔴','ארסנל FC':'🔴',
     "צ'לסי":'🔵','ליברפול':'🔴',
     "מנצ'סטר סיטי":'🩵','מנצ סיטי':'🩵',
@@ -78,8 +76,6 @@ const TEAM_FLAGS = {
     'איאקס':'🔴','פורטו':'🔵','בנפיקה':'🔴',
 };
 
-// Teams that have a real SVG badge — takes priority over TEAM_FLAGS emoji.
-// Keys are lowercased for matching; value is the path to the SVG.
 const TEAM_LOGOS = {
     'arsenal':              'assets/flags/arsenal.svg',
     'arsenal fc':           'assets/flags/arsenal.svg',
@@ -97,18 +93,28 @@ const TEAM_LOGOS = {
     'פ.ס.ג':                'assets/flags/psg.svg',
     "פ.ס.ג'":               'assets/flags/psg.svg',
     'פסז':                  'assets/flags/psg.svg',
+    'atletico madrid':      'assets/flags/atletico.svg',
+    'atletico de madrid':   'assets/flags/atletico.svg',
+    'atlético madrid':      'assets/flags/atletico.svg',
+    'atlético de madrid':   'assets/flags/atletico.svg',
+    'atletico':             'assets/flags/atletico.svg',
+    'אתלטיקו מדריד':        'assets/flags/atletico.svg',
+    'אתלטיקו':              'assets/flags/atletico.svg',
+    'bayern munich':        'assets/flags/bayern.svg',
+    'fc bayern munich':     'assets/flags/bayern.svg',
+    'fc bayern':            'assets/flags/bayern.svg',
+    'bayern':               'assets/flags/bayern.svg',
+    'באיירן מינכן':         'assets/flags/bayern.svg',
+    'באיירן':               'assets/flags/bayern.svg',
 };
 
 function getFlag(name) {
     if (!name) return '🏳️';
     const lower = name.trim().toLowerCase();
-    // SVG logo takes priority
     if (TEAM_LOGOS[lower]) {
         return `<img class="team-logo-img" src="${TEAM_LOGOS[lower]}" alt="${name}">`;
     }
-    // Exact emoji match
     if (TEAM_FLAGS[name]) return TEAM_FLAGS[name];
-    // Case-insensitive emoji fallback
     for (const key of Object.keys(TEAM_FLAGS)) {
         if (key.toLowerCase() === lower) return TEAM_FLAGS[key];
     }
@@ -116,7 +122,6 @@ function getFlag(name) {
     return '🏳️';
 }
 
-// All 48 teams participating in World Cup 2026 (Hebrew keys, canonical DB form)
 const PARTICIPATING_TEAMS = [
     'מקסיקו','דרום אפריקה','קוריאה הדרומית',"צ'כיה",
     'קנדה','בוסניה והרצגובינה','שווייץ','קטאר',
@@ -138,7 +143,6 @@ function getSortedParticipatingTeams() {
     );
 }
 
-// Golden-boot candidates (prefilled, not admin-managed)
 const TOP_SCORER_CANDIDATES = [
     'Kylian Mbappé','Harry Kane','Erling Haaland','Vinícius Jr.',
     'Lautaro Martínez','Lionel Messi','Bukayo Saka','Lamine Yamal',
@@ -174,9 +178,9 @@ function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
 
 // ---- App State ----
 
-let currentUser = null; // { userId, name, email }
-let matches      = {};  // matchId → match object
-let userBets     = {};  // matchId → bet object (current user, current group)
+let currentUser = null;
+let matches      = {};
+let userBets     = {};
 let activeTab    = 'matches';
 let stageFilter  = 'all';
 let isAdminMode  = false;
@@ -185,21 +189,21 @@ let pendingResultMatchId = null;
 let pendingEditMatchId   = null;
 
 // ---- Multi-group state ----
-let currentGroupId = null;          // active group the user is viewing
-let userGroups     = {};            // groupId → { name, ownerId, inviteCode }
-let groupMembers   = {};            // userId → { joinedAt, totalPoints } (current group)
-let groupUsersCache = {};           // userId → { name, email }  (for leaderboard display)
+let currentGroupId = null;
+let userGroups     = {};
+let groupMembers   = {};
+let groupUsersCache = {};
 let groupSwitchMenuOpen = false;
 let pendingJoinCode = null;
 
 // ---- Tournament bets state ----
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
-let specialBets        = {};   // { winner: {team, points, placedAt}, topScorer: {...} }
+let specialBets        = {};
 let tournamentCountdownTimer = null;
 
 const TOURNAMENT_POINTS = 10;
 
-const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function generateInviteCode() {
     let code = '';
     for (let i = 0; i < 6; i++) {
@@ -220,8 +224,6 @@ function emailToId(email) {
     return email.toLowerCase().replace(/[.#$[\]/]/g, '_');
 }
 
-// Stored dates have no timezone suffix and are intended as Israeli time (IDT = UTC+3).
-// Appending +03:00 ensures they're parsed correctly regardless of the host environment.
 function parseMatchDate(dateStr) {
     if (!dateStr) return new Date(0);
     return new Date(dateStr + '+03:00');
@@ -229,7 +231,6 @@ function parseMatchDate(dateStr) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    // Stored dates are in Israeli time (IDT = UTC+3). Render in viewer's local timezone.
     return parseMatchDate(dateStr).toLocaleString('he-IL', {
         weekday: 'short', day: 'numeric', month: 'numeric',
         hour: '2-digit', minute: '2-digit',
@@ -283,13 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setupAdminListeners();
     }
 
-    // Google sign-in button
     $('btn-google-login').addEventListener('click', handleGoogleLogin);
-
-    // Email/name fallback login
     $('email-login-form').addEventListener('submit', handleEmailLogin);
 
-    // Firebase Auth drives all routing
     initAuth();
     $('btn-logout').addEventListener('click', handleLogout);
 
@@ -305,7 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => switchTournament(btn.dataset.tournament));
     });
 
-    // Modal cancel buttons
     $('btn-cancel-result').addEventListener('click', () => hide('result-modal'));
     $('btn-cancel-edit').addEventListener('click',   () => hide('edit-modal'));
     $('btn-cancel-edit-user').addEventListener('click', () => hide('edit-user-modal'));
@@ -313,12 +309,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('btn-save-edit').addEventListener('click', saveEditMatch);
     $('btn-save-edit-user').addEventListener('click', saveEditUser);
 
-    // Admin back
     $('btn-admin-back').addEventListener('click', () => {
         window.location.href = window.location.pathname;
     });
 
-    // Group UI (switcher, picker, modals)
     if (!isAdminMode) setupGroupUIListeners();
 });
 
@@ -337,21 +331,18 @@ function showGroupPicker() {
     if (currentUser) $('picker-username').textContent = currentUser.name;
 }
 
-// Called after login. Checks what groups the user belongs to and routes accordingly.
 async function routeAfterLogin() {
     if (!db) {
-        // Offline fallback — no groups possible, just show a minimal state
         showGroupPicker();
         return;
     }
     try {
-        // Handle pending ?join=CODE from a share link
         if (pendingJoinCode) {
             const code = pendingJoinCode;
             pendingJoinCode = null;
             history.replaceState({}, '', location.pathname);
             const joined = await autoJoinByCode(code);
-            if (joined) return; // already routed into the joined group
+            if (joined) return;
         }
 
         const snap = await ref(`userGroups/${currentUser.userId}`).once('value');
@@ -363,7 +354,6 @@ async function routeAfterLogin() {
             return;
         }
 
-        // Restore last active group if still valid
         const lastActive = localStorage.getItem('wc2026_activeGroup');
         const chosen = (lastActive && groupIds.includes(lastActive)) ? lastActive : groupIds[0];
         enterAppForGroup(chosen);
@@ -386,7 +376,7 @@ async function autoJoinByCode(code) {
             const updates = {};
             updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
             updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
-            await db.ref(FB_ROOT).update(updates);
+            await db.ref(activeTournament).update(updates);
         }
         enterAppForGroup(groupId);
         return true;
@@ -424,7 +414,6 @@ function initAuth() {
                 await routeAfterLogin();
             }
         } else {
-            // No Firebase Auth session — check for email-login fallback
             const saved = localStorage.getItem('wc2026_emailUser');
             if (saved) {
                 try {
@@ -477,7 +466,6 @@ async function handleGoogleLogin() {
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         await auth.signInWithPopup(provider);
-        // onAuthStateChanged handles routing
     } catch (err) {
         const msg = err.code === 'auth/popup-closed-by-user'
             ? t('login.errorCancelled')
@@ -512,7 +500,6 @@ async function handleEmailLogin(e) {
     currentUser = { userId, name, email, emailLogin: true };
     localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
     // Sign in anonymously so email-login users have a Firebase Auth token
-    // (required for database writes when security rules check auth != null)
     if (auth) {
         try {
             await auth.signInAnonymously();
@@ -545,7 +532,7 @@ function handleLogout() {
     matches  = {};
     userBets = {};
     if (auth && auth.currentUser) {
-        auth.signOut(); // triggers onAuthStateChanged → showLoginScreen
+        auth.signOut();
     } else {
         showLoginScreen();
     }
@@ -568,7 +555,6 @@ function startFirebaseListeners() {
             '<p class="state-msg" style="color:#e53e3e">⚠️ שגיאת הרשאות Firebase.<br>עדכן את חוקי מסד הנתונים ל-read/write פתוח.<br><a href="https://console.firebase.google.com" target="_blank">פתח Firebase Console</a></p>';
     };
 
-    // Matches (global — shared across groups)
     ref('matches').on('value', snap => {
         matches = snap.val() || {};
         if (activeTab === 'matches') renderMatches();
@@ -576,7 +562,6 @@ function startFirebaseListeners() {
         if (activeTab === 'tournament') renderTournament();
     }, permissionError);
 
-    // Tournament settings (global)
     ref('settings/tournament').on('value', snap => {
         const t = snap.val() || {};
         tournamentSettings = {
@@ -588,11 +573,9 @@ function startFirebaseListeners() {
         if (activeTab === 'tournament') renderTournament();
     }, () => {});
 
-    // User's groups (for switcher UI + routing on group deletion)
     if (currentUser) {
         ref(`userGroups/${currentUser.userId}`).on('value', async snap => {
             const gids = Object.keys(snap.val() || {});
-            // Fetch metadata for each group
             const meta = {};
             await Promise.all(gids.map(async gid => {
                 const gsnap = await ref(`groups/${gid}`).once('value');
@@ -600,7 +583,6 @@ function startFirebaseListeners() {
                 if (g) meta[gid] = { name: g.name, ownerId: g.ownerId, inviteCode: g.inviteCode, logoUrl: g.logoUrl || null };
             }));
             userGroups = meta;
-            // If the active group was deleted out from under us, bounce to picker or another group
             if (currentGroupId && !meta[currentGroupId]) {
                 stopGroupListeners();
                 const fallback = Object.keys(meta)[0];
@@ -618,10 +600,8 @@ function startFirebaseListeners() {
 
     if (!currentGroupId) return;
 
-    // Group members (drives leaderboard + totals)
     ref(`groups/${currentGroupId}/members`).on('value', async snap => {
         groupMembers = snap.val() || {};
-        // Fetch user names for display
         const missing = Object.keys(groupMembers).filter(uid => !groupUsersCache[uid]);
         await Promise.all(missing.map(async uid => {
             const usnap = await ref(`users/${uid}`).once('value');
@@ -631,7 +611,6 @@ function startFirebaseListeners() {
         if (activeTab === 'leaderboard') renderLeaderboard();
     }, () => {});
 
-    // Current user's bets, scoped to active group
     if (currentUser) {
         ref(`bets/${currentGroupId}/${currentUser.userId}`).on('value', snap => {
             userBets = snap.val() || {};
@@ -639,7 +618,6 @@ function startFirebaseListeners() {
             if (activeTab === 'my-bets') renderMyBets();
         }, () => {});
 
-        // Special tournament bets for this user in this group
         ref(`specialBets/${currentGroupId}/${currentUser.userId}`).on('value', snap => {
             specialBets = snap.val() || {};
             if (activeTab === 'tournament') renderTournament();
@@ -684,36 +662,39 @@ function setStageFilter(stage) {
 function switchTournament(key) {
     if (key === activeTournament) return;
 
-    if (db) {
-        ref('matches').off();
-        ref('users').off();
-        if (currentUser) ref(`bets/${currentUser.userId}`).off();
-    }
+    if (db) ref('matches').off();
 
     activeTournament = key;
-    matches  = {};
-    userBets = {};
-    allUsers = [];
+    matches = {};
     stageFilter = 'all';
 
-    const t = TOURNAMENTS[key];
-    $('app-bar-title').textContent = `${t.icon} ${t.label}`;
+    const cfg = TOURNAMENTS[key];
+    $('app-bar-title').textContent = `${cfg.icon} ${cfg.label}`;
 
     document.querySelectorAll('.tournament-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tournament === key);
     });
 
-    // Show only stage filter buttons relevant to this tournament
     document.querySelectorAll('.filter-btn[data-stage]').forEach(b => {
         const s = b.dataset.stage;
-        b.style.display = (s === 'all' || t.stages.includes(s)) ? '' : 'none';
+        b.style.display = (s === 'all' || cfg.stages.includes(s)) ? '' : 'none';
     });
 
     document.querySelectorAll('.filter-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.stage === 'all');
     });
 
-    startFirebaseListeners();
+    // Only restart the matches listener; groups/bets/leaderboard stay on the existing root
+    if (db) {
+        ref('matches').on('value', snap => {
+            matches = snap.val() || {};
+            if (activeTab === 'matches') renderMatches();
+            if (activeTab === 'my-bets') renderMyBets();
+            if (activeTab === 'tournament') renderTournament();
+        }, () => {});
+    }
+
+    renderCurrentTab();
 }
 
 
@@ -727,17 +708,16 @@ function renderMatches() {
 
     const allMatchList = Object.entries(matches)
         .map(([id, m]) => ({ id, ...m }))
+        .filter(m => !m.tournament || m.tournament === activeTournament)
         .sort((a, b) => {
             const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
             if (diff !== 0) return diff;
             return (a.group || '').localeCompare(b.group || '');
         });
 
-    // Special matches always shown pinned above the filter, regardless of stageFilter
     const specialMatches = allMatchList.filter(m => m.stage === 'special');
     const regularMatches = allMatchList.filter(m => m.stage !== 'special');
 
-    // Render featured (special) section
     if (specialMatches.length > 0) {
         let featuredHtml = '<div class="featured-section">';
         featuredHtml += '<div class="featured-section-label">⭐ משחק מיוחד</div>';
@@ -748,14 +728,12 @@ function renderMatches() {
         featuredContainer.innerHTML = '';
     }
 
-    // Render regular matches (with stage filter applied)
     const matchList = regularMatches
         .filter(m => stageFilter === 'all' || m.stage === stageFilter);
 
     if (matchList.length === 0) {
         container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
     } else {
-        // Group by stage → then by group label (for group stage)
         const grouped = {};
         matchList.forEach(m => {
             const key = m.stage === 'group' ? `group_${m.group || ''}` : m.stage;
@@ -763,7 +741,6 @@ function renderMatches() {
             grouped[key].items.push(m);
         });
 
-        // Sort groups by stage order, then by group letter
         const currentStages = TOURNAMENTS[activeTournament].stages;
         const sortedKeys = Object.keys(grouped).sort((a, b) => {
             const sa = currentStages.indexOf(grouped[a].stage);
@@ -785,7 +762,6 @@ function renderMatches() {
         container.innerHTML = html;
     }
 
-    // Attach bet-save listeners to both containers
     [container, featuredContainer].forEach(c => {
         c.querySelectorAll('.btn-save-bet').forEach(btn => {
             btn.addEventListener('click', () => saveBet(btn.dataset.matchId));
@@ -801,7 +777,6 @@ function buildMatchCard(m) {
     const bet    = userBets[m.id];
     const hasResult = m.result !== null && m.result !== undefined;
 
-    // Status badge
     let badgeClass, badgeText;
     if (hasResult) {
         badgeClass = 'badge-completed'; badgeText = t('match.status.completed');
@@ -812,7 +787,6 @@ function buildMatchCard(m) {
         badgeText = formatCountdown(parseMatchDate(m.date) - new Date());
     }
 
-    // Middle content
     let middleHtml = '';
     if (hasResult) {
         middleHtml = `<div class="result-score">${m.result.team1Goals} – ${m.result.team2Goals}</div>`;
@@ -826,7 +800,6 @@ function buildMatchCard(m) {
             middleHtml = `<div class="bet-locked-msg">${t('match.lockedNoBet')}</div>`;
         }
     } else {
-        // Show bet form (or saved bet with edit option)
         if (bet && !bet._editing) {
             middleHtml = `
                 <div class="my-bet-label">${t('match.yourBet')}</div>
@@ -845,7 +818,6 @@ function buildMatchCard(m) {
         }
     }
 
-    // Points row (only if match completed, has scoring, and user had a bet)
     let pointsHtml = '';
     if (!m.noPoints) {
         if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
@@ -902,7 +874,6 @@ async function saveBet(matchId) {
         points:     null,
     });
 
-    // Remove _editing flag so saved state shows
     if (userBets[matchId]) delete userBets[matchId]._editing;
 }
 
@@ -964,7 +935,6 @@ function renderMyBets() {
         return;
     }
 
-    // Sort by match date
     const sorted = betEntries
         .map(([matchId, bet]) => ({ matchId, bet, match: matches[matchId] }))
         .filter(x => x.match)
@@ -1017,7 +987,6 @@ function renderMyBets() {
 // ============================================================
 
 function tournamentLockTime() {
-    // Lock = 1 hour before the first match kicks off
     const dates = Object.values(matches)
         .map(m => parseMatchDate(m.date).getTime())
         .filter(t => t > 0)
@@ -1186,10 +1155,9 @@ async function recalcTournamentPoints() {
         }
     }
     if (Object.keys(updates).length > 0) {
-        await db.ref(FB_ROOT).update(updates);
+        await db.ref(activeTournament).update(updates);
     }
 
-    // Recompute totals for every affected member
     for (const groupId of Object.keys(groupsData)) {
         const members = (groupsData[groupId] && groupsData[groupId].members) || {};
         for (const userId of Object.keys(members)) {
@@ -1221,6 +1189,7 @@ function setupAdminListeners() {
     });
     $('btn-add-match').addEventListener('click', adminAddMatch);
     $('btn-seed-matches').addEventListener('click', adminSeedMatches);
+    $('btn-fix-wc-matches').addEventListener('click', adminFixMisplacedWCMatches);
     $('btn-change-password').addEventListener('click', adminChangePassword);
     $('btn-save-tournament-result').addEventListener('click', adminSaveTournamentResult);
 
@@ -1291,9 +1260,10 @@ async function adminAddMatch() {
     const matchData = {
         team1: t1, team2: t2,
         date, stage,
-        group:  stage === 'group' ? (grp || null) : null,
-        status: 'upcoming',
-        result: null,
+        group:      stage === 'group' ? (grp || null) : null,
+        tournament: activeTournament,
+        status:     'upcoming',
+        result:     null,
     };
     if (noPoints) matchData.noPoints = true;
 
@@ -1301,7 +1271,6 @@ async function adminAddMatch() {
         await ref('matches').push(matchData);
     }
 
-    // Reset form
     ['new-team1','new-team2','new-date','new-group-label'].forEach(id => { $(id).value = ''; });
     $('new-no-points').checked = false;
     loadAdminMatches();
@@ -1355,8 +1324,6 @@ async function adminDeleteMatch(matchId) {
     if (db) await ref(`matches/${matchId}`).remove();
 }
 
-// ---- Edit Match Modal ----
-
 function openEditModal(matchId) {
     pendingEditMatchId = matchId;
     ref(`matches/${matchId}`).once('value').then(snap => {
@@ -1391,8 +1358,6 @@ async function saveEditMatch() {
     hide('edit-modal');
 }
 
-// ---- Enter Result Modal ----
-
 function openResultModal(matchId) {
     pendingResultMatchId = matchId;
     ref(`matches/${matchId}`).once('value').then(snap => {
@@ -1418,7 +1383,6 @@ async function saveResult() {
     const matchSnap = await ref(`matches/${matchId}`).once('value');
     const matchData = matchSnap.val();
 
-    // Save result and mark completed
     await ref(`matches/${matchId}`).update({
         result: { team1Goals: g1, team2Goals: g2 },
         status: 'completed',
@@ -1456,7 +1420,6 @@ async function recalcPoints(matchId, resG1, resG2) {
         await db.ref(activeTournament).update(updates);
     }
 
-    // Recompute each member's total (match + special), per group
     for (const groupId of Object.keys(groupsData)) {
         const members = (groupsData[groupId] && groupsData[groupId].members) || {};
         for (const userId of Object.keys(members)) {
@@ -1493,7 +1456,6 @@ async function renderAdminUsers(data) {
         return;
     }
 
-    // Load all groups once for name + owner lookups
     const [userGroupsSnap, groupsSnap] = await Promise.all([
         ref('userGroups').once('value'),
         ref('groups').once('value'),
@@ -1554,7 +1516,6 @@ async function adminDeleteUser(userId, userName) {
     if (!confirm(t('admin.deleteUserConfirm', userName))) return;
     if (!db) return;
 
-    // Remove from every group + bets in every group
     const userGroupsSnap = await ref(`userGroups/${userId}`).once('value');
     const gids = Object.keys(userGroupsSnap.val() || {});
 
@@ -1567,7 +1528,7 @@ async function adminDeleteUser(userId, userName) {
     updates[`userGroups/${userId}`] = null;
     updates[`users/${userId}`] = null;
 
-    await db.ref(FB_ROOT).update(updates);
+    await db.ref(activeTournament).update(updates);
     loadAdminUsers();
     loadAdminGroups();
 }
@@ -1648,7 +1609,7 @@ async function adminDeleteGroup(gid, groupName) {
     for (const uid of memberIds) {
         updates[`userGroups/${uid}/${gid}`] = null;
     }
-    await db.ref(FB_ROOT).update(updates);
+    await db.ref(activeTournament).update(updates);
     loadAdminGroups();
     loadAdminUsers();
 }
@@ -1681,7 +1642,7 @@ async function adminSaveTournamentResult() {
     const updates = {};
     updates['settings/tournament/winner']    = winner;
     updates['settings/tournament/topScorer'] = topScorer;
-    await db.ref(FB_ROOT).update(updates);
+    await db.ref(activeTournament).update(updates);
     await recalcTournamentPoints();
     alert(t('admin.tournamentSaved'));
 }
@@ -1692,109 +1653,82 @@ async function adminSaveTournamentResult() {
 // ============================================================
 
 const SEED_MATCHES = [
-    // GROUP A: מקסיקו, דרום אפריקה, קוריאה הדרומית, צ'כיה
     { team1:'מקסיקו', team2:'דרום אפריקה', date:'2026-06-11T19:00', stage:'group', group:'A' },
     { team1:"קוריאה הדרומית", team2:"צ'כיה", date:'2026-06-12T02:00', stage:'group', group:'A' },
     { team1:'מקסיקו', team2:'קוריאה הדרומית', date:'2026-06-19T01:00', stage:'group', group:'A' },
     { team1:'דרום אפריקה', team2:"צ'כיה", date:'2026-06-18T16:00', stage:'group', group:'A' },
     { team1:'מקסיקו', team2:"צ'כיה", date:'2026-06-25T01:00', stage:'group', group:'A' },
     { team1:'דרום אפריקה', team2:'קוריאה הדרומית', date:'2026-06-25T01:00', stage:'group', group:'A' },
-
-    // GROUP B: קנדה, שווייץ, קטאר, בוסניה והרצגובינה
     { team1:'קנדה', team2:'בוסניה והרצגובינה', date:'2026-06-12T19:00', stage:'group', group:'B' },
     { team1:'שווייץ', team2:'קטאר', date:'2026-06-12T22:00', stage:'group', group:'B' },
     { team1:'קנדה', team2:'קטאר', date:'2026-06-18T22:00', stage:'group', group:'B' },
     { team1:'שווייץ', team2:'בוסניה והרצגובינה', date:'2026-06-18T19:00', stage:'group', group:'B' },
     { team1:'שווייץ', team2:'קנדה', date:'2026-06-25T19:00', stage:'group', group:'B' },
     { team1:'בוסניה והרצגובינה', team2:'קטאר', date:'2026-06-25T19:00', stage:'group', group:'B' },
-
-    // GROUP C: ברזיל, מרוקו, האיטי, סקוטלנד
     { team1:'ברזיל', team2:'מרוקו', date:'2026-06-13T22:00', stage:'group', group:'C' },
     { team1:'האיטי', team2:'סקוטלנד', date:'2026-06-14T01:00', stage:'group', group:'C' },
     { team1:'סקוטלנד', team2:'מרוקו', date:'2026-06-19T22:00', stage:'group', group:'C' },
     { team1:'ברזיל', team2:'האיטי', date:'2026-06-20T01:00', stage:'group', group:'C' },
     { team1:'סקוטלנד', team2:'ברזיל', date:'2026-06-24T22:00', stage:'group', group:'C' },
     { team1:'מרוקו', team2:'האיטי', date:'2026-06-24T22:00', stage:'group', group:'C' },
-
-    // GROUP D: ארצות הברית, פרגוואי, אוסטרליה, טורקיה
     { team1:'ארצות הברית', team2:'פרגוואי', date:'2026-06-13T01:00', stage:'group', group:'D' },
     { team1:'אוסטרליה', team2:'טורקיה', date:'2026-06-13T04:00', stage:'group', group:'D' },
     { team1:'ארצות הברית', team2:'אוסטרליה', date:'2026-06-19T19:00', stage:'group', group:'D' },
     { team1:'טורקיה', team2:'פרגוואי', date:'2026-06-20T04:00', stage:'group', group:'D' },
     { team1:'טורקיה', team2:'ארצות הברית', date:'2026-06-26T02:00', stage:'group', group:'D' },
     { team1:'פרגוואי', team2:'אוסטרליה', date:'2026-06-26T02:00', stage:'group', group:'D' },
-
-    // GROUP E: גרמניה, קוראסאו, חוף השנהב, אקוודור
     { team1:'גרמניה', team2:'קוראסאו', date:'2026-06-14T17:00', stage:'group', group:'E' },
     { team1:"חוף השנהב", team2:'אקוודור', date:'2026-06-14T23:00', stage:'group', group:'E' },
     { team1:'גרמניה', team2:"חוף השנהב", date:'2026-06-20T20:00', stage:'group', group:'E' },
     { team1:'אקוודור', team2:'קוראסאו', date:'2026-06-21T00:00', stage:'group', group:'E' },
     { team1:'אקוודור', team2:'גרמניה', date:'2026-06-26T20:00', stage:'group', group:'E' },
     { team1:'קוראסאו', team2:"חוף השנהב", date:'2026-06-26T20:00', stage:'group', group:'E' },
-
-    // GROUP F: הולנד, יפן, תוניסיה, שוודיה
     { team1:'הולנד', team2:'יפן', date:'2026-06-14T20:00', stage:'group', group:'F' },
     { team1:'שוודיה', team2:'תוניסיה', date:'2026-06-15T02:00', stage:'group', group:'F' },
     { team1:'הולנד', team2:'שוודיה', date:'2026-06-20T17:00', stage:'group', group:'F' },
     { team1:'תוניסיה', team2:'יפן', date:'2026-06-21T04:00', stage:'group', group:'F' },
     { team1:'הולנד', team2:'תוניסיה', date:'2026-06-27T00:00', stage:'group', group:'F' },
     { team1:'שוודיה', team2:'יפן', date:'2026-06-27T00:00', stage:'group', group:'F' },
-
-    // GROUP G: בלגיה, מצרים, איראן, ניו זילנד
     { team1:'בלגיה', team2:'מצרים', date:'2026-06-15T22:00', stage:'group', group:'G' },
     { team1:'איראן', team2:'ניו זילנד', date:'2026-06-16T04:00', stage:'group', group:'G' },
     { team1:'בלגיה', team2:'איראן', date:'2026-06-21T19:00', stage:'group', group:'G' },
     { team1:'ניו זילנד', team2:'מצרים', date:'2026-06-22T01:00', stage:'group', group:'G' },
     { team1:'בלגיה', team2:'ניו זילנד', date:'2026-06-27T02:00', stage:'group', group:'G' },
     { team1:'מצרים', team2:'איראן', date:'2026-06-27T02:00', stage:'group', group:'G' },
-
-    // GROUP H: ספרד, קאבו ורדה, ערב הסעודית, אורוגוואי
     { team1:'ספרד', team2:'קאבו ורדה', date:'2026-06-15T17:00', stage:'group', group:'H' },
     { team1:'ערב הסעודית', team2:'אורוגוואי', date:'2026-06-15T22:00', stage:'group', group:'H' },
     { team1:'ספרד', team2:'ערב הסעודית', date:'2026-06-21T16:00', stage:'group', group:'H' },
     { team1:'אורוגוואי', team2:'קאבו ורדה', date:'2026-06-21T22:00', stage:'group', group:'H' },
     { team1:'ספרד', team2:'אורוגוואי', date:'2026-06-26T22:00', stage:'group', group:'H' },
     { team1:'קאבו ורדה', team2:'ערב הסעודית', date:'2026-06-26T22:00', stage:'group', group:'H' },
-
-    // GROUP I: צרפת, סנגל, נורווגיה, עיראק
     { team1:'צרפת', team2:'סנגל', date:'2026-06-16T19:00', stage:'group', group:'I' },
     { team1:'עיראק', team2:'נורווגיה', date:'2026-06-16T22:00', stage:'group', group:'I' },
     { team1:'צרפת', team2:'עיראק', date:'2026-06-22T21:00', stage:'group', group:'I' },
     { team1:'נורווגיה', team2:'סנגל', date:'2026-06-23T00:00', stage:'group', group:'I' },
     { team1:'צרפת', team2:'נורווגיה', date:'2026-06-27T19:00', stage:'group', group:'I' },
     { team1:'סנגל', team2:'עיראק', date:'2026-06-27T19:00', stage:'group', group:'I' },
-
-    // GROUP J: ארגנטינה, אלג'יריה, אוסטריה, ירדן
     { team1:'ארגנטינה', team2:"אלג'יריה", date:'2026-06-17T01:00', stage:'group', group:'J' },
     { team1:'אוסטריה', team2:'ירדן', date:'2026-06-17T04:00', stage:'group', group:'J' },
     { team1:'ארגנטינה', team2:'אוסטריה', date:'2026-06-21T17:00', stage:'group', group:'J' },
     { team1:"אלג'יריה", team2:'ירדן', date:'2026-06-21T23:00', stage:'group', group:'J' },
     { team1:'ארגנטינה', team2:'ירדן', date:'2026-06-27T22:00', stage:'group', group:'J' },
     { team1:"אלג'יריה", team2:'אוסטריה', date:'2026-06-27T22:00', stage:'group', group:'J' },
-
-    // GROUP K: פורטוגל, אוזבקיסטן, קולומביה, קונגו DR
     { team1:'פורטוגל', team2:"קונגו DR", date:'2026-06-17T17:00', stage:'group', group:'K' },
     { team1:'אוזבקיסטן', team2:'קולומביה', date:'2026-06-18T02:00', stage:'group', group:'K' },
     { team1:'פורטוגל', team2:'אוזבקיסטן', date:'2026-06-23T17:00', stage:'group', group:'K' },
     { team1:'קולומביה', team2:"קונגו DR", date:'2026-06-23T20:00', stage:'group', group:'K' },
     { team1:'פורטוגל', team2:'קולומביה', date:'2026-06-28T01:00', stage:'group', group:'K' },
     { team1:'אוזבקיסטן', team2:"קונגו DR", date:'2026-06-28T01:00', stage:'group', group:'K' },
-
-    // GROUP L: אנגליה, קרואטיה, גאנה, פנמה
     { team1:'אנגליה', team2:'קרואטיה', date:'2026-06-17T20:00', stage:'group', group:'L' },
     { team1:'גאנה', team2:'פנמה', date:'2026-06-17T23:00', stage:'group', group:'L' },
     { team1:'אנגליה', team2:'גאנה', date:'2026-06-23T22:00', stage:'group', group:'L' },
     { team1:'קרואטיה', team2:'פנמה', date:'2026-06-24T01:00', stage:'group', group:'L' },
     { team1:'אנגליה', team2:'פנמה', date:'2026-06-28T04:00', stage:'group', group:'L' },
     { team1:'קרואטיה', team2:'גאנה', date:'2026-06-28T04:00', stage:'group', group:'L' },
-
-    // מקום שלישי
     { team1:'TBD', team2:'TBD', date:'2026-07-18T22:00', stage:'3rd', group: null },
 ];
 
 function seedMatchKey(m) {
-    // Stable, deterministic key so reseeding is idempotent.
-    // Firebase keys can't contain . # $ [ ] /
     const raw = `${m.stage}_${m.group || '-'}_${m.date}_${m.team1}_vs_${m.team2}`;
     return raw.replace(/[.#$\[\]\/]/g, '_');
 }
@@ -1810,11 +1744,30 @@ async function adminSeedMatches() {
     for (const m of SEED_MATCHES) {
         const key = seedMatchKey(m);
         if (existingKeys.has(key)) { skipped++; continue; }
-        await ref(`matches/${key}`).set({ ...m, status: 'upcoming', result: null });
+        await ref(`matches/${key}`).set({ ...m, status: 'upcoming', result: null, tournament: activeTournament });
         added++;
     }
 
     alert(`נטענו ${added} משחקים חדשים ✅\n${skipped} משחקים קיימים נשמרו ללא שינוי (כולל תוצאות).\n\nמשחקי שלב הנוקאאוט יתווספו לאחר שתוצאות הבתים ייקבעו.`);
+}
+
+async function adminFixMisplacedWCMatches() {
+    if (!db) { alert('Firebase לא מחובר'); return; }
+    if (!confirm('פעולה זו תעביר משחקי מונדיאל שנטענו בטעות לנתיב ליגת האלופות — חזרה לנתיב הנכון.\nלהמשיך?')) return;
+
+    const wcKeys = new Set(SEED_MATCHES.map(m => seedMatchKey(m)));
+    const uclSnap = await db.ref('ucl2025/matches').once('value');
+    const uclMatches = uclSnap.val() || {};
+
+    let moved = 0;
+    for (const [key, m] of Object.entries(uclMatches)) {
+        if (!wcKeys.has(key)) continue;
+        await db.ref(`worldcup2026/matches/${key}`).set({ ...m, tournament: 'worldcup2026' });
+        await db.ref(`ucl2025/matches/${key}`).remove();
+        moved++;
+    }
+
+    alert(`הועברו ${moved} משחקי מונדיאל לנתיב הנכון ✅`);
 }
 
 
@@ -1836,7 +1789,6 @@ function toggleGroupSwitchMenu(forceState) {
 }
 
 function renderGroupSwitcher() {
-    // Active group label + logo in app bar
     const active = currentGroupId && userGroups[currentGroupId];
     $('active-group-name').textContent = active ? active.name : t('appBar.noGroup');
     const hdrLogo = $('active-group-logo');
@@ -1850,7 +1802,6 @@ function renderGroupSwitcher() {
         }
     }
 
-    // Show/hide settings option based on ownership
     const settingsBtn = $('btn-open-group-settings');
     if (settingsBtn) {
         if (active) settingsBtn.classList.remove('hidden');
@@ -1862,7 +1813,6 @@ function renderGroupSwitcher() {
         else shareActiveBtn.classList.add('hidden');
     }
 
-    // Menu list
     const list = $('group-switch-list');
     if (!list) return;
     const entries = Object.entries(userGroups);
@@ -1917,7 +1867,6 @@ async function shareGroupLink(gid) {
             return;
         } catch (err) {
             if (err && err.name === 'AbortError') return;
-            // fall through to clipboard fallback
         }
     }
 
@@ -1937,8 +1886,6 @@ function switchActiveGroup(groupId) {
     userBets = {};
     enterAppForGroup(groupId);
 }
-
-// ---- Create group ----
 
 function openCreateGroupModal() {
     $('create-group-name').value = '';
@@ -1960,7 +1907,6 @@ async function confirmCreateGroup() {
     if (!db || !currentUser) return;
 
     try {
-        // Generate a unique invite code (retry on collision)
         let code = generateInviteCode();
         for (let i = 0; i < 5; i++) {
             const s = await ref(`inviteCodes/${code}`).once('value');
@@ -1981,19 +1927,16 @@ async function confirmCreateGroup() {
         updates[`inviteCodes/${code}`] = groupId;
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
 
-        await db.ref(FB_ROOT).update(updates);
+        await db.ref(activeTournament).update(updates);
 
-        // Show success with invite code
         $('created-invite-code').textContent = code;
         showEl($('create-group-success'));
         hideEl($('btn-confirm-create-group'));
 
-        // Cache + switch into the new group
         userGroups[groupId] = { name, ownerId: currentUser.userId, inviteCode: code };
         currentGroupId = groupId;
         localStorage.setItem('wc2026_activeGroup', groupId);
 
-        // Change cancel button to "enter group"
         $('btn-cancel-create-group').textContent = t('createGroup.enter');
     } catch (err) {
         console.error(err);
@@ -2005,15 +1948,12 @@ async function confirmCreateGroup() {
 function closeCreateGroupModal() {
     hide('create-group-modal');
     $('btn-cancel-create-group').textContent = t('common.cancel');
-    // If we created a group mid-flow, enter the app
     if (currentUser && currentGroupId && $('group-picker-screen') && !$('group-picker-screen').classList.contains('hidden')) {
         enterAppForGroup(currentGroupId);
     } else if (currentGroupId) {
         renderGroupSwitcher();
     }
 }
-
-// ---- Join group ----
 
 function openJoinGroupModal() {
     $('join-group-code').value = '';
@@ -2052,10 +1992,9 @@ async function confirmJoinGroup() {
         const updates = {};
         updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
-        await db.ref(FB_ROOT).update(updates);
+        await db.ref(activeTournament).update(updates);
 
         hide('join-group-modal');
-        // Switch into the joined group
         if (currentGroupId) {
             switchActiveGroup(groupId);
         } else {
@@ -2068,8 +2007,6 @@ async function confirmJoinGroup() {
     }
 }
 
-// ---- Group settings ----
-
 async function openGroupSettingsModal() {
     if (!currentGroupId || !userGroups[currentGroupId]) return;
     const g = userGroups[currentGroupId];
@@ -2079,7 +2016,6 @@ async function openGroupSettingsModal() {
     $('settings-invite-code').textContent = g.inviteCode;
     hideEl($('group-settings-error'));
 
-    // Logo preview
     const logoImg = $('group-settings-logo');
     const logoPlaceholder = $('group-settings-logo-placeholder');
     if (g.logoUrl) {
@@ -2093,7 +2029,6 @@ async function openGroupSettingsModal() {
         logoPlaceholder.classList.remove('hidden');
     }
 
-    // Owner-only controls
     $('btn-rename-group').style.display = isOwner ? '' : 'none';
     $('group-settings-name').readOnly = !isOwner;
     $('group-logo-controls').style.display = isOwner ? '' : 'none';
@@ -2102,7 +2037,6 @@ async function openGroupSettingsModal() {
     if (isOwner) $('btn-delete-group').classList.remove('hidden');
     else $('btn-delete-group').classList.add('hidden');
 
-    // Members list
     const mSnap = await ref(`groups/${currentGroupId}/members`).once('value');
     const members = mSnap.val() || {};
     const container = $('group-members-list');
@@ -2162,8 +2096,8 @@ async function removeMember(userId) {
     updates[`bets/${currentGroupId}/${userId}`] = null;
     updates[`specialBets/${currentGroupId}/${userId}`] = null;
     updates[`userGroups/${userId}/${currentGroupId}`] = null;
-    await db.ref(FB_ROOT).update(updates);
-    openGroupSettingsModal(); // refresh
+    await db.ref(activeTournament).update(updates);
+    openGroupSettingsModal();
 }
 
 async function leaveGroup() {
@@ -2179,9 +2113,8 @@ async function leaveGroup() {
     updates[`bets/${currentGroupId}/${currentUser.userId}`] = null;
     updates[`specialBets/${currentGroupId}/${currentUser.userId}`] = null;
     updates[`userGroups/${currentUser.userId}/${currentGroupId}`] = null;
-    await db.ref(FB_ROOT).update(updates);
+    await db.ref(activeTournament).update(updates);
     hide('group-settings-modal');
-    // userGroups listener will route to another group or to the picker
 }
 
 async function deleteGroup() {
@@ -2191,7 +2124,6 @@ async function deleteGroup() {
     if (!confirm(t('groupSettings.deleteConfirm', g.name))) return;
 
     const gid = currentGroupId;
-    // Collect member ids
     const mSnap = await ref(`groups/${gid}/members`).once('value');
     const memberIds = Object.keys(mSnap.val() || {});
 
@@ -2203,9 +2135,8 @@ async function deleteGroup() {
     for (const uid of memberIds) {
         updates[`userGroups/${uid}/${gid}`] = null;
     }
-    await db.ref(FB_ROOT).update(updates);
+    await db.ref(activeTournament).update(updates);
     hide('group-settings-modal');
-    // userGroups listener routes to next group or picker
 }
 
 function copyToClipboard(text, btn) {
@@ -2228,7 +2159,6 @@ function copyToClipboard(text, btn) {
 }
 
 function setupGroupUIListeners() {
-    // App bar switcher
     $('btn-group-switcher').addEventListener('click', (e) => {
         e.stopPropagation();
         toggleGroupSwitchMenu();
@@ -2277,26 +2207,22 @@ function setupGroupUIListeners() {
         });
     }
 
-    // Group picker screen
     $('btn-picker-create').addEventListener('click', openCreateGroupModal);
     $('btn-picker-join').addEventListener('click', openJoinGroupModal);
     $('btn-picker-logout').addEventListener('click', handleLogout);
 
-    // Create modal
     $('btn-confirm-create-group').addEventListener('click', confirmCreateGroup);
     $('btn-cancel-create-group').addEventListener('click', closeCreateGroupModal);
     $('btn-copy-invite').addEventListener('click', (e) => {
         copyToClipboard($('created-invite-code').textContent, e.currentTarget);
     });
 
-    // Join modal
     $('btn-confirm-join-group').addEventListener('click', confirmJoinGroup);
     $('btn-cancel-join-group').addEventListener('click', () => hide('join-group-modal'));
     $('join-group-code').addEventListener('input', (e) => {
         e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     });
 
-    // Settings modal
     $('btn-rename-group').addEventListener('click', renameGroup);
     $('btn-close-group-settings').addEventListener('click', () => hide('group-settings-modal'));
     $('btn-leave-group').addEventListener('click', leaveGroup);
@@ -2314,7 +2240,7 @@ function setupGroupUIListeners() {
 // ---- Group logo upload ----
 
 const LOGO_MAX_SIDE = 256;
-const LOGO_MAX_BYTES = 120 * 1024; // 120KB hard cap on stored data URL
+const LOGO_MAX_BYTES = 120 * 1024;
 
 function resizeImageToDataUrl(file, maxSide) {
     return new Promise((resolve, reject) => {
@@ -2331,7 +2257,6 @@ function resizeImageToDataUrl(file, maxSide) {
                 canvas.width = w; canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
-                // Try JPEG quality steps until under size cap
                 let q = 0.9;
                 let url = canvas.toDataURL('image/jpeg', q);
                 while (url.length > LOGO_MAX_BYTES && q > 0.4) {
@@ -2363,7 +2288,6 @@ async function handleGroupLogoUpload(e) {
         const dataUrl = await resizeImageToDataUrl(file, LOGO_MAX_SIDE);
         await ref(`groups/${currentGroupId}/logoUrl`).set(dataUrl);
         g.logoUrl = dataUrl;
-        // Refresh UI
         openGroupSettingsModal();
         renderGroupSwitcher();
     } catch (err) {

@@ -6,12 +6,12 @@
     <title>ניחושי מונדיאל 2026 ⚽</title>
     <meta property="og:title" content="ניחושי מונדיאל 2026">
     <meta property="og:description" content="נחש את התוצאות, תתחרה עם החברים!">
-    <link rel="stylesheet" href="styles.css?v=20260420e">
+    <link rel="stylesheet" href="styles.css?v=20260522c">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="i18n.js?v=20260420e"></script>
+    <script src="i18n.js?v=20260521f"></script>
 </head>
 <body>
 
@@ -110,8 +110,8 @@
         </header>
 
         <div class="tournament-bar">
-            <button class="tournament-btn" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
-            <button class="tournament-btn active" data-tournament="ucl2025">🏆 ליגת האלופות</button>
+            <button class="tournament-btn active" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
+            <button class="tournament-btn" data-tournament="ucl2025">🏆 ליגת האלופות</button>
         </div>
 
         <nav class="tab-bar">
@@ -185,6 +185,8 @@
 
         <footer class="app-footer">
             <button id="btn-open-rules" class="btn-text" type="button" data-i18n="footer.rules">📖 חוקי המשחק</button>
+            <span class="footer-sep">·</span>
+            <a href="mailto:contact@mondial.guru" class="footer-contact" data-i18n="footer.contact">✉️ צרו קשר</a>
             <span class="footer-sep">·</span>
             <span class="footer-copy">⚽ Mondial 2026</span>
         </footer>
@@ -270,6 +272,7 @@
                         <div class="form-row">
                             <button id="btn-add-match" class="btn btn-primary" data-i18n="admin.addMatchBtn">הוסף משחק</button>
                             <button id="btn-seed-matches" class="btn btn-secondary" data-i18n="admin.seedBtn">⚡ טען משחקי מונדיאל 2026</button>
+                            <button id="btn-fix-wc-matches" class="btn btn-secondary">🔧 תקן משחקי מונדיאל שגויים</button>
                         </div>
                     </div>
                 </div>
@@ -503,6 +506,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260521d"></script>
+    <script src="app.js?v=20260522c"></script>
 </body>
 </html>
