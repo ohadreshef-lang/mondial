@@ -1385,7 +1385,8 @@ section { display: block; }
     font-size: .85rem;
     border-top: 1px solid var(--border);
 }
-.app-footer .btn-text { text-decoration: underline; }
+.app-footer .btn-text { text-decoration: underline; color: var(--text-light); }
+.app-footer .btn-text:hover { color: var(--primary); background: transparent; }
 .footer-contact { color: var(--text-light); text-decoration: underline; }
 .footer-contact:hover { color: var(--primary); }
 .footer-sep { margin: 0 8px; opacity: .5; }
