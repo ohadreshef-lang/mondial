@@ -93,6 +93,19 @@ const TEAM_LOGOS = {
     'פ.ס.ג':                'assets/flags/psg.svg',
     "פ.ס.ג'":               'assets/flags/psg.svg',
     'פסז':                  'assets/flags/psg.svg',
+    'atletico madrid':      'assets/flags/atletico.svg',
+    'atletico de madrid':   'assets/flags/atletico.svg',
+    'atlético madrid':      'assets/flags/atletico.svg',
+    'atlético de madrid':   'assets/flags/atletico.svg',
+    'atletico':             'assets/flags/atletico.svg',
+    'אתלטיקו מדריד':        'assets/flags/atletico.svg',
+    'אתלטיקו':              'assets/flags/atletico.svg',
+    'bayern munich':        'assets/flags/bayern.svg',
+    'fc bayern munich':     'assets/flags/bayern.svg',
+    'fc bayern':            'assets/flags/bayern.svg',
+    'bayern':               'assets/flags/bayern.svg',
+    'באיירן מינכן':         'assets/flags/bayern.svg',
+    'באיירן':               'assets/flags/bayern.svg',
 };
 
 function getFlag(name) {
