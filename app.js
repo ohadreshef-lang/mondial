@@ -1172,6 +1172,7 @@ function setupAdminListeners() {
     });
     $('btn-add-match').addEventListener('click', adminAddMatch);
     $('btn-seed-matches').addEventListener('click', adminSeedMatches);
+    $('btn-fix-wc-matches').addEventListener('click', adminFixMisplacedWCMatches);
     $('btn-change-password').addEventListener('click', adminChangePassword);
     $('btn-save-tournament-result').addEventListener('click', adminSaveTournamentResult);
 
@@ -1731,6 +1732,25 @@ async function adminSeedMatches() {
     }
 
     alert(`נטענו ${added} משחקים חדשים ✅\n${skipped} משחקים קיימים נשמרו ללא שינוי (כולל תוצאות).\n\nמשחקי שלב הנוקאאוט יתווספו לאחר שתוצאות הבתים ייקבעו.`);
+}
+
+async function adminFixMisplacedWCMatches() {
+    if (!db) { alert('Firebase לא מחובר'); return; }
+    if (!confirm('פעולה זו תעביר משחקי מונדיאל שנטענו בטעות לנתיב ליגת האלופות — חזרה לנתיב הנכון.\nלהמשיך?')) return;
+
+    const wcKeys = new Set(SEED_MATCHES.map(m => seedMatchKey(m)));
+    const uclSnap = await db.ref('ucl2025/matches').once('value');
+    const uclMatches = uclSnap.val() || {};
+
+    let moved = 0;
+    for (const [key, m] of Object.entries(uclMatches)) {
+        if (!wcKeys.has(key)) continue;
+        await db.ref(`worldcup2026/matches/${key}`).set({ ...m, tournament: 'worldcup2026' });
+        await db.ref(`ucl2025/matches/${key}`).remove();
+        moved++;
+    }
+
+    alert(`הועברו ${moved} משחקי מונדיאל לנתיב הנכון ✅`);
 }
 
 
