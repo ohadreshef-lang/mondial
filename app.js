@@ -17,7 +17,7 @@ const TOURNAMENTS = {
     },
 };
 
-let activeTournament = 'ucl2025';
+let activeTournament = 'worldcup2026';
 
 // ---- Stage / flag helpers ----
 
@@ -649,20 +649,14 @@ function setStageFilter(stage) {
 function switchTournament(key) {
     if (key === activeTournament) return;
 
-    if (db) {
-        ref('matches').off();
-        ref('users').off();
-        if (currentUser) ref(`bets/${currentUser.userId}`).off();
-    }
+    if (db) ref('matches').off();
 
     activeTournament = key;
-    matches  = {};
-    userBets = {};
-    allUsers = [];
+    matches = {};
     stageFilter = 'all';
 
-    const t = TOURNAMENTS[key];
-    $('app-bar-title').textContent = `${t.icon} ${t.label}`;
+    const cfg = TOURNAMENTS[key];
+    $('app-bar-title').textContent = `${cfg.icon} ${cfg.label}`;
 
     document.querySelectorAll('.tournament-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tournament === key);
@@ -670,14 +664,24 @@ function switchTournament(key) {
 
     document.querySelectorAll('.filter-btn[data-stage]').forEach(b => {
         const s = b.dataset.stage;
-        b.style.display = (s === 'all' || t.stages.includes(s)) ? '' : 'none';
+        b.style.display = (s === 'all' || cfg.stages.includes(s)) ? '' : 'none';
     });
 
     document.querySelectorAll('.filter-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.stage === 'all');
     });
 
-    startFirebaseListeners();
+    // Only restart the matches listener; groups/bets/leaderboard stay on the existing root
+    if (db) {
+        ref('matches').on('value', snap => {
+            matches = snap.val() || {};
+            if (activeTab === 'matches') renderMatches();
+            if (activeTab === 'my-bets') renderMyBets();
+            if (activeTab === 'tournament') renderTournament();
+        }, () => {});
+    }
+
+    renderCurrentTab();
 }
 
 
@@ -691,7 +695,7 @@ function renderMatches() {
 
     const allMatchList = Object.entries(matches)
         .map(([id, m]) => ({ id, ...m }))
-        .filter(m => (m.tournament || 'worldcup2026') === activeTournament)
+        .filter(m => !m.tournament || m.tournament === activeTournament)
         .sort((a, b) => {
             const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
             if (diff !== 0) return diff;
