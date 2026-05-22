@@ -418,6 +418,14 @@ function initAuth() {
             if (saved) {
                 try {
                     currentUser = JSON.parse(saved);
+                    // Re-acquire an anonymous auth token so Firebase writes work.
+                    // signInAnonymously() will re-trigger onAuthStateChanged with
+                    // the anonymous user, which then routes normally via setupUserFromAuth.
+                    try {
+                        await auth.signInAnonymously();
+                        return;
+                    } catch(e) { console.warn('Anonymous re-auth failed:', e); }
+                    // If anonymous auth is unavailable, fall through without a token.
                     if (isAdminMode) {
                         show('admin-panel');
                         hide('login-screen');
