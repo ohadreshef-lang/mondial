@@ -4,6 +4,11 @@ activeTournament = 'ucl2025';
 // Default stage filter to Final (semi-finals have already ended)
 stageFilter = 'Final';
 
+// Reduce bet lock window to 5 minutes before kickoff (was 60 minutes).
+function matchIsLocked(match) {
+    return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
+}
+
 // Extend TEAM_LOGOS with Atletico Madrid and Bayern Munich SVG logos
 Object.assign(TEAM_LOGOS, {
     'atletico madrid':      'assets/flags/atletico.svg',
