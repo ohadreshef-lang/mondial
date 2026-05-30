@@ -68,30 +68,42 @@ function initAuth() {
     });
 }
 
-// Fix: users who registered under worldcup2026 have their names stored at
-// worldcup2026/users/{uid}. When the active tournament is ucl2025 the app
-// looks in ucl2025/users/{uid} which is empty, showing "משתמש" as fallback.
-// This function fills in missing names from the other tournament path and
-// also writes them into the current path so future lookups succeed.
-function patchMissingUserNames() {
-    if (!db || typeof groupUsersCache === 'undefined') return;
+// Fix: users who registered under worldcup2026 have their names at
+// worldcup2026/users/{uid}. When the active tournament is ucl2025, the app
+// looks in ucl2025/users/{uid} (empty) and falls back to "משתמש".
+//
+// Root cause: app.js only adds a uid to groupUsersCache when it finds data
+// at the current-tournament users path. Users missing from that path are
+// never added to the cache at all, so Object.keys(groupUsersCache) won't
+// include them. We must query the group's member list directly instead.
+async function patchMissingUserNames() {
+    if (!db) return;
+    var gid = typeof currentGroupId !== 'undefined' ? currentGroupId : null;
+    if (!gid) return;
     var FALLBACK = activeTournament === 'ucl2025' ? 'worldcup2026' : 'ucl2025';
-    var missing = Object.keys(groupUsersCache).filter(function(uid) {
-        return !groupUsersCache[uid] || !groupUsersCache[uid].name;
-    });
-    if (!missing.length) return;
-    missing.forEach(function(uid) {
-        db.ref(FALLBACK + '/users/' + uid).once('value').then(function(snap) {
-            var u = snap.val();
-            if (u && u.name) {
-                groupUsersCache[uid] = { name: u.name, email: u.email };
-                // Also write into current tournament path so direct lookups work.
-                db.ref(activeTournament + '/users/' + uid).set({ name: u.name, email: u.email });
-                // Re-render leaderboard if the tab is currently visible.
-                if (typeof renderLeaderboard === 'function') renderLeaderboard();
-            }
-        });
-    });
+
+    // Fetch all member UIDs from the current group.
+    var membersSnap = await db.ref(activeTournament + '/groups/' + gid + '/members').once('value');
+    var members = membersSnap.val();
+    if (!members) return;
+
+    var patched = false;
+    for (var uid of Object.keys(members)) {
+        // Skip UIDs that already have a name in the cache.
+        if (groupUsersCache[uid] && groupUsersCache[uid].name) continue;
+
+        // Try the fallback tournament path.
+        var snap = await db.ref(FALLBACK + '/users/' + uid).once('value');
+        var u = snap.val();
+        if (u && u.name) {
+            groupUsersCache[uid] = { name: u.name, email: u.email };
+            // Write into current path so future page loads don't need the fallback.
+            db.ref(activeTournament + '/users/' + uid).set({ name: u.name, email: u.email });
+            patched = true;
+        }
+    }
+
+    if (patched && typeof renderLeaderboard === 'function') renderLeaderboard();
 }
 
 // Sync tournament UI after DOM is ready
@@ -116,7 +128,15 @@ document.addEventListener('DOMContentLoaded', function() {
         b.classList.toggle('active', s === stageFilter);
     });
 
-    // Patch missing user names: run after auth settles and group data loads.
-    setTimeout(patchMissingUserNames, 2500);
-    setTimeout(patchMissingUserNames, 6000);
+    // Patch missing user names after auth settles and group loads.
+    // Two attempts: first catches the common case, second catches slow auth.
+    setTimeout(patchMissingUserNames, 3000);
+    setTimeout(patchMissingUserNames, 8000);
+
+    // Also patch whenever the leaderboard tab is clicked.
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.dataset && e.target.dataset.tab === 'leaderboard') {
+            setTimeout(patchMissingUserNames, 500);
+        }
+    });
 });
