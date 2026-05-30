@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1170" height="2532"
+     viewBox="0 0 1170 2532">
+  
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#1a4731"/>
+          <stop offset="55%"  stop-color="#2d6a4f"/>
+          <stop offset="100%" stop-color="#40916c"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="50%" cy="42%" r="55%">
+          <stop offset="0%"   stop-color="#f4a261"   stop-opacity="0.35"/>
+          <stop offset="60%"  stop-color="#f4a261"   stop-opacity="0.08"/>
+          <stop offset="100%" stop-color="#f4a261"   stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    <rect width="1170" height="2532" fill="url(#bg)" /><rect width="1170" height="2532" fill="url(#glow)" />
+
+  <!-- Gold halo around the ball -->
+  <circle cx="585.0" cy="962.16" r="305.37"
+          fill="none" stroke="#f4a261" stroke-width="7.0200000000000005" opacity="0.35"/>
+  <circle cx="585.0" cy="962.16" r="248.50799999999998"
+          fill="none" stroke="#f4a261" stroke-width="14.040000000000001" opacity="0.75"/>
+
+  <circle cx="585.0" cy="962.16" r="210.6" fill="white" stroke="#1b2427" stroke-width="5.265000000000001"/>
+<polygon points="585.0,915.8 629.1,947.8 612.2,999.6 557.8,999.6 540.9,947.8" fill="#1b2427"/>
+<polygon points="585.0,804.6 624.7,833.4 609.5,880.1 560.5,880.1 545.3,833.4" fill="#1b2427"/>
+<line x1="585.0" y1="915.828" x2="585.0" y2="846.3299999999999" stroke="#1b2427" stroke-width="3.7907999999999995"/>
+<polygon points="734.8,913.5 719.7,960.1 670.7,960.1 655.5,913.5 695.2,884.7" fill="#1b2427"/>
+<line x1="629.0643505129871" y1="947.8426246166199" x2="695.1608762824676" y2="926.3665615415498" stroke="#1b2427" stroke-width="3.7907999999999995"/>
+<polygon points="677.6,1089.6 628.6,1089.6 613.4,1043.0 653.1,1014.2 692.7,1043.0" fill="#1b2427"/>
+<line x1="612.2332663092149" y1="999.6433753833801" x2="653.0831657730372" y2="1055.86843845845" stroke="#1b2427" stroke-width="3.7907999999999995"/>
+<polygon points="492.4,1089.6 477.3,1043.0 516.9,1014.2 556.6,1043.0 541.4,1089.6" fill="#1b2427"/>
+<line x1="557.7667336907851" y1="999.6433753833801" x2="516.9168342269628" y2="1055.86843845845" stroke="#1b2427" stroke-width="3.7907999999999995"/>
+<polygon points="435.2,913.5 474.8,884.7 514.5,913.5 499.3,960.1 450.3,960.1" fill="#1b2427"/>
+<line x1="540.9356494870129" y1="947.8426246166199" x2="474.83912371753235" y2="926.3665615415498" stroke="#1b2427" stroke-width="3.7907999999999995"/>
+
+  <!-- App title (Hebrew) -->
+  <text x="585.0" y="1313.16" text-anchor="middle"
+        font-family="Liberation Sans, DejaVu Sans, sans-serif" font-weight="700"
+        font-size="99.5" fill="#ffffff"
+        letter-spacing="2">לאידנומ</text>
+
+  <!-- Tagline -->
+  <text x="585.0" y="1383.3600000000001" text-anchor="middle"
+        font-family="Liberation Sans, DejaVu Sans, sans-serif" font-weight="500"
+        font-size="37.4" fill="#f4a261"
+        opacity="0.95">םירבחה םע טרופס ישוחינ</text>
+</svg>

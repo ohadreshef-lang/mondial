@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#1a4731"/>
+          <stop offset="55%"  stop-color="#2d6a4f"/>
+          <stop offset="100%" stop-color="#40916c"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="50%" cy="42%" r="55%">
+          <stop offset="0%"   stop-color="#f4a261"   stop-opacity="0.35"/>
+          <stop offset="60%"  stop-color="#f4a261"   stop-opacity="0.08"/>
+          <stop offset="100%" stop-color="#f4a261"   stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    <rect width="1024" height="1024" fill="url(#bg)" rx="225" ry="225"/><rect width="1024" height="1024" fill="url(#glow)" rx="225" ry="225"/>
+  <!-- Gold ring -->
+  <circle cx="512.0" cy="512.0" r="420.24960000000004" fill="none"
+          stroke="#f4a261" stroke-width="18.432" opacity="0.85"/>
+  <circle cx="512.0" cy="512.0" r="389.12" fill="white" stroke="#1b2427" stroke-width="9.728000000000002"/>
+<polygon points="512.0,426.4 593.4,485.5 562.3,581.3 461.7,581.3 430.6,485.5" fill="#1b2427"/>
+<polygon points="512.0,220.9 585.3,274.2 557.3,360.3 466.7,360.3 438.7,274.2" fill="#1b2427"/>
+<line x1="512.0" y1="426.3936" x2="512.0" y2="297.984" stroke="#1b2427" stroke-width="7.00416"/>
+<polygon points="788.8,422.1 760.8,508.2 670.3,508.2 642.3,422.1 715.5,368.8" fill="#1b2427"/>
+<line x1="593.4165245565695" y1="485.5461675727405" x2="715.5413113914236" y2="445.86541893185125" stroke="#1b2427" stroke-width="7.00416"/>
+<polygon points="683.1,747.5 592.5,747.5 564.5,661.3 637.8,608.1 711.1,661.3" fill="#1b2427"/>
+<line x1="562.3181794218503" y1="581.2570324272594" x2="637.795448554626" y2="685.1425810681487" stroke="#1b2427" stroke-width="7.00416"/>
+<polygon points="340.9,747.5 312.9,661.3 386.2,608.1 459.5,661.3 431.5,747.5" fill="#1b2427"/>
+<line x1="461.68182057814965" y1="581.2570324272594" x2="386.2045514453741" y2="685.1425810681487" stroke="#1b2427" stroke-width="7.00416"/>
+<polygon points="235.2,422.1 308.5,368.8 381.7,422.1 353.7,508.2 263.2,508.2" fill="#1b2427"/>
+<line x1="430.58347544343053" y1="485.5461675727405" x2="308.4586886085764" y2="445.8654189318513" stroke="#1b2427" stroke-width="7.00416"/>
+</svg>

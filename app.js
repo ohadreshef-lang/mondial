@@ -17,7 +17,7 @@ const TOURNAMENTS = {
     },
 };
 
-let activeTournament = 'worldcup2026';
+let activeTournament = 'ucl2025';
 
 // ---- Stage / flag helpers ----
 
@@ -93,6 +93,19 @@ const TEAM_LOGOS = {
     'פ.ס.ג':                'assets/flags/psg.svg',
     "פ.ס.ג'":               'assets/flags/psg.svg',
     'פסז':                  'assets/flags/psg.svg',
+    'atletico madrid':      'assets/flags/atletico.svg',
+    'atletico de madrid':   'assets/flags/atletico.svg',
+    'atlético madrid':      'assets/flags/atletico.svg',
+    'atlético de madrid':   'assets/flags/atletico.svg',
+    'atletico':             'assets/flags/atletico.svg',
+    'אתלטיקו מדריד':        'assets/flags/atletico.svg',
+    'אתלטיקו':              'assets/flags/atletico.svg',
+    'bayern munich':        'assets/flags/bayern.svg',
+    'fc bayern munich':     'assets/flags/bayern.svg',
+    'fc bayern':            'assets/flags/bayern.svg',
+    'bayern':               'assets/flags/bayern.svg',
+    'באיירן מינכן':         'assets/flags/bayern.svg',
+    'באיירן':               'assets/flags/bayern.svg',
 };
 
 function getFlag(name) {
@@ -405,6 +418,14 @@ function initAuth() {
             if (saved) {
                 try {
                     currentUser = JSON.parse(saved);
+                    // Re-acquire an anonymous auth token so Firebase writes work.
+                    // signInAnonymously() will re-trigger onAuthStateChanged with
+                    // the anonymous user, which then routes normally via setupUserFromAuth.
+                    try {
+                        await auth.signInAnonymously();
+                        return;
+                    } catch(e) { console.warn('Anonymous re-auth failed:', e); }
+                    // If anonymous auth is unavailable, fall through without a token.
                     if (isAdminMode) {
                         show('admin-panel');
                         hide('login-screen');
