@@ -1,3 +1,9 @@
+// Default to UCL 2025 — it starts before the World Cup
+activeTournament = 'ucl2025';
+
+// Default stage filter to Final (semi-finals have already ended)
+stageFilter = 'Final';
+
 // Extend TEAM_LOGOS with Atletico Madrid and Bayern Munich SVG logos
 Object.assign(TEAM_LOGOS, {
     'atletico madrid':      'assets/flags/atletico.svg',
@@ -56,3 +62,26 @@ function initAuth() {
         }
     });
 }
+
+// Sync tournament UI after DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    var cfg = TOURNAMENTS[activeTournament];
+    if (!cfg) return;
+
+    // Tournament switcher buttons
+    document.querySelectorAll('.tournament-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.tournament === activeTournament);
+    });
+
+    // App bar title
+    var titleEl = document.getElementById('app-bar-title');
+    if (titleEl) titleEl.textContent = cfg.icon + ' ' + cfg.label;
+
+    // Stage filter buttons: hide WC-only stages, mark Final as active
+    document.querySelectorAll('.filter-btn[data-stage]').forEach(function(b) {
+        var s = b.dataset.stage;
+        var visible = s === 'all' || cfg.stages.includes(s);
+        b.style.display = visible ? '' : 'none';
+        b.classList.toggle('active', s === stageFilter);
+    });
+});

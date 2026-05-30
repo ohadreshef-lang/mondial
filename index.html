@@ -125,7 +125,7 @@
     <!-- ===== MAIN APP ===== -->
     <section id="main-app" class="hidden">
         <header class="app-bar">
-            <div class="app-bar-title" id="app-bar-title">⚽ <span data-i18n="groupPicker.title">מונדיאל 2026</span></div>
+            <div class="app-bar-title" id="app-bar-title">🏆 ליגת האלופות '25</div>
             <div class="app-bar-user">
                 <div class="lang-toggle-inline">
                     <select class="lang-select" aria-label="Language">
@@ -155,8 +155,8 @@
         </header>
 
         <div class="tournament-bar">
-            <button class="tournament-btn active" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
-            <button class="tournament-btn" data-tournament="ucl2025">🏆 ליגת האלופות</button>
+            <button class="tournament-btn" data-tournament="worldcup2026">⚽ מונדיאל 2026</button>
+            <button class="tournament-btn active" data-tournament="ucl2025">🏆 ליגת האלופות</button>
         </div>
 
         <nav class="tab-bar">
@@ -180,14 +180,14 @@
                 <div id="featured-matches-container"></div>
                 <div class="matches-lock-notice" data-i18n="match.lockNotice">⏰ כל הניחושים נסגרים שעה לפני פתיחת המשחק</div>
                 <div class="stage-filter" id="stage-filter">
-                    <button class="filter-btn active" data-stage="all" data-i18n="stage.all">הכל</button>
-                    <button class="filter-btn" data-stage="group" data-i18n="stage.groupShort">בתים</button>
-                    <button class="filter-btn" data-stage="R32" data-i18n="stage.R32">שלב 32</button>
-                    <button class="filter-btn" data-stage="R16" data-i18n="stage.R16">שלב 16</button>
-                    <button class="filter-btn" data-stage="QF" data-i18n="stage.QF">רבע גמר</button>
+                    <button class="filter-btn" data-stage="all" data-i18n="stage.all">הכל</button>
+                    <button class="filter-btn" data-stage="group" data-i18n="stage.groupShort" style="display:none">בתים</button>
+                    <button class="filter-btn" data-stage="R32" data-i18n="stage.R32" style="display:none">שלב 32</button>
+                    <button class="filter-btn" data-stage="R16" data-i18n="stage.R16" style="display:none">שלב 16</button>
+                    <button class="filter-btn" data-stage="QF" data-i18n="stage.QF" style="display:none">רבע גמר</button>
                     <button class="filter-btn" data-stage="SF" data-i18n="stage.SF">חצי גמר</button>
-                    <button class="filter-btn" data-stage="3rd" data-i18n="stage.3rd">מקום שלישי</button>
-                    <button class="filter-btn" data-stage="Final" data-i18n="stage.Final">גמר</button>
+                    <button class="filter-btn" data-stage="3rd" data-i18n="stage.3rd" style="display:none">מקום שלישי</button>
+                    <button class="filter-btn active" data-stage="Final" data-i18n="stage.Final">גמר</button>
                 </div>
                 <div id="matches-container">
                     <p class="state-msg" data-i18n="match.loadingMatches">טוען משחקים...</p>
@@ -264,8 +264,8 @@
 
                 <!-- Tournament selector -->
                 <div class="tournament-bar" style="background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;">
-                    <button class="tournament-btn active" data-tournament="worldcup2026" id="admin-t-worldcup2026" onclick="adminSwitchTournament('worldcup2026')" style="color:var(--green-dark);border-color:var(--green-dark);">⚽ מונדיאל 2026</button>
-                    <button class="tournament-btn" data-tournament="ucl2025" id="admin-t-ucl2025" onclick="adminSwitchTournament('ucl2025')" style="color:var(--green-dark);border-color:var(--green-dark);">🏆 ליגת האלופות</button>
+                    <button class="tournament-btn" data-tournament="worldcup2026" id="admin-t-worldcup2026" onclick="adminSwitchTournament('worldcup2026')" style="color:var(--green-dark);border-color:var(--green-dark);">⚽ מונדיאל 2026</button>
+                    <button class="tournament-btn active" data-tournament="ucl2025" id="admin-t-ucl2025" onclick="adminSwitchTournament('ucl2025')" style="color:var(--green-dark);border-color:var(--green-dark);">🏆 ליגת האלופות</button>
                 </div>
 
                 <nav class="tab-bar admin-tab-bar">
