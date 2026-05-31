@@ -8,7 +8,7 @@
     <meta property="og:description" content="נחש את התוצאות, תתחרה עם החברים!">
 
     <!-- PWA / iOS Home-Screen support -->
-    <link rel="manifest" href="/manifest.json?v=20260531a">
+    <link rel="manifest" href="/manifest.json?v=20260531b">
     <meta name="theme-color" content="#1a4731">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -51,17 +51,33 @@
     <link rel="apple-touch-startup-image" href="/assets/splash/splash-750x1334.png"
           media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 
-    <link rel="stylesheet" href="styles.css?v=20260531a">
+    <link rel="stylesheet" href="styles.css?v=20260531b">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="i18n.js?v=20260531a"></script>
+    <script src="i18n.js?v=20260531b"></script>
 </head>
 <body>
 
+    <!-- ===== MODE CHOICE SCREEN ===== -->
+    <section id="mode-choice-screen">
+        <div class="login-card">
+            <div class="login-logo">⚽</div>
+            <h1 data-i18n="modeChoice.title">ניחושי מונדיאל 2026</h1>
+            <p class="login-subtitle" data-i18n="modeChoice.subtitle">נחש תוצאות, צבור נקודות, תתחרה עם החברים!</p>
+            <div class="mode-choice-cards">
+                <button id="btn-mode-public" class="btn btn-primary btn-block" data-i18n="modeChoice.publicBtn">🌍 נחש בציבור</button>
+                <p class="mode-hint" data-i18n="modeChoice.publicHint">הצטרף לטבלת כולם — ללא קוד</p>
+                <button id="btn-mode-join" class="btn btn-secondary btn-block" data-i18n="modeChoice.joinBtn">🔗 הצטרף לקבוצה פרטית</button>
+                <p class="mode-hint" data-i18n="modeChoice.joinHint">יש לך קוד הזמנה מחבר?</p>
+                <button id="btn-mode-create" class="btn btn-ghost btn-block" data-i18n="modeChoice.createBtn">➕ צור קבוצה פרטית</button>
+            </div>
+        </div>
+    </section>
+
     <!-- ===== LOGIN SCREEN ===== -->
-    <section id="login-screen">
+    <section id="login-screen" class="hidden">
         <div class="login-card">
             <div class="login-lang-toggle">
                 <select class="lang-select" aria-label="Language">
@@ -552,14 +568,14 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260531a"></script>
-    <script src="team-logos.js?v=20260531a"></script>
+    <script src="app.js?v=20260531b"></script>
+    <script src="team-logos.js?v=20260531b"></script>
 
     <script>
         // Register the PWA service worker (skip in admin mode to avoid stale UI).
         if ('serviceWorker' in navigator && !location.search.includes('admin')) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/service-worker.js?v=20260531a')
+                navigator.serviceWorker.register('/service-worker.js?v=20260531b')
                     .catch(function (err) { console.warn('SW register failed:', err); });
             });
         }

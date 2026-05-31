@@ -1,9 +1,9 @@
 // Switch back to World Cup 2026 — UCL 2025 is over
 activeTournament = 'worldcup2026';
 
-// Restore 60-minute bet lock now that we're back to WC (upcoming tournament)
+// All games lock 5 minutes before kickoff
 function matchIsLocked(match) {
-    return parseMatchDate(match.date) - new Date() <= 60 * 60 * 1000;
+    return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
 }
 
 // Extend TEAM_LOGOS with Atletico Madrid and Bayern Munich SVG logos
@@ -58,7 +58,7 @@ function initAuth() {
                 }
             }
             currentUser = null;
-            showLoginScreen();
+            showModeChoice();
         }
     });
 }

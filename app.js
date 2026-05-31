@@ -195,6 +195,7 @@ let groupMembers   = {};
 let groupUsersCache = {};
 let groupSwitchMenuOpen = false;
 let pendingJoinCode = null;
+let pendingMode     = null; // 'public' | 'join' | 'create' | null
 
 // ---- Tournament bets state ----
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
@@ -238,7 +239,7 @@ function formatDate(dateStr) {
 }
 
 function matchIsLocked(match) {
-    return parseMatchDate(match.date) - new Date() <= 60 * 60 * 1000;
+    return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
 }
 
 function formatCountdown(ms) {
@@ -287,6 +288,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('btn-google-login').addEventListener('click', handleGoogleLogin);
     $('email-login-form').addEventListener('submit', handleEmailLogin);
 
+    $('btn-mode-public').addEventListener('click',  () => { pendingMode = 'public';  showLoginScreen(); });
+    $('btn-mode-join').addEventListener('click',    () => { pendingMode = 'join';    showLoginScreen(); });
+    $('btn-mode-create').addEventListener('click',  () => { pendingMode = 'create';  showLoginScreen(); });
+
     initAuth();
     $('btn-logout').addEventListener('click', handleLogout);
 
@@ -318,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function showLoginScreen() {
     show('login-screen');
+    hide('mode-choice-screen');
     hide('main-app');
     hide('admin-panel');
     hide('group-picker-screen');
@@ -327,8 +333,17 @@ function showGroupPicker() {
     hide('login-screen');
     hide('main-app');
     hide('admin-panel');
+    hide('mode-choice-screen');
     show('group-picker-screen');
     if (currentUser) $('picker-username').textContent = currentUser.name;
+}
+
+function showModeChoice() {
+    show('mode-choice-screen');
+    hide('login-screen');
+    hide('group-picker-screen');
+    hide('main-app');
+    hide('admin-panel');
 }
 
 async function routeAfterLogin() {
@@ -349,14 +364,33 @@ async function routeAfterLogin() {
         const groups = snap.val() || {};
         const groupIds = Object.keys(groups);
 
-        if (groupIds.length === 0) {
-            showGroupPicker();
+        if (groupIds.length > 0) {
+            const lastActive = localStorage.getItem('wc2026_activeGroup');
+            const chosen = (lastActive && groupIds.includes(lastActive)) ? lastActive : groupIds[0];
+            pendingMode = null;
+            enterAppForGroup(chosen);
             return;
         }
 
-        const lastActive = localStorage.getItem('wc2026_activeGroup');
-        const chosen = (lastActive && groupIds.includes(lastActive)) ? lastActive : groupIds[0];
-        enterAppForGroup(chosen);
+        if (pendingMode === 'public') {
+            pendingMode = null;
+            await joinPublicGroup();
+            return;
+        }
+        if (pendingMode === 'join') {
+            pendingMode = null;
+            showGroupPicker();
+            openJoinGroupModal();
+            return;
+        }
+        if (pendingMode === 'create') {
+            pendingMode = null;
+            showGroupPicker();
+            openCreateGroupModal();
+            return;
+        }
+
+        showGroupPicker();
     } catch (err) {
         console.warn('routeAfterLogin error:', err.message);
         showGroupPicker();
@@ -383,6 +417,24 @@ async function autoJoinByCode(code) {
     } catch (err) {
         console.warn('autoJoinByCode error:', err.message);
         return false;
+    }
+}
+
+async function joinPublicGroup() {
+    const PUBLIC_GROUP_ID = 'public';
+    const userId = currentUser.userId;
+    try {
+        const memberSnap = await ref(`groups/${PUBLIC_GROUP_ID}/members/${userId}`).once('value');
+        if (!memberSnap.exists()) {
+            const updates = {};
+            updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`userGroups/${userId}/${PUBLIC_GROUP_ID}`] = true;
+            await db.ref(activeTournament).update(updates);
+        }
+        enterAppForGroup(PUBLIC_GROUP_ID);
+    } catch (err) {
+        console.warn('joinPublicGroup error:', err.message);
+        showGroupPicker();
     }
 }
 
@@ -439,7 +491,7 @@ function initAuth() {
                 }
             }
             currentUser = null;
-            showLoginScreen();
+            showModeChoice();
         }
     });
 }

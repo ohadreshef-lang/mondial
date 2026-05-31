@@ -44,10 +44,10 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 נק'</span> ניחוש נכון של אלופת הטורניר</li>
                 <li><span class="rule-points">10 נק'</span> ניחוש נכון של מלך השערים (הבועט הטוב ביותר)</li>
             </ul>
-            <p>ניחושי הטורניר נסגרים <b>שעה לפני פתיחת משחק הפתיחה</b> של המונדיאל ולא ניתנים לשינוי לאחר מכן.</p>
+            <p>ניחושי הטורניר נסגרים <b>5 דקות לפני פתיחת משחק הפתיחה</b> של המונדיאל ולא ניתנים לשינוי לאחר מכן.</p>
 
             <h4>⏰ מתי נסגרים הניחושים?</h4>
-            <p>כל ניחוש נסגר אוטומטית <b>שעה לפני שריקת הפתיחה</b> של המשחק. לא ניתן להזין או לשנות ניחוש אחרי זמן זה — בטאב "משחקים" רואים שעון שסופר אחורה לכל משחק.</p>
+            <p>כל ניחוש נסגר אוטומטית <b>5 דקות לפני שריקת הפתיחה</b> של המשחק. לא ניתן להזין או לשנות ניחוש אחרי זמן זה — בטאב "משחקים" רואים שעון שסופר אחורה לכל משחק.</p>
 
             <h4>👥 קבוצות וחברים</h4>
             <ul>
@@ -69,6 +69,15 @@ const TRANSLATIONS = {
 
             <p style="margin-top:14px;color:#666;font-size:.8rem">⚽ בהצלחה וכיף מהמונדיאל!</p>
         `,
+
+        // Mode choice screen
+        'modeChoice.title': 'ניחושי מונדיאל 2026',
+        'modeChoice.subtitle': 'נחש תוצאות, צבור נקודות, תתחרה עם החברים!',
+        'modeChoice.publicBtn': '🌍 נחש בציבור',
+        'modeChoice.publicHint': 'הצטרף לטבלת כולם — ללא קוד',
+        'modeChoice.joinBtn': '🔗 הצטרף לקבוצה פרטית',
+        'modeChoice.joinHint': 'יש לך קוד הזמנה מחבר?',
+        'modeChoice.createBtn': '➕ צור קבוצה פרטית',
 
         // Login
         'login.title': 'ניחושי מונדיאל 2026',
@@ -119,7 +128,7 @@ const TRANSLATIONS = {
         // Match card
         'match.status.upcoming': 'עתידי',
         'match.status.locked': 'נעול',
-        'match.lockNotice': '⏰ כל הניחושים נסגרים שעה לפני פתיחת המשחק',
+        'match.lockNotice': '⏰ כל הניחושים נסגרים 5 דקות לפני פתיחת המשחק',
         'match.started': 'התחיל',
         'match.status.completed': 'הסתיים',
         'match.yourBet': 'ניחוש שלך',
@@ -148,7 +157,7 @@ const TRANSLATIONS = {
 
         // Tournament
         'tournament.title': '🏆 ניחושי טורניר',
-        'tournament.subtitle': '10 נקודות לכל ניחוש נכון. נסגר שעה לפני פתיחת הטורניר.',
+        'tournament.subtitle': '10 נקודות לכל ניחוש נכון. נסגר 5 דקות לפני פתיחת הטורניר.',
         'tournament.lockSoon': 'נעילה בעוד:',
         'tournament.lockedBadge': '🔒 ניחושי הטורניר ננעלו',
         'tournament.champion': '🏆 אלופת המונדיאל',
@@ -319,10 +328,10 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 pts</span> Correct World Cup champion</li>
                 <li><span class="rule-points">10 pts</span> Correct top scorer (Golden Boot)</li>
             </ul>
-            <p>Tournament predictions lock <b>1 hour before the opening match</b> and cannot be changed afterwards.</p>
+            <p>Tournament predictions lock <b>5 minutes before the opening match</b> and cannot be changed afterwards.</p>
 
             <h4>⏰ When do predictions lock?</h4>
-            <p>Every prediction locks automatically <b>1 hour before kickoff</b>. You can't submit or change a bet after that time — the Matches tab shows a live countdown for each match.</p>
+            <p>Every prediction locks automatically <b>5 minutes before kickoff</b>. You can't submit or change a bet after that time — the Matches tab shows a live countdown for each match.</p>
 
             <h4>👥 Groups and members</h4>
             <ul>
@@ -344,6 +353,14 @@ const TRANSLATIONS = {
 
             <p style="margin-top:14px;color:#666;font-size:.8rem">⚽ Good luck and enjoy the World Cup!</p>
         `,
+
+        'modeChoice.title': 'World Cup 2026 Predictions',
+        'modeChoice.subtitle': 'Predict scores, earn points, compete with friends!',
+        'modeChoice.publicBtn': '🌍 Predict publicly',
+        'modeChoice.publicHint': 'Join the global leaderboard — no code needed',
+        'modeChoice.joinBtn': '🔗 Join private group',
+        'modeChoice.joinHint': 'Got an invite code from a friend?',
+        'modeChoice.createBtn': '➕ Create private group',
 
         'login.title': 'World Cup 2026 Predictions',
         'login.subtitle': 'Predict scores, earn points, compete with friends!',
@@ -388,7 +405,7 @@ const TRANSLATIONS = {
 
         'match.status.upcoming': 'Upcoming',
         'match.status.locked': 'Locked',
-        'match.lockNotice': '⏰ All predictions lock 1 hour before kickoff',
+        'match.lockNotice': '⏰ All predictions lock 5 minutes before kickoff',
         'match.started': 'Started',
         'match.status.completed': 'Finished',
         'match.yourBet': 'Your prediction',
@@ -414,7 +431,7 @@ const TRANSLATIONS = {
         'myBets.result': 'Result',
 
         'tournament.title': '🏆 Tournament predictions',
-        'tournament.subtitle': '10 points per correct prediction. Locks 1 hour before the tournament starts.',
+        'tournament.subtitle': '10 points per correct prediction. Locks 5 minutes before the tournament starts.',
         'tournament.lockSoon': 'Locks in:',
         'tournament.lockedBadge': '🔒 Tournament predictions are locked',
         'tournament.champion': '🏆 World Cup champion',
@@ -579,10 +596,10 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 pts</span> Campeón del Mundial correcto</li>
                 <li><span class="rule-points">10 pts</span> Goleador correcto (Bota de Oro)</li>
             </ul>
-            <p>Las predicciones del torneo se cierran <b>1 hora antes del partido inaugural</b> y no se pueden cambiar después.</p>
+            <p>Las predicciones del torneo se cierran <b>5 minutos antes del partido inaugural</b> y no se pueden cambiar después.</p>
 
             <h4>⏰ ¿Cuándo se cierran las predicciones?</h4>
-            <p>Cada predicción se cierra automáticamente <b>1 hora antes del inicio</b> del partido. No se puede enviar ni cambiar una apuesta después de ese momento — la pestaña "Partidos" muestra una cuenta atrás en vivo.</p>
+            <p>Cada predicción se cierra automáticamente <b>5 minutos antes del inicio</b> del partido. No se puede enviar ni cambiar una apuesta después de ese momento — la pestaña "Partidos" muestra una cuenta atrás en vivo.</p>
 
             <h4>👥 Grupos y miembros</h4>
             <ul>
@@ -604,6 +621,14 @@ const TRANSLATIONS = {
 
             <p style="margin-top:14px;color:#666;font-size:.8rem">⚽ ¡Buena suerte y disfruta del Mundial!</p>
         `,
+
+        'modeChoice.title': 'Predicciones Mundial 2026',
+        'modeChoice.subtitle': '¡Predice resultados, suma puntos, compite con amigos!',
+        'modeChoice.publicBtn': '🌍 Predecir en público',
+        'modeChoice.publicHint': 'Únete a la tabla global — sin código',
+        'modeChoice.joinBtn': '🔗 Unirse a grupo privado',
+        'modeChoice.joinHint': '¿Tienes un código de invitación?',
+        'modeChoice.createBtn': '➕ Crear grupo privado',
 
         'login.title': 'Predicciones Mundial 2026',
         'login.subtitle': '¡Predice resultados, suma puntos, compite con amigos!',
@@ -648,7 +673,7 @@ const TRANSLATIONS = {
 
         'match.status.upcoming': 'Próximo',
         'match.status.locked': 'Bloqueado',
-        'match.lockNotice': '⏰ Todas las predicciones se cierran 1 hora antes del partido',
+        'match.lockNotice': '⏰ Todas las predicciones se cierran 5 minutos antes del partido',
         'match.started': 'Comenzó',
         'match.status.completed': 'Finalizado',
         'match.yourBet': 'Tu predicción',
@@ -674,7 +699,7 @@ const TRANSLATIONS = {
         'myBets.result': 'Resultado',
 
         'tournament.title': '🏆 Predicciones del torneo',
-        'tournament.subtitle': '10 puntos por predicción correcta. Se cierra 1 hora antes del inicio del torneo.',
+        'tournament.subtitle': '10 puntos por predicción correcta. Se cierra 5 minutos antes del inicio del torneo.',
         'tournament.lockSoon': 'Se cierra en:',
         'tournament.lockedBadge': '🔒 Predicciones del torneo cerradas',
         'tournament.champion': '🏆 Campeón del Mundial',
