@@ -1,12 +1,9 @@
-// Default to UCL 2025 — it starts before the World Cup
-activeTournament = 'ucl2025';
+// Switch back to World Cup 2026 — UCL 2025 is over
+activeTournament = 'worldcup2026';
 
-// Default stage filter to Final (semi-finals have already ended)
-stageFilter = 'Final';
-
-// Reduce bet lock window to 5 minutes before kickoff (was 60 minutes).
+// Restore 60-minute bet lock now that we're back to WC (upcoming tournament)
 function matchIsLocked(match) {
-    return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
+    return parseMatchDate(match.date) - new Date() <= 60 * 60 * 1000;
 }
 
 // Extend TEAM_LOGOS with Atletico Madrid and Bayern Munich SVG logos
@@ -66,16 +63,101 @@ function initAuth() {
     });
 }
 
-// Fix: resolve cross-tournament user names in the leaderboard.
+// Fix: Google login merging + email uniqueness enforcement.
 //
-// Root cause: users who registered when activeTournament was 'worldcup2026'
-// have their profile at worldcup2026/users/{uid}. When the app runs in
-// ucl2025 mode it looks in ucl2025/users/{uid} (missing) and never adds the
-// uid to groupUsersCache, so renderLeaderboard falls back to "משתמש".
-//
-// Fix: wrap renderLeaderboard so that before every render it fetches any
-// missing names from the other tournament's users path, then writes them
-// into the current path (one-time migration) so future renders are instant.
+// Two scenarios:
+// 1. Email-first then Google: user registered via email form → profile exists at
+//    users/{emailToId(email)}. When they later sign in with Google (same email),
+//    detect the existing profile and use it as canonical identity (merge).
+// 2. Google-first then email form: detect via fetchSignInMethodsForEmail that
+//    the email has a Google sign-in method and show a clear error message.
+async function setupUserFromAuth(firebaseUser) {
+    if (firebaseUser.isAnonymous) {
+        const saved = localStorage.getItem('wc2026_emailUser');
+        if (saved) {
+            try { currentUser = JSON.parse(saved); return; } catch(e) {}
+        }
+        return;
+    }
+    const email      = firebaseUser.email || '';
+    const firebaseUid = firebaseUser.uid;
+    let   name       = firebaseUser.displayName || email.split('@')[0] || 'User';
+
+    // If an email-login profile exists for this email, use it as canonical identity.
+    let userId = firebaseUid;
+    if (db && email) {
+        try {
+            const emailUserId = emailToId(email);
+            if (emailUserId !== firebaseUid) {
+                const snap = await ref(`users/${emailUserId}`).once('value');
+                if (snap.exists()) {
+                    userId = emailUserId;
+                    name   = snap.val().name || name;
+                }
+            }
+        } catch(e) {}
+    }
+
+    if (db) {
+        try {
+            const snap = await ref(`users/${userId}`).once('value');
+            if (!snap.exists()) {
+                await ref(`users/${userId}`).set({ name, email });
+            } else {
+                name = snap.val().name || name;
+            }
+        } catch(err) { console.warn('User sync failed:', err); }
+    }
+    currentUser = { userId, name, email };
+}
+
+async function handleEmailLogin(e) {
+    e.preventDefault();
+    const errEl = $('login-error');
+    hideEl(errEl);
+    let   name  = $('input-name').value.trim();
+    const email = $('input-email').value.trim().toLowerCase();
+    if (!name || !email || !email.includes('@')) {
+        errEl.textContent = 'נא למלא שם ואימייל תקין';
+        showEl(errEl);
+        return;
+    }
+    // Block email-form login when the address is registered with Google.
+    if (auth) {
+        try {
+            const methods = await auth.fetchSignInMethodsForEmail(email);
+            if (methods && methods.includes('google.com')) {
+                errEl.textContent = 'האימייל הזה מחובר לחשבון Google — אנא השתמש בכפתור "כניסה עם Google"';
+                showEl(errEl);
+                return;
+            }
+        } catch(e) { /* network / config error — allow through */ }
+    }
+    const userId = emailToId(email);
+    if (db) {
+        try {
+            const snap = await ref(`users/${userId}`).once('value');
+            if (!snap.exists()) {
+                await ref(`users/${userId}`).set({ name, email });
+            } else {
+                name = snap.val().name || name;
+            }
+        } catch(err) { console.warn('User sync failed:', err); }
+    }
+    currentUser = { userId, name, email, emailLogin: true };
+    localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
+    if (auth) {
+        try {
+            await auth.signInAnonymously();
+            return;
+        } catch(e) { console.warn('Anonymous auth failed:', e); }
+    }
+    await routeAfterLogin();
+}
+
+// Fix: cross-tournament user name resolution in leaderboard.
+// Users who registered under ucl2025 may have their profile only there;
+// this wrapper fetches missing names from the other path before rendering.
 document.addEventListener('DOMContentLoaded', function () {
     var _orig = renderLeaderboard;
     renderLeaderboard = async function () {
@@ -90,7 +172,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         var u = snap.val();
                         if (u && u.name) {
                             groupUsersCache[uid] = { name: u.name, email: u.email };
-                            // Migrate to current path so the next page load is instant.
                             db.ref(activeTournament + '/users/' + uid)
                               .set({ name: u.name, email: u.email });
                         }
@@ -101,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
         _orig();
     };
 
-    // Tournament switcher buttons
+    // Sync tournament button + app bar title to active tournament.
     var cfg = TOURNAMENTS[activeTournament];
     if (!cfg) return;
     document.querySelectorAll('.tournament-btn').forEach(function (b) {
