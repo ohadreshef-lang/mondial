@@ -73,11 +73,12 @@ const TRANSLATIONS = {
         // Mode choice screen
         'modeChoice.title': 'ניחושי מונדיאל 2026',
         'modeChoice.subtitle': 'נחש תוצאות, צבור נקודות, תתחרה עם החברים!',
-        'modeChoice.publicBtn': '🌍 נחש בציבור',
+        'modeChoice.publicBtn': '⚽ נחש תוצאות מונדיאל',
         'modeChoice.publicHint': 'הצטרף לטבלת כולם — ללא קוד',
+        'modeChoice.createBtn': '➕ צור קבוצה פרטית',
+        'modeChoice.createHint': 'הזמן את החברים שלך עם קוד שיתוף',
         'modeChoice.joinBtn': '🔗 הצטרף לקבוצה פרטית',
         'modeChoice.joinHint': 'יש לך קוד הזמנה מחבר?',
-        'modeChoice.createBtn': '➕ צור קבוצה פרטית',
 
         // Login
         'login.title': 'ניחושי מונדיאל 2026',
@@ -356,11 +357,12 @@ const TRANSLATIONS = {
 
         'modeChoice.title': 'World Cup 2026 Predictions',
         'modeChoice.subtitle': 'Predict scores, earn points, compete with friends!',
-        'modeChoice.publicBtn': '🌍 Predict publicly',
+        'modeChoice.publicBtn': '⚽ Predict World Cup results',
         'modeChoice.publicHint': 'Join the global leaderboard — no code needed',
+        'modeChoice.createBtn': '➕ Create private group',
+        'modeChoice.createHint': 'Invite friends with a share code',
         'modeChoice.joinBtn': '🔗 Join private group',
         'modeChoice.joinHint': 'Got an invite code from a friend?',
-        'modeChoice.createBtn': '➕ Create private group',
 
         'login.title': 'World Cup 2026 Predictions',
         'login.subtitle': 'Predict scores, earn points, compete with friends!',
@@ -624,11 +626,12 @@ const TRANSLATIONS = {
 
         'modeChoice.title': 'Predicciones Mundial 2026',
         'modeChoice.subtitle': '¡Predice resultados, suma puntos, compite con amigos!',
-        'modeChoice.publicBtn': '🌍 Predecir en público',
+        'modeChoice.publicBtn': '⚽ Predecir resultados del Mundial',
         'modeChoice.publicHint': 'Únete a la tabla global — sin código',
+        'modeChoice.createBtn': '➕ Crear grupo privado',
+        'modeChoice.createHint': 'Invita a tus amigos con un código',
         'modeChoice.joinBtn': '🔗 Unirse a grupo privado',
         'modeChoice.joinHint': '¿Tienes un código de invitación?',
-        'modeChoice.createBtn': '➕ Crear grupo privado',
 
         'login.title': 'Predicciones Mundial 2026',
         'login.subtitle': '¡Predice resultados, suma puntos, compite con amigos!',
