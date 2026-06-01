@@ -202,12 +202,20 @@ section { display: block; }
 }
 .btn-ghost:hover { background: var(--bg); }
 
-.mode-choice-cards { margin-top: 20px; }
+.mode-choice-cards {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.mode-choice-cards .btn {
+    margin-bottom: 4px;
+}
 
 .mode-hint {
     font-size: 0.8rem;
     color: var(--text-light);
-    margin: -8px 0 12px;
+    margin: 0 0 16px;
     text-align: center;
 }
 
