@@ -17,7 +17,7 @@
 
 const firebaseConfig = {
     apiKey: "AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g",
-    authDomain: "mondial.guru",
+    authDomain: "mondial2026-a77fc.firebaseapp.com",
     databaseURL: "https://mondial2026-a77fc-default-rtdb.firebaseio.com",
     projectId: "mondial2026-a77fc",
     storageBucket: "mondial2026-a77fc.firebasestorage.app",
