@@ -227,7 +227,7 @@ function emailToId(email) {
 
 function parseMatchDate(dateStr) {
     if (!dateStr) return new Date(0);
-    return new Date(dateStr + '+03:00');
+    return new Date(dateStr + 'Z');
 }
 
 function formatDate(dateStr) {
