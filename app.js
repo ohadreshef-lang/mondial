@@ -891,9 +891,17 @@ function buildMatchCard(m) {
             const v2 = bet ? bet.team2Goals : 0;
             middleHtml = `
                 <div class="bet-inputs">
-                    <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" onfocus="this.select()">
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+                    </div>
                     <span class="bet-sep">–</span>
-                    <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" onfocus="this.select()">
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
+                    </div>
                 </div>
                 <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>`;
         }
@@ -938,6 +946,12 @@ function buildMatchCard(m) {
 // ============================================================
 // BET ACTIONS
 // ============================================================
+
+function stepBet(inputId, delta) {
+    const el = $(inputId);
+    if (!el) return;
+    el.value = Math.max(0, Math.min(30, (parseInt(el.value) || 0) + delta));
+}
 
 async function saveBet(matchId) {
     if (!currentUser || !currentGroupId || !db) return;
