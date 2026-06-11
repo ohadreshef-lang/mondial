@@ -1064,12 +1064,8 @@ function renderMyBets() {
 // ============================================================
 
 function tournamentLockTime() {
-    const dates = Object.values(matches)
-        .map(m => parseMatchDate(m.date).getTime())
-        .filter(t => t > 0)
-        .sort((a, b) => a - b);
-    if (dates.length === 0) return null;
-    return dates[0] - 60 * 60 * 1000;
+    // Special bets lock Monday 15/6/2026 at 20:00 Israel time (UTC+3 = 17:00 UTC)
+    return new Date('2026-06-15T17:00:00Z').getTime();
 }
 
 function tournamentIsLocked() {
