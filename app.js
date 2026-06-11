@@ -1467,8 +1467,13 @@ async function recalcPoints(matchId, resG1, resG2) {
         const members = (groupsData[groupId] && groupsData[groupId].members) || {};
         for (const userId of Object.keys(members)) {
             const betSnap = await ref(`bets/${groupId}/${userId}/${matchId}`).once('value');
-            if (!betSnap.exists()) continue;
-            const bet = betSnap.val();
+            let bet;
+            if (!betSnap.exists()) {
+                bet = { team1Goals: 0, team2Goals: 0, placedAt: 0 };
+                updates[`bets/${groupId}/${userId}/${matchId}`] = { ...bet, points: 0 };
+            } else {
+                bet = betSnap.val();
+            }
             const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
             updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
         }
