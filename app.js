@@ -235,6 +235,7 @@ function formatDate(dateStr) {
     return parseMatchDate(dateStr).toLocaleString('he-IL', {
         weekday: 'short', day: 'numeric', month: 'numeric',
         hour: '2-digit', minute: '2-digit',
+        timeZone: 'Asia/Jerusalem',
     });
 }
 
