@@ -855,6 +855,9 @@ function buildMatchCard(m) {
     const bet    = userBets[m.id];
     const hasResult = m.result !== null && m.result !== undefined;
 
+    const msUntilLock = parseMatchDate(m.date) - new Date();
+    const closingSoon = !locked && !hasResult && msUntilLock > 0 && msUntilLock <= 24 * 60 * 60 * 1000;
+
     let badgeClass, badgeText;
     if (hasResult) {
         badgeClass = 'badge-completed'; badgeText = t('match.status.completed');
@@ -909,10 +912,11 @@ function buildMatchCard(m) {
     }
 
     return `
-    <div class="match-card" id="card-${m.id}">
+    <div class="match-card${closingSoon ? ' match-card--closing-soon' : ''}" id="card-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
             <span class="match-status-badge ${badgeClass}" data-match-date="${m.date}">${badgeText}</span>
+            ${closingSoon ? `<span class="closing-soon-hint">⏰ ${t('match.closingSoon')}</span>` : ''}
         </div>
         <div class="match-card-body">
             <div class="match-teams-row">

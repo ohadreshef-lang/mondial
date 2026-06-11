@@ -455,6 +455,22 @@ section { display: block; }
 
 .match-card:hover { box-shadow: var(--shadow-lg); }
 
+.match-card--closing-soon {
+    border-color: #f6ad55;
+    background: linear-gradient(to left, rgba(246,173,85,.07) 0%, var(--card-bg) 60%);
+}
+
+.closing-soon-hint {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #c05621;
+    background: #fff3e0;
+    border: 1px solid #f6ad55;
+    border-radius: 20px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+
 .match-card-header {
     display: flex;
     align-items: center;
