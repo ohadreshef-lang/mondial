@@ -158,7 +158,7 @@ const TRANSLATIONS = {
 
         // Tournament
         'tournament.title': '🏆 ניחושי טורניר',
-        'tournament.subtitle': '10 נקודות לכל ניחוש נכון. נסגר 5 דקות לפני פתיחת הטורניר.',
+        'tournament.subtitle': '10 נקודות לכל ניחוש נכון. נסגר מחר 12/6 בשעה 12:00.',
         'tournament.lockSoon': 'נעילה בעוד:',
         'tournament.lockedBadge': '🔒 ניחושי הטורניר ננעלו',
         'tournament.champion': '🏆 אלופת המונדיאל',
@@ -433,7 +433,7 @@ const TRANSLATIONS = {
         'myBets.result': 'Result',
 
         'tournament.title': '🏆 Tournament predictions',
-        'tournament.subtitle': '10 points per correct prediction. Locks 5 minutes before the tournament starts.',
+        'tournament.subtitle': '10 points per correct prediction. Locks tomorrow 12/6 at 12:00.',
         'tournament.lockSoon': 'Locks in:',
         'tournament.lockedBadge': '🔒 Tournament predictions are locked',
         'tournament.champion': '🏆 World Cup champion',
@@ -702,7 +702,7 @@ const TRANSLATIONS = {
         'myBets.result': 'Resultado',
 
         'tournament.title': '🏆 Predicciones del torneo',
-        'tournament.subtitle': '10 puntos por predicción correcta. Se cierra 5 minutos antes del inicio del torneo.',
+        'tournament.subtitle': '10 puntos por predicción correcta. Se cierra mañana 12/6 a las 12:00.',
         'tournament.lockSoon': 'Se cierra en:',
         'tournament.lockedBadge': '🔒 Predicciones del torneo cerradas',
         'tournament.champion': '🏆 Campeón del Mundial',

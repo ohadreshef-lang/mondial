@@ -417,7 +417,7 @@ async function autoJoinByCode(code) {
         const memberSnap = await ref(`groups/${groupId}/members/${currentUser.userId}`).once('value');
         if (!memberSnap.exists()) {
             const updates = {};
-            updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0, name: currentUser.name };
             updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
             await db.ref(activeTournament).update(updates);
         }
@@ -447,7 +447,7 @@ async function joinPublicGroup() {
             ? await ref(`groups/${PUBLIC_GROUP_ID}/members/${userId}`).once('value')
             : { exists: () => false };
         if (!memberSnap.exists()) {
-            updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0, name: currentUser.name };
             updates[`userGroups/${userId}/${PUBLIC_GROUP_ID}`] = true;
         }
         if (Object.keys(updates).length > 0) {
@@ -460,6 +460,16 @@ async function joinPublicGroup() {
     }
 }
 
+async function ensureUserProfile() {
+    if (!db || !currentUser || !currentUser.userId || !currentUser.name) return;
+    try {
+        const snap = await ref(`users/${currentUser.userId}`).once('value');
+        if (!snap.exists()) {
+            await ref(`users/${currentUser.userId}`).set({ name: currentUser.name, email: currentUser.email || '' });
+        }
+    } catch(e) {}
+}
+
 function enterAppForGroup(groupId) {
     currentGroupId = groupId;
     localStorage.setItem('wc2026_activeGroup', groupId);
@@ -467,6 +477,7 @@ function enterAppForGroup(groupId) {
     hide('group-picker-screen');
     show('main-app');
     $('header-username').textContent = currentUser.name;
+    ensureUserProfile();
     startFirebaseListeners();
     renderCurrentTab();
 }
@@ -688,7 +699,15 @@ function startFirebaseListeners() {
         await Promise.all(missing.map(async uid => {
             const usnap = await ref(`users/${uid}`).once('value');
             const u = usnap.val();
-            if (u) groupUsersCache[uid] = { name: u.name, email: u.email };
+            if (u) {
+                groupUsersCache[uid] = { name: u.name, email: u.email };
+            } else if (currentUser && uid === currentUser.userId && currentUser.name) {
+                groupUsersCache[uid] = { name: currentUser.name, email: currentUser.email || '' };
+                try { await ref(`users/${uid}`).set({ name: currentUser.name, email: currentUser.email || '' }); } catch(e) {}
+            } else if (groupMembers[uid] && groupMembers[uid].name) {
+                groupUsersCache[uid] = { name: groupMembers[uid].name };
+                try { await ref(`users/${uid}`).set({ name: groupMembers[uid].name }); } catch(e) {}
+            }
         }));
         if (activeTab === 'leaderboard') renderLeaderboard();
     }, () => {});
@@ -953,7 +972,7 @@ function renderLeaderboard() {
     const entries = Object.entries(groupMembers)
         .map(([uid, m]) => ({
             userId: uid,
-            name: (groupUsersCache[uid] && groupUsersCache[uid].name) || t('groupSettings.unknownUser'),
+            name: (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser'),
             totalPoints: m.totalPoints || 0,
         }))
         .sort((a, b) => b.totalPoints - a.totalPoints);
@@ -1046,12 +1065,8 @@ function renderMyBets() {
 // ============================================================
 
 function tournamentLockTime() {
-    const dates = Object.values(matches)
-        .map(m => parseMatchDate(m.date).getTime())
-        .filter(t => t > 0)
-        .sort((a, b) => a - b);
-    if (dates.length === 0) return null;
-    return dates[0] - 60 * 60 * 1000;
+    // Special bets lock Friday 12/6/2026 at 12:00 Israel time (UTC+3 = 09:00 UTC)
+    return new Date('2026-06-12T09:00:00Z').getTime();
 }
 
 function tournamentIsLocked() {
@@ -1999,7 +2014,7 @@ async function confirmCreateGroup() {
         updates[`groups/${groupId}/ownerId`] = currentUser.userId;
         updates[`groups/${groupId}/inviteCode`] = code;
         updates[`groups/${groupId}/createdAt`] = now;
-        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0, name: currentUser.name };
         updates[`inviteCodes/${code}`] = groupId;
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
 
@@ -2066,7 +2081,7 @@ async function confirmJoinGroup() {
 
         const now = Date.now();
         const updates = {};
-        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0, name: currentUser.name };
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
         await db.ref(activeTournament).update(updates);
 
