@@ -179,6 +179,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             groupUsersCache[uid] = { name: currentUser.name, email: currentUser.email || '' };
                             db.ref(activeTournament + '/users/' + uid)
                               .set({ name: currentUser.name, email: currentUser.email || '' });
+                        } else if (typeof groupMembers !== 'undefined' && groupMembers[uid] && groupMembers[uid].name) {
+                            groupUsersCache[uid] = { name: groupMembers[uid].name };
+                            db.ref(activeTournament + '/users/' + uid)
+                              .set({ name: groupMembers[uid].name });
                         }
                     });
                 }));

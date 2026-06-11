@@ -416,7 +416,7 @@ async function autoJoinByCode(code) {
         const memberSnap = await ref(`groups/${groupId}/members/${currentUser.userId}`).once('value');
         if (!memberSnap.exists()) {
             const updates = {};
-            updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: Date.now(), totalPoints: 0, name: currentUser.name };
             updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
             await db.ref(activeTournament).update(updates);
         }
@@ -446,7 +446,7 @@ async function joinPublicGroup() {
             ? await ref(`groups/${PUBLIC_GROUP_ID}/members/${userId}`).once('value')
             : { exists: () => false };
         if (!memberSnap.exists()) {
-            updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
+            updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0, name: currentUser.name };
             updates[`userGroups/${userId}/${PUBLIC_GROUP_ID}`] = true;
         }
         if (Object.keys(updates).length > 0) {
@@ -703,6 +703,9 @@ function startFirebaseListeners() {
             } else if (currentUser && uid === currentUser.userId && currentUser.name) {
                 groupUsersCache[uid] = { name: currentUser.name, email: currentUser.email || '' };
                 try { await ref(`users/${uid}`).set({ name: currentUser.name, email: currentUser.email || '' }); } catch(e) {}
+            } else if (groupMembers[uid] && groupMembers[uid].name) {
+                groupUsersCache[uid] = { name: groupMembers[uid].name };
+                try { await ref(`users/${uid}`).set({ name: groupMembers[uid].name }); } catch(e) {}
             }
         }));
         if (activeTab === 'leaderboard') renderLeaderboard();
@@ -968,7 +971,7 @@ function renderLeaderboard() {
     const entries = Object.entries(groupMembers)
         .map(([uid, m]) => ({
             userId: uid,
-            name: (groupUsersCache[uid] && groupUsersCache[uid].name) || t('groupSettings.unknownUser'),
+            name: (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser'),
             totalPoints: m.totalPoints || 0,
         }))
         .sort((a, b) => b.totalPoints - a.totalPoints);
@@ -2014,7 +2017,7 @@ async function confirmCreateGroup() {
         updates[`groups/${groupId}/ownerId`] = currentUser.userId;
         updates[`groups/${groupId}/inviteCode`] = code;
         updates[`groups/${groupId}/createdAt`] = now;
-        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0, name: currentUser.name };
         updates[`inviteCodes/${code}`] = groupId;
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
 
@@ -2081,7 +2084,7 @@ async function confirmJoinGroup() {
 
         const now = Date.now();
         const updates = {};
-        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0 };
+        updates[`groups/${groupId}/members/${currentUser.userId}`] = { joinedAt: now, totalPoints: 0, name: currentUser.name };
         updates[`userGroups/${currentUser.userId}/${groupId}`] = true;
         await db.ref(activeTournament).update(updates);
 
