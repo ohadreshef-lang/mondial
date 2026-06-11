@@ -424,11 +424,24 @@ async function joinPublicGroup() {
     const PUBLIC_GROUP_ID = 'public';
     const userId = currentUser.userId;
     try {
-        const memberSnap = await ref(`groups/${PUBLIC_GROUP_ID}/members/${userId}`).once('value');
+        const groupSnap = await ref(`groups/${PUBLIC_GROUP_ID}`).once('value');
+        const updates = {};
+        if (!groupSnap.exists()) {
+            updates[`groups/${PUBLIC_GROUP_ID}/name`]       = 'ניחושי מונדיאל - ציבורי';
+            updates[`groups/${PUBLIC_GROUP_ID}/ownerId`]    = 'system';
+            updates[`groups/${PUBLIC_GROUP_ID}/inviteCode`] = 'PUBLIC';
+            updates[`groups/${PUBLIC_GROUP_ID}/createdAt`]  = 0;
+            updates[`groups/${PUBLIC_GROUP_ID}/isPublic`]   = true;
+            updates[`inviteCodes/PUBLIC`] = PUBLIC_GROUP_ID;
+        }
+        const memberSnap = groupSnap.exists()
+            ? await ref(`groups/${PUBLIC_GROUP_ID}/members/${userId}`).once('value')
+            : { exists: () => false };
         if (!memberSnap.exists()) {
-            const updates = {};
             updates[`groups/${PUBLIC_GROUP_ID}/members/${userId}`] = { joinedAt: Date.now(), totalPoints: 0 };
             updates[`userGroups/${userId}/${PUBLIC_GROUP_ID}`] = true;
+        }
+        if (Object.keys(updates).length > 0) {
             await db.ref(activeTournament).update(updates);
         }
         enterAppForGroup(PUBLIC_GROUP_ID);
@@ -794,31 +807,8 @@ function renderMatches() {
     if (matchList.length === 0) {
         container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
     } else {
-        const grouped = {};
-        matchList.forEach(m => {
-            const key = m.stage === 'group' ? `group_${m.group || ''}` : m.stage;
-            if (!grouped[key]) grouped[key] = { stage: m.stage, group: m.group, items: [] };
-            grouped[key].items.push(m);
-        });
-
-        const currentStages = TOURNAMENTS[activeTournament].stages;
-        const sortedKeys = Object.keys(grouped).sort((a, b) => {
-            const sa = currentStages.indexOf(grouped[a].stage);
-            const sb = currentStages.indexOf(grouped[b].stage);
-            if (sa !== sb) return sa - sb;
-            return (grouped[a].group || '').localeCompare(grouped[b].group || '');
-        });
-
         let html = '';
-        sortedKeys.forEach(key => {
-            const g = grouped[key];
-            const label = g.stage === 'group'
-                ? `${getStageLabel('group')} – ${getGroupPrefix()} ${g.group || ''}`
-                : getStageLabel(g.stage);
-            html += `<div class="stage-group-header">${label}</div>`;
-            g.items.forEach(m => { html += buildMatchCard(m); });
-        });
-
+        matchList.forEach(m => { html += buildMatchCard(m); });
         container.innerHTML = html;
     }
 
