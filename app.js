@@ -1628,6 +1628,109 @@ async function adminDeleteUser(userId, userName) {
     loadAdminGroups();
 }
 
+async function adminMergeDuplicates(btn) {
+    if (!db) return;
+    btn.disabled = true;
+    btn.textContent = 'מחפש כפולים...';
+
+    try {
+        const usersSnap = await ref('users').once('value');
+        const users = usersSnap.val() || {};
+
+        // Group user records by normalised email
+        const byEmail = {};
+        for (const [uid, u] of Object.entries(users)) {
+            if (!u.email) continue;
+            const email = u.email.toLowerCase().trim();
+            if (!byEmail[email]) byEmail[email] = [];
+            byEmail[email].push({ uid, name: u.name || '', email });
+        }
+
+        let mergeCount = 0;
+
+        for (const [email, list] of Object.entries(byEmail)) {
+            const canonicalId = emailToId(email);
+            const duplicates  = list.filter(u => u.uid !== canonicalId);
+            if (duplicates.length === 0) continue;
+
+            // Ensure the canonical users/ record exists
+            if (!users[canonicalId]) {
+                const src = list[0];
+                await ref(`users/${canonicalId}`).set({ name: src.name, email: src.email });
+            }
+
+            for (const dup of duplicates) {
+                const dupUid = dup.uid;
+
+                const ugSnap  = await ref(`userGroups/${dupUid}`).once('value');
+                const dupGids = Object.keys(ugSnap.val() || {});
+                const updates = {};
+
+                for (const gid of dupGids) {
+                    // Migrate group membership
+                    const dupMSnap  = await ref(`groups/${gid}/members/${dupUid}`).once('value');
+                    if (dupMSnap.exists()) {
+                        const dupM     = dupMSnap.val();
+                        const canMSnap = await ref(`groups/${gid}/members/${canonicalId}`).once('value');
+                        if (!canMSnap.exists()) {
+                            updates[`groups/${gid}/members/${canonicalId}`] = {
+                                ...dupM,
+                                name: (users[canonicalId] || dup).name || dupM.name || '',
+                            };
+                        } else {
+                            const canM = canMSnap.val();
+                            if ((dupM.totalPoints || 0) > (canM.totalPoints || 0)) {
+                                updates[`groups/${gid}/members/${canonicalId}/totalPoints`] = dupM.totalPoints;
+                            }
+                        }
+                        updates[`groups/${gid}/members/${dupUid}`] = null;
+                    }
+
+                    // Migrate match bets (duplicate fills gaps in canonical)
+                    const dupBSnap  = await ref(`bets/${gid}/${dupUid}`).once('value');
+                    if (dupBSnap.exists()) {
+                        const canBSnap = await ref(`bets/${gid}/${canonicalId}`).once('value');
+                        const merged   = { ...dupBSnap.val(), ...(canBSnap.val() || {}) };
+                        updates[`bets/${gid}/${canonicalId}`]  = merged;
+                        updates[`bets/${gid}/${dupUid}`]       = null;
+                    }
+
+                    // Migrate special bets (canonical wins on conflict)
+                    const dupSSnap  = await ref(`specialBets/${gid}/${dupUid}`).once('value');
+                    if (dupSSnap.exists()) {
+                        const canSSnap = await ref(`specialBets/${gid}/${canonicalId}`).once('value');
+                        if (!canSSnap.exists()) {
+                            updates[`specialBets/${gid}/${canonicalId}`] = dupSSnap.val();
+                        }
+                        updates[`specialBets/${gid}/${dupUid}`] = null;
+                    }
+
+                    updates[`userGroups/${canonicalId}/${gid}`] = true;
+                }
+
+                if (Object.keys(updates).length) {
+                    await db.ref(activeTournament).update(updates);
+                }
+
+                await ref(`userGroups/${dupUid}`).remove();
+                await ref(`users/${dupUid}`).remove();
+                mergeCount++;
+                console.log(`Merged ${dupUid} → ${canonicalId} (${email})`);
+            }
+        }
+
+        btn.textContent = mergeCount > 0 ? `✓ מוזגו ${mergeCount} כפולים` : '✓ אין כפולים';
+        btn.style.background = '#38a169';
+        btn.style.color = '#fff';
+        setTimeout(loadAdminUsers, 1500);
+    } catch (err) {
+        console.error('Merge error:', err);
+        btn.textContent = '❌ שגיאה';
+        btn.disabled = false;
+        alert('שגיאה במיזוג: ' + err.message);
+    }
+}
+
 // ============================================================
 // ADMIN: GROUPS MANAGEMENT
 // ============================================================

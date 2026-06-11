@@ -80,21 +80,32 @@ async function setupUserFromAuth(firebaseUser) {
         }
         return;
     }
-    const email      = firebaseUser.email || '';
+    const email       = firebaseUser.email || '';
     const firebaseUid = firebaseUser.uid;
-    let   name       = firebaseUser.displayName || email.split('@')[0] || 'User';
+    let   name        = firebaseUser.displayName || email.split('@')[0] || 'User';
 
-    // If an email-login profile exists for this email, use it as canonical identity.
+    // Canonical identity: always email-derived for users with an email.
+    // If only a firebaseUid record exists (old Google-login user, not yet merged),
+    // keep using it until adminMergeDuplicates() migrates them.
     let userId = firebaseUid;
     if (db && email) {
         try {
             const emailUserId = emailToId(email);
             if (emailUserId !== firebaseUid) {
-                const snap = await ref(`users/${emailUserId}`).once('value');
-                if (snap.exists()) {
+                const [emailSnap, uidSnap] = await Promise.all([
+                    ref(`users/${emailUserId}`).once('value'),
+                    ref(`users/${firebaseUid}`).once('value'),
+                ]);
+                if (emailSnap.exists()) {
+                    // Email-based profile exists — use as canonical
                     userId = emailUserId;
-                    name   = snap.val().name || name;
+                    name   = emailSnap.val().name || name;
+                } else if (!uidSnap.exists()) {
+                    // Brand-new user — start canonical from the beginning
+                    userId = emailUserId;
                 }
+                // If only firebaseUid record exists, leave userId as firebaseUid
+                // until the admin merge migrates data.
             }
         } catch(e) {}
     }
