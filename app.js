@@ -1149,16 +1149,28 @@ function renderTournament() {
 
     if (!locked) {
         const saveWinnerBtn = $('btn-save-winner');
-        if (saveWinnerBtn) saveWinnerBtn.addEventListener('click', () => {
+        if (saveWinnerBtn) saveWinnerBtn.addEventListener('click', async () => {
             const v = $('tournament-winner-select').value;
             if (!v) { alert(t('tournament.pickNeeded')); return; }
-            saveSpecialBet('winner', { team: v });
+            await saveSpecialBet('winner', { team: v });
+            const btn = $('btn-save-winner');
+            if (btn) {
+                btn.textContent = '✓ נשמר';
+                btn.classList.add('btn-saved');
+                setTimeout(() => { if ($('btn-save-winner')) { btn.textContent = t('common.save'); btn.classList.remove('btn-saved'); } }, 2500);
+            }
         });
         const saveScorerBtn = $('btn-save-scorer');
-        if (saveScorerBtn) saveScorerBtn.addEventListener('click', () => {
+        if (saveScorerBtn) saveScorerBtn.addEventListener('click', async () => {
             const v = $('tournament-scorer-select').value;
             if (!v) { alert(t('tournament.pickNeeded')); return; }
-            saveSpecialBet('topScorer', { player: v });
+            await saveSpecialBet('topScorer', { player: v });
+            const btn = $('btn-save-scorer');
+            if (btn) {
+                btn.textContent = '✓ נשמר';
+                btn.classList.add('btn-saved');
+                setTimeout(() => { if ($('btn-save-scorer')) { btn.textContent = t('common.save'); btn.classList.remove('btn-saved'); } }, 2500);
+            }
         });
     }
 }
