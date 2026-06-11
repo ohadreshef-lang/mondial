@@ -293,6 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
     $('btn-mode-join').addEventListener('click',    () => { pendingMode = 'join';    showLoginScreen(); });
     $('btn-mode-create').addEventListener('click',  () => { pendingMode = 'create';  showLoginScreen(); });
 
+    // Invite link or admin: skip mode-choice and go straight to login
+    if (pendingJoinCode || isAdminMode) showLoginScreen();
+
     initAuth();
     $('btn-logout').addEventListener('click', handleLogout);
 
@@ -400,7 +403,12 @@ async function routeAfterLogin() {
 
 async function autoJoinByCode(code) {
     try {
-        const snap = await ref(`inviteCodes/${code}`).once('value');
+        let snap = await ref(`inviteCodes/${code}`).once('value');
+        // Fallback: check the other tournament's invite codes (e.g. groups created during UCL mode)
+        if (!snap.exists()) {
+            const other = activeTournament === 'worldcup2026' ? 'ucl2025' : 'worldcup2026';
+            snap = await db.ref(`${other}/inviteCodes/${code}`).once('value');
+        }
         if (!snap.exists()) {
             alert(t('joinGroup.errorInvalid'));
             return false;

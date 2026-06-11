@@ -58,7 +58,8 @@ function initAuth() {
                 }
             }
             currentUser = null;
-            showModeChoice();
+            if (pendingJoinCode || isAdminMode) showLoginScreen();
+            else showModeChoice();
         }
     });
 }
