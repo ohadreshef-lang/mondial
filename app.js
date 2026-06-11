@@ -459,6 +459,16 @@ async function joinPublicGroup() {
     }
 }
 
+async function ensureUserProfile() {
+    if (!db || !currentUser || !currentUser.userId || !currentUser.name) return;
+    try {
+        const snap = await ref(`users/${currentUser.userId}`).once('value');
+        if (!snap.exists()) {
+            await ref(`users/${currentUser.userId}`).set({ name: currentUser.name, email: currentUser.email || '' });
+        }
+    } catch(e) {}
+}
+
 function enterAppForGroup(groupId) {
     currentGroupId = groupId;
     localStorage.setItem('wc2026_activeGroup', groupId);
@@ -466,6 +476,7 @@ function enterAppForGroup(groupId) {
     hide('group-picker-screen');
     show('main-app');
     $('header-username').textContent = currentUser.name;
+    ensureUserProfile();
     startFirebaseListeners();
     renderCurrentTab();
 }
@@ -687,7 +698,12 @@ function startFirebaseListeners() {
         await Promise.all(missing.map(async uid => {
             const usnap = await ref(`users/${uid}`).once('value');
             const u = usnap.val();
-            if (u) groupUsersCache[uid] = { name: u.name, email: u.email };
+            if (u) {
+                groupUsersCache[uid] = { name: u.name, email: u.email };
+            } else if (currentUser && uid === currentUser.userId && currentUser.name) {
+                groupUsersCache[uid] = { name: currentUser.name, email: currentUser.email || '' };
+                try { await ref(`users/${uid}`).set({ name: currentUser.name, email: currentUser.email || '' }); } catch(e) {}
+            }
         }));
         if (activeTab === 'leaderboard') renderLeaderboard();
     }, () => {});
