@@ -57,6 +57,23 @@ function clearUserSession() {
 // Fix: re-acquire anonymous auth token for returning email-login users.
 function initAuth() {
     if (!auth) { showLoginScreen(); return; }
+
+    // Handle result/error from signInWithRedirect (called once per page load after a redirect).
+    // On success, onAuthStateChanged handles routing. We only need to catch errors here.
+    auth.getRedirectResult().catch(err => {
+        if (!err || !err.code) return;
+        showLoginScreen();
+        const errEl = document.getElementById('login-error');
+        if (!errEl) return;
+        if (err.code === 'auth/missing-initial-state' || err.code === 'auth/web-storage-unsupported') {
+            errEl.textContent = 'כניסה עם Google לא נתמכת בדפדפן המובנה של הודעות (WhatsApp/Telegram). אנא פתח את ' + window.location.hostname + ' ב-Safari או Chrome.';
+        } else if (err.code !== 'auth/popup-closed-by-user') {
+            errEl.textContent = err.message;
+        }
+        errEl.classList.remove('hidden');
+        errEl.style.display = '';
+    });
+
     auth.onAuthStateChanged(async user => {
         if (user) {
             await setupUserFromAuth(user);
