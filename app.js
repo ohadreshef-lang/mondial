@@ -1471,14 +1471,14 @@ function openResultModal(matchId) {
     pendingResultMatchId = matchId;
     ref(`matches/${matchId}`).once('value').then(snap => {
         const m = snap.val();
-        if (!m) return;
+        if (!m) { alert('Match not found: ' + matchId); return; }
         $('modal-match-title').textContent = `${translateTeam(m.team1)} vs ${translateTeam(m.team2)}`;
         $('modal-team1-name').textContent  = translateTeam(m.team1);
         $('modal-team2-name').textContent  = translateTeam(m.team2);
         $('modal-score1').value = m.result ? m.result.team1Goals : 0;
         $('modal-score2').value = m.result ? m.result.team2Goals : 0;
         show('result-modal');
-    });
+    }).catch(err => { console.error('openResultModal failed:', err); alert('שגיאה בטעינת המשחק: ' + err.message); });
 }
 
 async function saveResult() {
