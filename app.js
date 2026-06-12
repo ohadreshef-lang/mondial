@@ -201,6 +201,7 @@ let pendingMode     = null; // 'public' | 'join' | 'create' | null
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
 let specialBets        = {};
 let tournamentCountdownTimer = null;
+let _routingLock = false; // prevents double-routing when signInAnonymously + onAuthStateChanged both trigger routeAfterLogin
 
 const TOURNAMENT_POINTS = 10;
 
@@ -351,6 +352,8 @@ function showModeChoice() {
 }
 
 async function routeAfterLogin() {
+    if (_routingLock) return;
+    _routingLock = true;
     if (!db) {
         showGroupPicker();
         return;
@@ -504,13 +507,13 @@ function initAuth() {
                 try {
                     currentUser = JSON.parse(saved);
                     // Re-acquire an anonymous auth token so Firebase writes work.
-                    // signInAnonymously() will re-trigger onAuthStateChanged with
-                    // the anonymous user, which then routes normally via setupUserFromAuth.
+                    // NOTE: if a Firebase anonymous session already exists, signInAnonymously()
+                    // resolves without re-firing onAuthStateChanged — so we route directly here
+                    // instead of relying on the callback. _routingLock prevents double-routing
+                    // if the callback does fire (new anonymous user case).
                     try {
                         await auth.signInAnonymously();
-                        return;
                     } catch(e) { console.warn('Anonymous re-auth failed:', e); }
-                    // If anonymous auth is unavailable, fall through without a token.
                     if (isAdminMode) {
                         show('admin-panel');
                         hide('login-screen');
@@ -592,11 +595,9 @@ async function handleEmailLogin(e) {
     }
     currentUser = { userId, name, email, emailLogin: true };
     localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
-    // Sign in anonymously so email-login users have a Firebase Auth token
     if (auth) {
         try {
             await auth.signInAnonymously();
-            return; // onAuthStateChanged will call routeAfterLogin
         } catch(e) { console.warn('Anonymous auth failed:', e); }
     }
     await routeAfterLogin();
@@ -609,6 +610,8 @@ function stopGroupListeners() {
 }
 
 function handleLogout() {
+    _routingLock = false;
+    if (typeof clearUserSession === 'function') clearUserSession();
     if (db) {
         ref('matches').off();
         stopGroupListeners();

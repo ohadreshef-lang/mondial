@@ -74,7 +74,6 @@ function initAuth() {
                     currentUser = saved;
                     try {
                         await auth.signInAnonymously();
-                        return;
                     } catch(e) { console.warn('Anonymous re-auth failed:', e); }
                     if (isAdminMode) {
                         show('admin-panel');
@@ -105,10 +104,8 @@ function initAuth() {
 //    the email has a Google sign-in method and show a clear error message.
 async function setupUserFromAuth(firebaseUser) {
     if (firebaseUser.isAnonymous) {
-        const saved = localStorage.getItem('wc2026_emailUser');
-        if (saved) {
-            try { currentUser = JSON.parse(saved); return; } catch(e) {}
-        }
+        const saved = loadUserSession(); // use cookie fallback too (survives iOS Safari storage clearing)
+        if (saved) { currentUser = saved; }
         return;
     }
     const email       = firebaseUser.email || '';
@@ -192,7 +189,6 @@ async function handleEmailLogin(e) {
     if (auth) {
         try {
             await auth.signInAnonymously();
-            return;
         } catch(e) { console.warn('Anonymous auth failed:', e); }
     }
     await routeAfterLogin();
