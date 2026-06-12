@@ -44,7 +44,7 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 נק'</span> ניחוש נכון של אלופת הטורניר</li>
                 <li><span class="rule-points">10 נק'</span> ניחוש נכון של מלך השערים (הבועט הטוב ביותר)</li>
             </ul>
-            <p>ניחושי הטורניר נסגרים <b>5 דקות לפני פתיחת משחק הפתיחה</b> של המונדיאל ולא ניתנים לשינוי לאחר מכן.</p>
+            <p>ניחושי הטורניר נסגרים <b>ביום ראשון 14.6.2026 בשעה 23:59</b> ולא ניתנים לשינוי לאחר מכן.</p>
 
             <h4>⏰ מתי נסגרים הניחושים?</h4>
             <p>כל ניחוש נסגר אוטומטית <b>5 דקות לפני שריקת הפתיחה</b> של המשחק. לא ניתן להזין או לשנות ניחוש אחרי זמן זה — בטאב "משחקים" רואים שעון שסופר אחורה לכל משחק.</p>
@@ -330,7 +330,7 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 pts</span> Correct World Cup champion</li>
                 <li><span class="rule-points">10 pts</span> Correct top scorer (Golden Boot)</li>
             </ul>
-            <p>Tournament predictions lock <b>5 minutes before the opening match</b> and cannot be changed afterwards.</p>
+            <p>Tournament predictions lock on <b>Sunday, June 14, 2026 at 23:59 (Israel time)</b> and cannot be changed afterwards.</p>
 
             <h4>⏰ When do predictions lock?</h4>
             <p>Every prediction locks automatically <b>5 minutes before kickoff</b>. You can't submit or change a bet after that time — the Matches tab shows a live countdown for each match.</p>
@@ -600,7 +600,7 @@ const TRANSLATIONS = {
                 <li><span class="rule-points">10 pts</span> Campeón del Mundial correcto</li>
                 <li><span class="rule-points">10 pts</span> Goleador correcto (Bota de Oro)</li>
             </ul>
-            <p>Las predicciones del torneo se cierran <b>5 minutos antes del partido inaugural</b> y no se pueden cambiar después.</p>
+            <p>Las predicciones del torneo se cierran el <b>domingo 14/6/2026 a las 23:59 (hora de Israel)</b> y no se pueden cambiar después.</p>
 
             <h4>⏰ ¿Cuándo se cierran las predicciones?</h4>
             <p>Cada predicción se cierra automáticamente <b>5 minutos antes del inicio</b> del partido. No se puede enviar ni cambiar una apuesta después de ese momento — la pestaña "Partidos" muestra una cuenta atrás en vivo.</p>

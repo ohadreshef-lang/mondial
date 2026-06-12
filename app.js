@@ -1088,8 +1088,8 @@ function renderMyBets() {
 // ============================================================
 
 function tournamentLockTime() {
-    // Special bets lock Friday 12/6/2026 at 12:00 Israel time (UTC+3 = 09:00 UTC)
-    return new Date('2026-06-12T09:00:00Z').getTime();
+    // Special bets lock Sunday 14/6/2026 at 23:59 Israel time (UTC+3 = 20:59 UTC)
+    return new Date('2026-06-14T20:59:00Z').getTime();
 }
 
 function tournamentIsLocked() {
