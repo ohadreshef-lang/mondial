@@ -474,7 +474,8 @@ section { display: block; }
 .match-card-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 8px;
     padding: 8px 14px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
@@ -482,7 +483,7 @@ section { display: block; }
     color: var(--text-light);
 }
 
-.match-date-str { font-weight: 600; }
+.match-date-str { flex: 1 0 auto; font-weight: 600; }
 
 .match-status-badge {
     font-size: .72rem;
@@ -565,6 +566,23 @@ section { display: block; }
     font-weight: 800;
     color: var(--green-dark);
     letter-spacing: 2px;
+}
+
+/* Bet area below the teams row (steppers + save button) */
+.match-bet-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+}
+
+.match-vs {
+    font-size: .85rem;
+    font-weight: 800;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Bet entry form inside card */
