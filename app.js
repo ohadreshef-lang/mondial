@@ -869,6 +869,7 @@ function buildMatchCard(m) {
     }
 
     let middleHtml = '';
+    let betAreaHtml = '';
     if (hasResult) {
         middleHtml = `<div class="result-score">${m.result.team1Goals} – ${m.result.team2Goals}</div>`;
     } else if (locked) {
@@ -889,21 +890,24 @@ function buildMatchCard(m) {
         } else {
             const v1 = bet ? bet.team1Goals : 0;
             const v2 = bet ? bet.team2Goals : 0;
-            middleHtml = `
-                <div class="bet-inputs">
-                    <div class="bet-stepper">
-                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
-                        <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
-                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+            middleHtml = `<span class="match-vs">vs</span>`;
+            betAreaHtml = `
+                <div class="match-bet-area">
+                    <div class="bet-inputs">
+                        <div class="bet-stepper">
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
+                            <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+                        </div>
+                        <span class="bet-sep">–</span>
+                        <div class="bet-stepper">
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
+                            <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
+                        </div>
                     </div>
-                    <span class="bet-sep">–</span>
-                    <div class="bet-stepper">
-                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
-                        <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
-                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
-                    </div>
-                </div>
-                <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>`;
+                    <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>
+                </div>`;
         }
     }
 
@@ -938,6 +942,7 @@ function buildMatchCard(m) {
                     <span class="team-name">${translateTeam(m.team2)}</span>
                 </div>
             </div>
+            ${betAreaHtml}
             ${pointsHtml}
         </div>
     </div>`;
