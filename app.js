@@ -908,6 +908,23 @@ function buildMatchCard(m) {
                     </div>
                     <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>
                 </div>`;
+=======
+            middleHtml = `
+                <div class="bet-inputs">
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+                    </div>
+                    <span class="bet-sep">–</span>
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
+                    </div>
+                </div>
+                <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>`;
+>>>>>>> origin/main
         }
     }
 
