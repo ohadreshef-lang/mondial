@@ -354,6 +354,13 @@ function showModeChoice() {
 async function routeAfterLogin() {
     if (_routingLock) return;
     _routingLock = true;
+    // Restore state that may have been saved before a signInWithRedirect navigation
+    try {
+        const sj = sessionStorage.getItem('wc2026_pendingJoin');
+        if (sj) { pendingJoinCode = sj; sessionStorage.removeItem('wc2026_pendingJoin'); }
+        const sm = sessionStorage.getItem('wc2026_pendingMode');
+        if (sm) { pendingMode = sm; sessionStorage.removeItem('wc2026_pendingMode'); }
+    } catch(e) {}
     if (!db) {
         showGroupPicker();
         return;
@@ -559,14 +566,18 @@ async function setupUserFromAuth(firebaseUser) {
 async function handleGoogleLogin() {
     const errEl = $('login-error');
     hideEl(errEl);
+    if (!auth) return;
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
-        await auth.signInWithPopup(provider);
+        // Persist pending state across the redirect (page navigates away and back)
+        try {
+            if (pendingJoinCode) sessionStorage.setItem('wc2026_pendingJoin', pendingJoinCode);
+            if (pendingMode)     sessionStorage.setItem('wc2026_pendingMode', pendingMode);
+        } catch(e) {}
+        await auth.signInWithRedirect(provider);
+        // Page navigates away — nothing below runs
     } catch (err) {
-        const msg = err.code === 'auth/popup-closed-by-user'
-            ? t('login.errorCancelled')
-            : err.message;
-        errEl.textContent = msg;
+        errEl.textContent = err.message;
         showEl(errEl);
     }
 }
