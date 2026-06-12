@@ -34,7 +34,7 @@ const TRANSLATIONS = {
 
             <h4>🏆 מערכת הניקוד</h4>
             <ul>
-                <li><span class="rule-points">3 נק'</span> תוצאה מדויקת (גם התוצאה הסופית וגם מספר השערים של כל קבוצה נכונים)</li>
+                <li><span class="rule-points">4 נק'</span> תוצאה מדויקת (גם התוצאה הסופית וגם מספר השערים של כל קבוצה נכונים)</li>
                 <li><span class="rule-points">1 נק'</span> רק הקבוצה המנצחת (או תיקו) נכונה – התוצאה שגויה</li>
                 <li><span class="rule-points">0 נק'</span> ניחוש שגוי או ללא ניחוש</li>
             </ul>
@@ -146,7 +146,7 @@ const TRANSLATIONS = {
 
         // Leaderboard
         'leaderboard.title': '🏆 טבלת דירוג',
-        'leaderboard.scoringExact': 'תוצאה מדויקת = 3 נק\'',
+        'leaderboard.scoringExact': 'תוצאה מדויקת = 4 נק\'',
         'leaderboard.scoringWinner': 'מנצח נכון = 1 נק\'',
         'leaderboard.empty': 'אין משתתפים עדיין בקבוצה זו.',
         'leaderboard.meTag': 'אני',
@@ -320,7 +320,7 @@ const TRANSLATIONS = {
 
             <h4>🏆 Scoring</h4>
             <ul>
-                <li><span class="rule-points">3 pts</span> Exact score (both teams' goal counts correct)</li>
+                <li><span class="rule-points">4 pts</span> Exact score (both teams' goal counts correct)</li>
                 <li><span class="rule-points">1 pt</span> Correct winner (or draw) but wrong score</li>
                 <li><span class="rule-points">0 pts</span> Wrong prediction or no prediction</li>
             </ul>
@@ -424,7 +424,7 @@ const TRANSLATIONS = {
         'match.loadingMatches': 'Loading matches...',
 
         'leaderboard.title': '🏆 Leaderboard',
-        'leaderboard.scoringExact': 'Exact score = 3 pts',
+        'leaderboard.scoringExact': 'Exact score = 4 pts',
         'leaderboard.scoringWinner': 'Correct winner = 1 pt',
         'leaderboard.empty': 'No members in this group yet.',
         'leaderboard.meTag': 'you',
@@ -590,7 +590,7 @@ const TRANSLATIONS = {
 
             <h4>🏆 Puntuación</h4>
             <ul>
-                <li><span class="rule-points">3 pts</span> Resultado exacto (goles de ambos equipos correctos)</li>
+                <li><span class="rule-points">4 pts</span> Resultado exacto (goles de ambos equipos correctos)</li>
                 <li><span class="rule-points">1 pt</span> Ganador correcto (o empate) pero resultado incorrecto</li>
                 <li><span class="rule-points">0 pts</span> Predicción incorrecta o sin predicción</li>
             </ul>
@@ -694,7 +694,7 @@ const TRANSLATIONS = {
         'match.loadingMatches': 'Cargando partidos...',
 
         'leaderboard.title': '🏆 Tabla de posiciones',
-        'leaderboard.scoringExact': 'Resultado exacto = 3 pts',
+        'leaderboard.scoringExact': 'Resultado exacto = 4 pts',
         'leaderboard.scoringWinner': 'Ganador correcto = 1 pt',
         'leaderboard.empty': 'Aún no hay miembros en este grupo.',
         'leaderboard.meTag': 'tú',

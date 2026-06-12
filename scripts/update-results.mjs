@@ -75,12 +75,12 @@ function parseMatchDate(dateStr) {
     return Date.parse(`${dateStr}:00+03:00`);
 }
 
-// Copy of calcPoints() in app.js: exact score 3, correct outcome 1, else 0.
+// Copy of calcPoints() in app.js: exact score 4, correct outcome 1, else 0.
 function getOutcome(g1, g2) {
     return g1 > g2 ? 'win1' : g1 < g2 ? 'win2' : 'draw';
 }
 function calcPoints(b1, b2, r1, r2) {
-    if (b1 === r1 && b2 === r2) return 3;
+    if (b1 === r1 && b2 === r2) return 4;
     if (getOutcome(b1, b2) === getOutcome(r1, r2)) return 1;
     return 0;
 }
