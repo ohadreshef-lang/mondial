@@ -50,7 +50,7 @@ settings/adminPassword         → string
 **Database rules are currently wide-open** (`.read: true, .write: true`) — the frontend is the only enforcement layer. Anyone with the DB URL can read or overwrite everything. Keep this in mind before adding "trusted" admin flows.
 
 ### Scoring
-- Match prediction: exact score = **3 pts**; correct outcome (win1 / draw / win2) = **1 pt**; else 0. See `calcPoints()` in `app.js:93`.
+- Match prediction: exact score = **4 pts**; correct outcome (win1 / draw / win2) = **1 pt**; else 0. See `calcPoints()` in `app.js:93`.
 - Tournament champion and top scorer: **10 pts** each (`TOURNAMENT_POINTS` in `app.js:123`).
 - Result entry (admin) triggers `recalcPoints(matchId, …)` which rewrites every user's `bets/{gid}/{uid}/{matchId}/points` and then `recalcMemberTotal()` for each affected member.
 

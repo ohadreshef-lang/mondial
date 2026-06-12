@@ -171,7 +171,7 @@ function getOutcome(g1, g2) {
 }
 
 function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
-    if (betGoals1 === resGoals1 && betGoals2 === resGoals2) return 3;
+    if (betGoals1 === resGoals1 && betGoals2 === resGoals2) return 4;
     if (getOutcome(betGoals1, betGoals2) === getOutcome(resGoals1, resGoals2)) return 1;
     return 0;
 }
@@ -916,8 +916,8 @@ function buildMatchCard(m) {
     if (!m.noPoints) {
         if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
             const pts = bet.points;
-            const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
-            const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
+            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const emoji = pts >= 3 ? '🎯' : pts === 1 ? '✅' : '❌';
             pointsHtml = `<div class="match-points-row ${cls}">${emoji} ${t('match.pointsRow')}: ${bet.team1Goals}–${bet.team2Goals} | ${pts} ${t('match.pointsLabel')}</div>`;
         } else if (hasResult && !bet) {
             pointsHtml = `<div class="match-points-row points-na">${t('match.noBetRow')}</div>`;
@@ -1049,7 +1049,7 @@ function renderMyBets() {
 
         let ptsBadge = '';
         if (hasResult && pts !== null && pts !== undefined) {
-            const cls = pts === 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
             ptsBadge = `<span class="match-points-row ${cls}" style="display:inline-block;padding:2px 10px;">${pts} ${t('common.pts')}</span>`;
         }
 
@@ -1089,8 +1089,8 @@ function renderMyBets() {
 // ============================================================
 
 function tournamentLockTime() {
-    // Special bets lock Friday 12/6/2026 at 12:00 Israel time (UTC+3 = 09:00 UTC)
-    return new Date('2026-06-12T09:00:00Z').getTime();
+    // Special bets lock Sunday 14/6/2026 at 23:59 Israel time (UTC+3 = 20:59 UTC)
+    return new Date('2026-06-14T20:59:00Z').getTime();
 }
 
 function tournamentIsLocked() {

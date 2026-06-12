@@ -1,0 +1,26 @@
+name: Daily prediction reminders
+
+on:
+  schedule:
+    # 06:00 UTC = 09:00 Israel (IDT, UTC+3)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save nodemailer
+      - name: Send reminder emails
+        run: node scripts/send-reminders.mjs
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
