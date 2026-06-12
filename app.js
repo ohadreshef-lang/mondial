@@ -1410,17 +1410,18 @@ function renderAdminMatches(data) {
         const resultStr = m.result
             ? `<span class="admin-result-badge">${m.result.team1Goals}–${m.result.team2Goals}</span>`
             : '';
+        const safeId = id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
         html += `
-        <div class="admin-match-row" id="admin-row-${id}">
+        <div class="admin-match-row" id="admin-row-${escapeHtml(id)}">
             <div class="admin-match-info">
                 <div class="admin-match-teams">${getFlag(m.team1)} ${escapeHtml(translateTeam(m.team1))} vs ${escapeHtml(translateTeam(m.team2))} ${getFlag(m.team2)} ${resultStr}</div>
                 <div class="admin-match-meta">${stageLabel} · ${formatDate(m.date)}</div>
             </div>
             <div class="admin-match-actions">
-                <button class="btn btn-secondary btn-sm" onclick="openEditModal('${id}')">${t('common.edit')}</button>
-                <button class="btn btn-primary btn-sm" onclick="openResultModal('${id}')">${t('admin.enterResult')}</button>
-                <button class="btn btn-danger btn-sm" onclick="adminDeleteMatch('${id}')">${t('common.delete')}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openEditModal('${safeId}')">${t('common.edit')}</button>
+                <button class="btn btn-primary btn-sm" onclick="openResultModal('${safeId}')">${t('admin.enterResult')}</button>
+                <button class="btn btn-danger btn-sm" onclick="adminDeleteMatch('${safeId}')">${t('common.delete')}</button>
             </div>
         </div>`;
     });
@@ -1970,7 +1971,7 @@ const SEED_MATCHES = [
 
 function seedMatchKey(m) {
     const raw = `${m.stage}_${m.group || '-'}_${m.date}_${m.team1}_vs_${m.team2}`;
-    return raw.replace(/[.#$\[\]\/]/g, '_');
+    return raw.replace(/[.#$\[\]\/']/g, '_');
 }
 
 async function adminSeedMatches() {
