@@ -891,9 +891,17 @@ function buildMatchCard(m) {
             const v2 = bet ? bet.team2Goals : 0;
             middleHtml = `
                 <div class="bet-inputs">
-                    <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" onfocus="this.select()">
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+                    </div>
                     <span class="bet-sep">–</span>
-                    <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" onfocus="this.select()">
+                    <div class="bet-stepper">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
+                        <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
+                        <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
+                    </div>
                 </div>
                 <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>`;
         }
@@ -938,6 +946,12 @@ function buildMatchCard(m) {
 // ============================================================
 // BET ACTIONS
 // ============================================================
+
+function stepBet(inputId, delta) {
+    const el = $(inputId);
+    if (!el) return;
+    el.value = Math.max(0, Math.min(30, (parseInt(el.value) || 0) + delta));
+}
 
 async function saveBet(matchId) {
     if (!currentUser || !currentGroupId || !db) return;
@@ -1499,15 +1513,15 @@ async function recalcPoints(matchId, resG1, resG2) {
         const members = (groupsData[groupId] && groupsData[groupId].members) || {};
         for (const userId of Object.keys(members)) {
             const betSnap = await ref(`bets/${groupId}/${userId}/${matchId}`).once('value');
-            let bet;
             if (!betSnap.exists()) {
-                bet = { team1Goals: 0, team2Goals: 0, placedAt: 0 };
-                updates[`bets/${groupId}/${userId}/${matchId}`] = { ...bet, points: 0 };
+                // Write the full auto-fill object in one path to avoid conflicting parent/child writes
+                const pts = calcPoints(0, 0, resG1, resG2);
+                updates[`bets/${groupId}/${userId}/${matchId}`] = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: pts };
             } else {
-                bet = betSnap.val();
+                const bet = betSnap.val();
+                const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
+                updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
             }
-            const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
-            updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
         }
     }
 
@@ -1626,6 +1640,29 @@ async function adminDeleteUser(userId, userName) {
     await db.ref(activeTournament).update(updates);
     loadAdminUsers();
     loadAdminGroups();
+}
+
+async function adminRecalcAll(btn) {
+    if (!db) return;
+    btn.disabled = true;
+    btn.textContent = 'מחשב...';
+    try {
+        const snap = await ref('matches').once('value');
+        const allMatches = snap.val() || {};
+        const completed = Object.entries(allMatches)
+            .filter(([, m]) => m.result && m.result.team1Goals !== undefined);
+        for (const [matchId, m] of completed) {
+            await recalcPoints(matchId, m.result.team1Goals, m.result.team2Goals);
+        }
+        btn.textContent = `✓ חושבו ${completed.length} משחקים`;
+        btn.style.background = '#38a169';
+        btn.style.color = '#fff';
+    } catch(err) {
+        console.error('Recalc error:', err);
+        btn.textContent = '❌ שגיאה';
+        btn.disabled = false;
+        alert('שגיאה: ' + err.message);
+    }
 }
 
 async function adminMergeDuplicates(btn) {
