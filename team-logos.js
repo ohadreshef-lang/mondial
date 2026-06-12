@@ -23,6 +23,37 @@ Object.assign(TEAM_LOGOS, {
     'באיירן':               'assets/flags/bayern.svg',
 });
 
+// Cookie-backed session persistence (survives iOS Safari storage pressure).
+function saveUserSession(userData) {
+    try { localStorage.setItem('wc2026_emailUser', JSON.stringify(userData)); } catch(e) {}
+    try {
+        const val = btoa(encodeURIComponent(JSON.stringify(userData)));
+        const exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = 'wc2026_u=' + val + '; expires=' + exp + '; path=/; SameSite=Lax';
+    } catch(e) {}
+}
+
+function loadUserSession() {
+    try {
+        const ls = localStorage.getItem('wc2026_emailUser');
+        if (ls) return JSON.parse(ls);
+    } catch(e) {}
+    try {
+        const m = document.cookie.match(/(?:^|;\s*)wc2026_u=([^;]+)/);
+        if (m) {
+            const data = JSON.parse(decodeURIComponent(atob(m[1])));
+            try { localStorage.setItem('wc2026_emailUser', JSON.stringify(data)); } catch(e) {}
+            return data;
+        }
+    } catch(e) {}
+    return null;
+}
+
+function clearUserSession() {
+    try { localStorage.removeItem('wc2026_emailUser'); } catch(e) {}
+    try { document.cookie = 'wc2026_u=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch(e) {}
+}
+
 // Fix: re-acquire anonymous auth token for returning email-login users.
 function initAuth() {
     if (!auth) { showLoginScreen(); return; }
@@ -37,10 +68,10 @@ function initAuth() {
                 await routeAfterLogin();
             }
         } else {
-            const saved = localStorage.getItem('wc2026_emailUser');
+            const saved = loadUserSession();
             if (saved) {
                 try {
-                    currentUser = JSON.parse(saved);
+                    currentUser = saved;
                     try {
                         await auth.signInAnonymously();
                         return;
@@ -54,7 +85,7 @@ function initAuth() {
                     }
                     return;
                 } catch(e) {
-                    localStorage.removeItem('wc2026_emailUser');
+                    clearUserSession();
                 }
             }
             currentUser = null;
@@ -157,7 +188,7 @@ async function handleEmailLogin(e) {
         } catch(err) { console.warn('User sync failed:', err); }
     }
     currentUser = { userId, name, email, emailLogin: true };
-    localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
+    saveUserSession(currentUser);
     if (auth) {
         try {
             await auth.signInAnonymously();
@@ -201,6 +232,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         _orig();
     };
+
+    // Wrap logout to also clear cookie-based session.
+    var _logout = window.logout;
+    if (typeof _logout === 'function') {
+        window.logout = function() {
+            clearUserSession();
+            _logout();
+        };
+    }
 
     // Sync tournament button + app bar title to active tournament.
     var cfg = TOURNAMENTS[activeTournament];

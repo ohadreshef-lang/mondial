@@ -1513,15 +1513,15 @@ async function recalcPoints(matchId, resG1, resG2) {
         const members = (groupsData[groupId] && groupsData[groupId].members) || {};
         for (const userId of Object.keys(members)) {
             const betSnap = await ref(`bets/${groupId}/${userId}/${matchId}`).once('value');
-            let bet;
             if (!betSnap.exists()) {
-                bet = { team1Goals: 0, team2Goals: 0, placedAt: 0 };
-                updates[`bets/${groupId}/${userId}/${matchId}`] = { ...bet, points: 0 };
+                // Write the full auto-fill object in one path to avoid conflicting parent/child writes
+                const pts = calcPoints(0, 0, resG1, resG2);
+                updates[`bets/${groupId}/${userId}/${matchId}`] = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: pts };
             } else {
-                bet = betSnap.val();
+                const bet = betSnap.val();
+                const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
+                updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
             }
-            const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
-            updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
         }
     }
 
@@ -1640,6 +1640,29 @@ async function adminDeleteUser(userId, userName) {
     await db.ref(activeTournament).update(updates);
     loadAdminUsers();
     loadAdminGroups();
+}
+
+async function adminRecalcAll(btn) {
+    if (!db) return;
+    btn.disabled = true;
+    btn.textContent = 'מחשב...';
+    try {
+        const snap = await ref('matches').once('value');
+        const allMatches = snap.val() || {};
+        const completed = Object.entries(allMatches)
+            .filter(([, m]) => m.result && m.result.team1Goals !== undefined);
+        for (const [matchId, m] of completed) {
+            await recalcPoints(matchId, m.result.team1Goals, m.result.team2Goals);
+        }
+        btn.textContent = `✓ חושבו ${completed.length} משחקים`;
+        btn.style.background = '#38a169';
+        btn.style.color = '#fff';
+    } catch(err) {
+        console.error('Recalc error:', err);
+        btn.textContent = '❌ שגיאה';
+        btn.disabled = false;
+        alert('שגיאה: ' + err.message);
+    }
 }
 
 async function adminMergeDuplicates(btn) {
