@@ -50,16 +50,22 @@ function fmtMatchDate(dateStr) {
     return `${parseInt(day, 10)}.${parseInt(m, 10)} בשעה ${t}`;
 }
 
+// DB values (names, teams) are writable by any authenticated client — escape
+// everything interpolated into the email HTML.
+const esc = s => String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 function buildEmail(name, groupsMissing) {
     const sections = groupsMissing.map(({ groupName, matches }) => `
-        <h3 style="margin:16px 0 6px;color:#1a4731;">${groupName}</h3>
+        <h3 style="margin:16px 0 6px;color:#1a4731;">${esc(groupName)}</h3>
         <ul style="margin:0;padding-inline-start:20px;">
-            ${matches.map(m => `<li style="margin:4px 0;">${m.team1} נגד ${m.team2} — ${fmtMatchDate(m.date)}</li>`).join('')}
+            ${matches.map(m => `<li style="margin:4px 0;">${esc(m.team1)} נגד ${esc(m.team2)} — ${esc(fmtMatchDate(m.date))}</li>`).join('')}
         </ul>`).join('');
 
     return `<!DOCTYPE html>
 <html dir="rtl" lang="he"><body style="font-family:Arial,Helvetica,sans-serif;direction:rtl;text-align:right;color:#222;">
-    <h2 style="color:#1a4731;">⚽ היי ${name || ''}, יש לך ניחושים פתוחים!</h2>
+    <h2 style="color:#1a4731;">⚽ היי ${esc(name)}, יש לך ניחושים פתוחים!</h2>
     <p>המשחקים הבאים נסגרים בקרוב ועוד לא ניחשת את התוצאה:</p>
     ${sections}
     <p style="margin-top:20px;">
