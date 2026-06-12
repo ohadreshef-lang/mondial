@@ -854,6 +854,7 @@ function buildMatchCard(m) {
     const locked = matchIsLocked(m);
     const bet    = userBets[m.id];
     const hasResult = m.result !== null && m.result !== undefined;
+    const safeId = m.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     const msUntilLock = parseMatchDate(m.date) - new Date();
     const closingSoon = !locked && !hasResult && msUntilLock > 0 && msUntilLock <= 24 * 60 * 60 * 1000;
@@ -895,15 +896,15 @@ function buildMatchCard(m) {
                 <div class="match-bet-area">
                     <div class="bet-inputs">
                         <div class="bet-stepper">
-                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',-1)">−</button>
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${safeId}',-1)">−</button>
                             <input type="number" class="bet-score-input" id="bet1-${m.id}" min="0" max="30" value="${v1}" inputmode="numeric">
-                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${m.id}',1)">+</button>
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet1-${safeId}',1)">+</button>
                         </div>
                         <span class="bet-sep">–</span>
                         <div class="bet-stepper">
-                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',-1)">−</button>
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${safeId}',-1)">−</button>
                             <input type="number" class="bet-score-input" id="bet2-${m.id}" min="0" max="30" value="${v2}" inputmode="numeric">
-                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${m.id}',1)">+</button>
+                            <button type="button" class="stepper-btn" onclick="stepBet('bet2-${safeId}',1)">+</button>
                         </div>
                     </div>
                     <button class="btn-save-bet" data-match-id="${m.id}">${t('match.saveBet')}</button>
