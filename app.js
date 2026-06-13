@@ -569,14 +569,19 @@ async function handleGoogleLogin() {
     if (!auth) return;
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
-        // Persist pending state across the redirect (page navigates away and back)
+        // Persist pending state across the redirect (page navigates away and back).
+        // Also set a flag so the onAuthStateChanged(null) that fires between sign-out
+        // of the old anonymous session and sign-in of the Google user doesn't
+        // accidentally restore the old email-login session and block Google routing.
         try {
             if (pendingJoinCode) sessionStorage.setItem('wc2026_pendingJoin', pendingJoinCode);
             if (pendingMode)     sessionStorage.setItem('wc2026_pendingMode', pendingMode);
+            sessionStorage.setItem('wc2026_googleRedirect', '1');
         } catch(e) {}
         await auth.signInWithRedirect(provider);
         // Page navigates away — nothing below runs
     } catch (err) {
+        try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
         errEl.textContent = err.message;
         showEl(errEl);
     }
