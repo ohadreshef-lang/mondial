@@ -61,6 +61,8 @@ function initAuth() {
     // Handle result/error from signInWithRedirect (called once per page load after a redirect).
     // On success, onAuthStateChanged handles routing. We only need to catch errors here.
     auth.getRedirectResult().catch(err => {
+        // Clear the in-progress flag on redirect failure
+        try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
         if (!err || !err.code) return;
         showLoginScreen();
         const errEl = document.getElementById('login-error');
@@ -76,6 +78,11 @@ function initAuth() {
 
     auth.onAuthStateChanged(async user => {
         if (user) {
+            // Clear Google redirect flag — auth completed (success or anonymous restore)
+            try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
+            // A real (non-anonymous) Google user must always be able to route even if a
+            // previous onAuthStateChanged(null) path set the lock.
+            if (!user.isAnonymous) _routingLock = false;
             await setupUserFromAuth(user);
             if (isAdminMode) {
                 show('admin-panel');
@@ -85,6 +92,10 @@ function initAuth() {
                 await routeAfterLogin();
             }
         } else {
+            // During a Google redirect the null callback fires between sign-out of the
+            // old anonymous session and sign-in of the Google user. Skip it so the
+            // returning-email-session logic doesn't grab the lock before Google can route.
+            try { if (sessionStorage.getItem('wc2026_googleRedirect')) return; } catch(e) {}
             const saved = loadUserSession();
             if (saved) {
                 try {
@@ -166,6 +177,9 @@ async function setupUserFromAuth(firebaseUser) {
         } catch(err) { console.warn('User sync failed:', err); }
     }
     currentUser = { userId, name, email };
+    // Persist Google users to cookie so returning users survive Firebase IndexedDB clearing
+    // (iOS Safari storage pressure) without needing to re-authenticate with Google.
+    saveUserSession(currentUser);
 }
 
 async function handleEmailLogin(e) {
