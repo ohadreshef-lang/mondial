@@ -203,6 +203,9 @@ let specialBets        = {};
 let tournamentCountdownTimer = null;
 let _routingLock = false; // prevents double-routing when signInAnonymously + onAuthStateChanged both trigger routeAfterLogin
 
+// Emails allowed to access the admin panel (checked after Google/email login).
+const ADMIN_EMAILS = ['ohad.reshef@ingenio.com'];
+
 const TOURNAMENT_POINTS = 10;
 
 const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1341,13 +1344,38 @@ function setupAdminListeners() {
     });
 }
 
+let _adminLoginAttempts = 0;
+let _adminLockoutUntil  = 0;
+
 function attemptAdminLogin() {
-    const pwd = $('admin-password-input').value;
+    const pwd   = $('admin-password-input').value;
     const errEl = $('admin-auth-error');
     hideEl(errEl);
 
+    // Rate-limit: lock out for 60 s after 3 consecutive wrong passwords.
+    if (Date.now() < _adminLockoutUntil) {
+        const secs = Math.ceil((_adminLockoutUntil - Date.now()) / 1000);
+        errEl.textContent = `יותר מדי ניסיונות. נסה שוב בעוד ${secs} שניות.`;
+        showEl(errEl);
+        return;
+    }
+
+    // Email whitelist: must be logged in as an authorised address.
+    if (!currentUser || !ADMIN_EMAILS.includes((currentUser.email || '').toLowerCase())) {
+        errEl.textContent = 'הגישה לאדמין מותרת רק לכתובות דואר מורשות.';
+        showEl(errEl);
+        return;
+    }
+
+    if (!db) {
+        errEl.textContent = 'Firebase לא מחובר';
+        showEl(errEl);
+        return;
+    }
+
     function doLogin(storedPwd) {
-        if (pwd === storedPwd) {
+        if (storedPwd && pwd === storedPwd) {
+            _adminLoginAttempts = 0;
             isAdminAuthed = true;
             hide('admin-auth');
             show('admin-content');
@@ -1356,18 +1384,22 @@ function attemptAdminLogin() {
             loadAdminGroups();
             loadAdminTournament();
         } else {
+            _adminLoginAttempts++;
+            if (_adminLoginAttempts >= 3) {
+                _adminLockoutUntil  = Date.now() + 60 * 1000;
+                _adminLoginAttempts = 0;
+            }
+            errEl.textContent = 'סיסמה שגויה';
             showEl(errEl);
         }
     }
 
-    if (db) {
-        const fromFirebase = ref('settings/adminPassword').once('value')
-            .then(snap => snap.exists() ? snap.val() : 'admin2026');
-        const fallback = new Promise(resolve => setTimeout(() => resolve('admin2026'), 3000));
-        Promise.race([fromFirebase, fallback]).then(doLogin);
-    } else {
-        doLogin('admin2026');
-    }
+    ref('settings/adminPassword').once('value')
+        .then(snap => doLogin(snap.exists() ? snap.val() : null))
+        .catch(() => {
+            errEl.textContent = 'שגיאה בטעינת הגדרות — נסה שוב';
+            showEl(errEl);
+        });
 }
 
 function adminChangePassword() {
