@@ -84,6 +84,14 @@ function initAuth() {
             if (!user.isAnonymous) _routingLock = false;
             await setupUserFromAuth(user);
             if (isAdminMode) {
+                // Gate: kick out non-authorised emails even if they reach ?admin
+                const email = (currentUser && currentUser.email || '').toLowerCase();
+                if (!email || !ADMIN_EMAILS.includes(email)) {
+                    isAdminMode = false;
+                    hide('admin-panel');
+                    await routeAfterLogin();
+                    return;
+                }
                 show('admin-panel');
                 hide('login-screen');
                 hide('main-app');
