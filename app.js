@@ -353,6 +353,13 @@ function showModeChoice() {
 
 async function routeAfterLogin() {
     if (_routingLock) return;
+    // Guard: if there is no logged-in user yet, show the appropriate entry screen
+    // without setting the lock (so the next real login attempt can still route).
+    if (!currentUser) {
+        if (pendingJoinCode || isAdminMode) showLoginScreen();
+        else showModeChoice();
+        return;
+    }
     _routingLock = true;
     // Restore state that may have been saved before a signInWithRedirect navigation
     try {
