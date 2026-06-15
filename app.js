@@ -353,6 +353,13 @@ function showModeChoice() {
 
 async function routeAfterLogin() {
     if (_routingLock) return;
+    // Guard: if there is no logged-in user yet, show the appropriate entry screen
+    // without setting the lock (so the next real login attempt can still route).
+    if (!currentUser) {
+        if (pendingJoinCode || isAdminMode) showLoginScreen();
+        else showModeChoice();
+        return;
+    }
     _routingLock = true;
     // Restore state that may have been saved before a signInWithRedirect navigation
     try {
@@ -569,20 +576,19 @@ async function handleGoogleLogin() {
     if (!auth) return;
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
-        // Persist pending state across the redirect (page navigates away and back).
-        // Also set a flag so the onAuthStateChanged(null) that fires between sign-out
-        // of the old anonymous session and sign-in of the Google user doesn't
-        // accidentally restore the old email-login session and block Google routing.
-        try {
-            if (pendingJoinCode) sessionStorage.setItem('wc2026_pendingJoin', pendingJoinCode);
-            if (pendingMode)     sessionStorage.setItem('wc2026_pendingMode', pendingMode);
-            sessionStorage.setItem('wc2026_googleRedirect', '1');
-        } catch(e) {}
-        await auth.signInWithRedirect(provider);
-        // Page navigates away — nothing below runs
+        await auth.signInWithPopup(provider);
+        // onAuthStateChanged handles routing after successful sign-in
     } catch (err) {
-        try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
-        errEl.textContent = err.message;
+        if (!err || err.code === 'auth/popup-closed-by-user') return; // user cancelled
+        let msg = err.message;
+        if (
+            err.code === 'auth/popup-blocked' ||
+            err.code === 'auth/missing-initial-state' ||
+            err.code === 'auth/web-storage-unsupported'
+        ) {
+            msg = 'כניסה עם Google לא נתמכת בדפדפן המובנה (WhatsApp/Telegram). אנא פתח את ' + window.location.hostname + ' ב-Safari או Chrome.';
+        }
+        errEl.textContent = msg;
         showEl(errEl);
     }
 }

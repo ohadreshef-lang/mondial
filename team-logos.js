@@ -58,17 +58,18 @@ function clearUserSession() {
 function initAuth() {
     if (!auth) { showLoginScreen(); return; }
 
-    // Handle result/error from signInWithRedirect (called once per page load after a redirect).
-    // On success, onAuthStateChanged handles routing. We only need to catch errors here.
-    auth.getRedirectResult().catch(err => {
-        // Clear the in-progress flag on redirect failure
+    // Clear any stuck wc2026_googleRedirect flag left over from a previous deploy
+    // that used signInWithRedirect. Also surface errors from any in-flight redirect.
+    auth.getRedirectResult().then(() => {
+        try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
+    }).catch(err => {
         try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
         if (!err || !err.code) return;
         showLoginScreen();
         const errEl = document.getElementById('login-error');
         if (!errEl) return;
         if (err.code === 'auth/missing-initial-state' || err.code === 'auth/web-storage-unsupported') {
-            errEl.textContent = 'כניסה עם Google לא נתמכת בדפדפן המובנה של הודעות (WhatsApp/Telegram). אנא פתח את ' + window.location.hostname + ' ב-Safari או Chrome.';
+            errEl.textContent = 'כניסה עם Google לא נתמכת בדפדפן המובנה (WhatsApp/Telegram). אנא פתח את ' + window.location.hostname + ' ב-Safari או Chrome.';
         } else if (err.code !== 'auth/popup-closed-by-user') {
             errEl.textContent = err.message;
         }
@@ -78,8 +79,6 @@ function initAuth() {
 
     auth.onAuthStateChanged(async user => {
         if (user) {
-            // Clear Google redirect flag — auth completed (success or anonymous restore)
-            try { sessionStorage.removeItem('wc2026_googleRedirect'); } catch(e) {}
             // A real (non-anonymous) Google user must always be able to route even if a
             // previous onAuthStateChanged(null) path set the lock.
             if (!user.isAnonymous) _routingLock = false;
