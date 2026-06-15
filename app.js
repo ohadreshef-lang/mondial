@@ -201,7 +201,13 @@ let pendingMode     = null; // 'public' | 'join' | 'create' | null
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
 let specialBets        = {};
 let tournamentCountdownTimer = null;
-let _routingLock = false; // prevents double-routing when signInAnonymously + onAuthStateChanged both trigger routeAfterLogin
+// ---- Auth / routing state ----
+// _routing is a short-lived re-entrancy guard (always released in finally), NOT a
+// permanent lock. _routedUserId records the identity we last routed into the app so
+// duplicate auth callbacks don't re-route or flicker. Explicit user logins pass
+// force=true to bypass the idempotency check.
+let _routing      = false;
+let _routedUserId = null;
 
 // Emails allowed to access the admin panel (checked after Google/email login).
 const ADMIN_EMAILS = ['ohad.reshef@ingenio.com', 'ohad.reshef@gmail.com'];
@@ -354,28 +360,25 @@ function showModeChoice() {
     hide('admin-panel');
 }
 
-async function routeAfterLogin() {
-    if (_routingLock) return;
-    // Guard: if there is no logged-in user yet, show the appropriate entry screen
-    // without setting the lock (so the next real login attempt can still route).
-    if (!currentUser) {
-        if (pendingJoinCode || isAdminMode) showLoginScreen();
-        else showModeChoice();
-        return;
-    }
-    _routingLock = true;
-    // Restore state that may have been saved before a signInWithRedirect navigation
+// Entry screen for users with no identity yet.
+function showInitialScreen() {
+    if (pendingJoinCode || isAdminMode) showLoginScreen();
+    else showModeChoice();
+}
+
+// Decide which screen to show once we have an identity (currentUser). Pure and
+// idempotent — safe to call from several auth callbacks. The re-entrancy guard
+// (_routing) prevents two concurrent runs and is always released. Explicit user
+// logins pass force=true so they always route even if the identity matches.
+async function routeAfterLogin(force) {
+    if (!currentUser) { showInitialScreen(); return; }
+    if (!force && _routedUserId === currentUser.userId) return;
+    if (_routing) return;
+    _routing = true;
+    _routedUserId = currentUser.userId; // commit; cleared below on failure to allow retry
     try {
-        const sj = sessionStorage.getItem('wc2026_pendingJoin');
-        if (sj) { pendingJoinCode = sj; sessionStorage.removeItem('wc2026_pendingJoin'); }
-        const sm = sessionStorage.getItem('wc2026_pendingMode');
-        if (sm) { pendingMode = sm; sessionStorage.removeItem('wc2026_pendingMode'); }
-    } catch(e) {}
-    if (!db) {
-        showGroupPicker();
-        return;
-    }
-    try {
+        if (!db) { showGroupPicker(); return; }
+
         if (pendingJoinCode) {
             const code = pendingJoinCode;
             pendingJoinCode = null;
@@ -385,8 +388,7 @@ async function routeAfterLogin() {
         }
 
         const snap = await ref(`userGroups/${currentUser.userId}`).once('value');
-        const groups = snap.val() || {};
-        const groupIds = Object.keys(groups);
+        const groupIds = Object.keys(snap.val() || {});
 
         if (groupIds.length > 0) {
             const lastActive = localStorage.getItem('wc2026_activeGroup');
@@ -396,28 +398,17 @@ async function routeAfterLogin() {
             return;
         }
 
-        if (pendingMode === 'public') {
-            pendingMode = null;
-            await joinPublicGroup();
-            return;
-        }
-        if (pendingMode === 'join') {
-            pendingMode = null;
-            showGroupPicker();
-            openJoinGroupModal();
-            return;
-        }
-        if (pendingMode === 'create') {
-            pendingMode = null;
-            showGroupPicker();
-            openCreateGroupModal();
-            return;
-        }
+        if (pendingMode === 'public') { pendingMode = null; await joinPublicGroup(); return; }
+        if (pendingMode === 'join')   { pendingMode = null; showGroupPicker(); openJoinGroupModal();   return; }
+        if (pendingMode === 'create') { pendingMode = null; showGroupPicker(); openCreateGroupModal(); return; }
 
         showGroupPicker();
     } catch (err) {
-        console.warn('routeAfterLogin error:', err.message);
+        _routedUserId = null; // transient failure — let a later callback retry
+        console.warn('routeAfterLogin error:', err && err.message);
         showGroupPicker();
+    } finally {
+        _routing = false;
     }
 }
 
@@ -505,72 +496,127 @@ function enterAppForGroup(groupId) {
 // ============================================================
 // AUTH
 // ============================================================
+//
+// Identity model
+// --------------
+// The app's identity is the user object { userId, name, email } persisted in a
+// cookie + localStorage (see session helpers below). The DB rules are wide-open,
+// so NO Firebase auth token is required to read or write data.
+//
+// Firebase Auth is used for ONE thing only: Google sign-in, which yields a
+// verified email we turn into the canonical email-based userId. We deliberately
+// do NOT use anonymous sign-in — it added nothing (open rules) and caused races
+// that replaced the Google session and triggered auth loops.
+//
+// Routing happens through routeAfterLogin(), which is idempotent per identity.
+
+// ---- Session persistence (survives iOS Safari storage pressure) ----
+function saveUserSession(userData) {
+    try { localStorage.setItem('wc2026_emailUser', JSON.stringify(userData)); } catch(e) {}
+    try {
+        const val = btoa(encodeURIComponent(JSON.stringify(userData)));
+        const exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = 'wc2026_u=' + val + '; expires=' + exp + '; path=/; SameSite=Lax';
+    } catch(e) {}
+}
+
+function loadUserSession() {
+    try { const ls = localStorage.getItem('wc2026_emailUser'); if (ls) return JSON.parse(ls); } catch(e) {}
+    try {
+        const m = document.cookie.match(/(?:^|;\s*)wc2026_u=([^;]+)/);
+        if (m) {
+            const data = JSON.parse(decodeURIComponent(atob(m[1])));
+            try { localStorage.setItem('wc2026_emailUser', JSON.stringify(data)); } catch(e) {}
+            return data;
+        }
+    } catch(e) {}
+    return null;
+}
+
+function clearUserSession() {
+    try { localStorage.removeItem('wc2026_emailUser'); } catch(e) {}
+    try { document.cookie = 'wc2026_u=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; } catch(e) {}
+}
 
 function initAuth() {
-    if (!auth) { showLoginScreen(); return; }
+    // Fast path: restore a saved session synchronously so returning users land in
+    // the app immediately, without waiting for Firebase Auth to initialise.
+    // (Admin must Google-authenticate, so skip the cookie restore in admin mode.)
+    if (!isAdminMode) {
+        const saved = loadUserSession();
+        if (saved) { currentUser = saved; routeAfterLogin(); }
+    }
+
+    if (!auth) {
+        if (!currentUser) showInitialScreen();
+        return;
+    }
+
+    // Firebase Auth listener: authoritative for Google sign-in and admin gating.
     auth.onAuthStateChanged(async user => {
-        if (user) {
+        if (user && !user.isAnonymous) {
+            // Real (Google) user — verified identity always wins.
             await setupUserFromAuth(user);
             if (isAdminMode) {
+                const email = (currentUser && currentUser.email || '').toLowerCase();
+                if (!ADMIN_EMAILS.includes(email)) {
+                    // Authenticated but not an admin — fall back to the normal app.
+                    isAdminMode = false;
+                    hide('admin-panel');
+                    await routeAfterLogin(true);
+                    return;
+                }
                 show('admin-panel');
                 hide('login-screen');
                 hide('main-app');
-            } else {
-                await routeAfterLogin();
+                hide('mode-choice-screen');
+                return;
             }
-        } else {
-            const saved = localStorage.getItem('wc2026_emailUser');
-            if (saved) {
-                try {
-                    currentUser = JSON.parse(saved);
-                    // Re-acquire an anonymous auth token so Firebase writes work.
-                    // NOTE: if a Firebase anonymous session already exists, signInAnonymously()
-                    // resolves without re-firing onAuthStateChanged — so we route directly here
-                    // instead of relying on the callback. _routingLock prevents double-routing
-                    // if the callback does fire (new anonymous user case).
-                    try {
-                        await auth.signInAnonymously();
-                    } catch(e) { console.warn('Anonymous re-auth failed:', e); }
-                    if (isAdminMode) {
-                        show('admin-panel');
-                        hide('login-screen');
-                        hide('main-app');
-                    } else {
-                        await routeAfterLogin();
-                    }
-                    return;
-                } catch(e) {
-                    localStorage.removeItem('wc2026_emailUser');
-                }
-            }
-            currentUser = null;
-            showModeChoice();
+            await routeAfterLogin();
+            return;
         }
+        // No real user (signed out, or a leftover anonymous session we ignore).
+        if (currentUser) return;            // already restored via the fast path
+        if (isAdminMode) { showLoginScreen(); return; }
+        const saved = loadUserSession();
+        if (saved) { currentUser = saved; await routeAfterLogin(); }
+        else showInitialScreen();
     });
 }
 
+// Resolve a Google sign-in into our canonical email-based identity and persist it.
+// If an email-based profile already exists, use it (handles users who first joined
+// via the email form, then later signed in with Google using the same address).
 async function setupUserFromAuth(firebaseUser) {
-    // Anonymous sign-in is used as an auth token for email-login users
-    if (firebaseUser.isAnonymous) {
-        const saved = localStorage.getItem('wc2026_emailUser');
-        if (saved) {
-            try { currentUser = JSON.parse(saved); return; } catch(e) {}
-        }
+    const email       = firebaseUser.email || '';
+    const firebaseUid = firebaseUser.uid;
+    let   name        = firebaseUser.displayName || email.split('@')[0] || 'User';
+
+    let userId = firebaseUid;
+    if (db && email) {
+        try {
+            const emailUserId = emailToId(email);
+            if (emailUserId !== firebaseUid) {
+                const [emailSnap, uidSnap] = await Promise.all([
+                    ref(`users/${emailUserId}`).once('value'),
+                    ref(`users/${firebaseUid}`).once('value'),
+                ]);
+                if (emailSnap.exists()) { userId = emailUserId; name = emailSnap.val().name || name; }
+                else if (!uidSnap.exists()) { userId = emailUserId; } // brand-new — start canonical
+                // else: only a firebaseUid record exists; keep it until admin merge migrates.
+            }
+        } catch(e) {}
     }
-    const userId = firebaseUser.uid;
-    const email  = firebaseUser.email || '';
-    let   name   = firebaseUser.displayName || email.split('@')[0] || 'User';
+
     if (db) {
         try {
             const snap = await ref(`users/${userId}`).once('value');
-            if (!snap.exists()) {
-                await ref(`users/${userId}`).set({ name, email });
-            } else {
-                name = snap.val().name || name;
-            }
+            if (!snap.exists()) await ref(`users/${userId}`).set({ name, email });
+            else name = snap.val().name || name;
         } catch(err) { console.warn('User sync failed:', err); }
     }
     currentUser = { userId, name, email };
+    saveUserSession(currentUser);
 }
 
 async function handleGoogleLogin() {
@@ -580,9 +626,9 @@ async function handleGoogleLogin() {
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
         await auth.signInWithPopup(provider);
-        // onAuthStateChanged handles routing after successful sign-in
+        // onAuthStateChanged handles identity + routing after a successful sign-in.
     } catch (err) {
-        if (!err || err.code === 'auth/popup-closed-by-user') return; // user cancelled
+        if (!err || err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
         let msg = err.message;
         if (
             err.code === 'auth/popup-blocked' ||
@@ -598,34 +644,38 @@ async function handleGoogleLogin() {
 
 async function handleEmailLogin(e) {
     e.preventDefault();
-    const errEl  = $('login-error');
+    const errEl = $('login-error');
     hideEl(errEl);
-    let   name  = $('input-name').value.trim();
+    const name  = $('input-name').value.trim();
     const email = $('input-email').value.trim().toLowerCase();
     if (!name || !email || !email.includes('@')) {
         errEl.textContent = 'נא למלא שם ואימייל תקין';
         showEl(errEl);
         return;
     }
+    // If this email is registered with Google, steer the user to the Google button.
+    if (auth) {
+        try {
+            const methods = await auth.fetchSignInMethodsForEmail(email);
+            if (methods && methods.includes('google.com')) {
+                errEl.textContent = 'האימייל הזה מחובר לחשבון Google — אנא השתמש בכפתור "כניסה עם Google"';
+                showEl(errEl);
+                return;
+            }
+        } catch(e) { /* network / config error — allow through */ }
+    }
     const userId = emailToId(email);
+    let finalName = name;
     if (db) {
         try {
             const snap = await ref(`users/${userId}`).once('value');
-            if (!snap.exists()) {
-                await ref(`users/${userId}`).set({ name, email });
-            } else {
-                name = snap.val().name || name;
-            }
+            if (!snap.exists()) await ref(`users/${userId}`).set({ name, email });
+            else finalName = snap.val().name || name;
         } catch(err) { console.warn('User sync failed:', err); }
     }
-    currentUser = { userId, name, email, emailLogin: true };
-    localStorage.setItem('wc2026_emailUser', JSON.stringify(currentUser));
-    if (auth) {
-        try {
-            await auth.signInAnonymously();
-        } catch(e) { console.warn('Anonymous auth failed:', e); }
-    }
-    await routeAfterLogin();
+    currentUser = { userId, name: finalName, email, emailLogin: true };
+    saveUserSession(currentUser);
+    await routeAfterLogin(true); // explicit user action — always route
 }
 
 function stopGroupListeners() {
@@ -635,28 +685,23 @@ function stopGroupListeners() {
 }
 
 function handleLogout() {
-    _routingLock = false;
-    if (typeof clearUserSession === 'function') clearUserSession();
     if (db) {
         ref('matches').off();
         stopGroupListeners();
         if (currentUser) ref(`userGroups/${currentUser.userId}`).off();
     }
     if (auth) auth.signOut().catch(() => {});
-    currentUser = null;
+    clearUserSession();
+    currentUser    = null;
     currentGroupId = null;
-    userGroups = {};
-    groupMembers = {};
+    _routedUserId  = null;
+    userGroups     = {};
+    groupMembers   = {};
     groupUsersCache = {};
-    localStorage.removeItem('wc2026_activeGroup');
-    localStorage.removeItem('wc2026_emailUser');
     matches  = {};
     userBets = {};
-    if (auth && auth.currentUser) {
-        auth.signOut();
-    } else {
-        showLoginScreen();
-    }
+    localStorage.removeItem('wc2026_activeGroup');
+    showInitialScreen();
 }
 
 // ============================================================
