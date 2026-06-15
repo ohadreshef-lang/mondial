@@ -204,7 +204,7 @@ let tournamentCountdownTimer = null;
 let _routingLock = false; // prevents double-routing when signInAnonymously + onAuthStateChanged both trigger routeAfterLogin
 
 // Emails allowed to access the admin panel (checked after Google/email login).
-const ADMIN_EMAILS = ['ohad.reshef@ingenio.com'];
+const ADMIN_EMAILS = ['ohad.reshef@ingenio.com', 'ohad.reshef@gmail.com'];
 
 const TOURNAMENT_POINTS = 10;
 
