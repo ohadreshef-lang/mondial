@@ -289,4 +289,16 @@ document.addEventListener('DOMContentLoaded', function () {
         b.style.display = (s === 'all' || cfg.stages.includes(s)) ? '' : 'none';
         b.classList.toggle('active', s === stageFilter);
     });
+
+    // Early session restore: read cookie synchronously before onAuthStateChanged fires.
+    // This eliminates the Firebase auth init delay (200-500ms) for returning users —
+    // routeAfterLogin runs immediately using the cached identity, and Firebase auth
+    // completes in the background. _routingLock prevents double-routing.
+    if (!isAdminMode) {
+        var _early = loadUserSession();
+        if (_early) {
+            currentUser = _early;
+            routeAfterLogin();
+        }
+    }
 });
