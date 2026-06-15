@@ -91,6 +91,10 @@ function initAuth() {
                 await routeAfterLogin();
             }
         } else {
+            // During a Google redirect the null callback fires between sign-out of the
+            // old anonymous session and sign-in of the Google user. Skip it so the
+            // returning-email-session logic doesn't grab the lock before Google can route.
+            try { if (sessionStorage.getItem('wc2026_googleRedirect')) return; } catch(e) {}
             const saved = loadUserSession();
             if (saved) {
                 try {
