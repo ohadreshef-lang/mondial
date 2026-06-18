@@ -92,28 +92,58 @@ function calcPoints(b1, b2, r1, r2) {
     return 0;
 }
 
+// In-run retry with exponential backoff. A transient blip (network/DNS error, 429
+// rate-limit, or 5xx) self-heals within the run instead of failing it — and flipping
+// the Action red — until the next 30-min cron. Other 4xx (bad token/request) are
+// fatal and fail fast. Every caller is idempotent (reads, and a multi-path PATCH that
+// writes the same values), so re-attempts are safe.
+const RETRY_ATTEMPTS = 4;
+const RETRY_BASE_MS = 1000;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function retryFetch(label, url, options) {
+    let lastErr;
+    for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+        try {
+            const res = await fetch(url, options);
+            if (res.ok) return res;
+            const err = new Error(`${label} failed: ${res.status} ${await res.text()}`);
+            if (res.status !== 429 && res.status < 500) { err.fatal = true; throw err; } // fatal 4xx — don't retry
+            lastErr = err;
+        } catch (err) {
+            // Network/DNS errors are retryable; rethrow the fatal-4xx we just threw.
+            if (err.fatal) throw err;
+            lastErr = err;
+        }
+        if (attempt < RETRY_ATTEMPTS) {
+            const delay = RETRY_BASE_MS * 2 ** (attempt - 1);
+            console.warn(`${label} attempt ${attempt}/${RETRY_ATTEMPTS} failed: ${lastErr.message} — retrying in ${delay}ms`);
+            await sleep(delay);
+        }
+    }
+    throw new Error(`${label} failed after ${RETRY_ATTEMPTS} attempts: ${lastErr.message}`);
+}
+
 async function firebaseSignIn() {
-    const res = await fetch(
+    const res = await retryFetch(
+        'Firebase anonymous sign-in',
         `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"returnSecureToken":true}' },
     );
-    if (!res.ok) throw new Error(`Firebase anonymous sign-in failed: ${res.status} ${await res.text()}`);
     return (await res.json()).idToken;
 }
 
 async function fbGet(path, token) {
-    const res = await fetch(`${DB_URL}/${ROOT}/${path}.json?auth=${token}`);
-    if (!res.ok) throw new Error(`Firebase GET ${path} failed: ${res.status} ${await res.text()}`);
+    const res = await retryFetch(`Firebase GET ${path}`, `${DB_URL}/${ROOT}/${path}.json?auth=${token}`);
     return res.json();
 }
 
 async function fbPatch(updates, token) {
-    const res = await fetch(`${DB_URL}/${ROOT}/.json?auth=${token}`, {
+    await retryFetch('Firebase PATCH', `${DB_URL}/${ROOT}/.json?auth=${token}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error(`Firebase PATCH failed: ${res.status} ${await res.text()}`);
 }
 
 async function fetchFinishedApiMatches(dateFrom, dateTo) {
@@ -123,8 +153,7 @@ async function fetchFinishedApiMatches(dateFrom, dateTo) {
     // its neighbours returned). Fetching the range unfiltered and selecting FINISHED in
     // code returns every finished match reliably.
     const url = `https://api.football-data.org/v4/competitions/WC/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const res = await fetch(url, { headers: { 'X-Auth-Token': FD_TOKEN } });
-    if (!res.ok) throw new Error(`football-data.org request failed: ${res.status} ${await res.text()}`);
+    const res = await retryFetch('football-data.org request', url, { headers: { 'X-Auth-Token': FD_TOKEN } });
     return ((await res.json()).matches || []).filter(m => m.status === 'FINISHED');
 }
 
