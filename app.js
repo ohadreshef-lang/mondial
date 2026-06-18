@@ -510,6 +510,8 @@ function enterAppForGroup(groupId) {
     localStorage.setItem('wc2026_activeGroup', groupId);
     hide('login-screen');
     hide('group-picker-screen');
+    hide('mode-choice-screen'); // default-visible screen — must be hidden or it stacks above the app
+    hide('admin-panel');
     show('main-app');
     $('header-username').textContent = currentUser.name;
     ensureUserProfile();
