@@ -197,6 +197,20 @@ async function main() {
                     .map(am => `"${am.homeTeam && am.homeTeam.name}" vs "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`);
                 console.error(`NO MATCH ${matchId}: "${en1}" vs "${en2}" near ${m.date} — no API fixture ${Math.round(minsSince)} min after kickoff.`);
                 console.error(`   API fixtures sharing a team: ${related.length ? related.join('; ') : '(none)'}`);
+                // TEMP DIAGNOSTIC — remove before merge.
+                console.error(`   [diag] all ${apiMatches.length} fetched FINISHED fixtures: ${apiMatches.map(am => `"${am.homeTeam && am.homeTeam.name}" v "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate}`).join('; ')}`);
+                try {
+                    const wideRes = await fetch(`https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-06-08&dateTo=2026-07-22`, { headers: { 'X-Auth-Token': FD_TOKEN } });
+                    const wide = (await wideRes.json()).matches || [];
+                    const teamHits = wide.filter(am => {
+                        const h = (am.homeTeam && am.homeTeam.name || '').toLowerCase();
+                        const a = (am.awayTeam && am.awayTeam.name || '').toLowerCase();
+                        return h.includes('ghana') || a.includes('ghana') || h.includes('panama') || a.includes('panama');
+                    });
+                    console.error(`   [diag] tournament-wide ${wide.length} fixtures; ghana/panama substr matches: ${teamHits.length ? teamHits.map(am => `"${am.homeTeam && am.homeTeam.name}" v "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`).join('; ') : '(NONE — teams absent from API/free-tier)'}`);
+                } catch (e) {
+                    console.error(`   [diag] wide query failed: ${e.message}`);
+                }
                 staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", no API fixture found`);
             }
             continue;
