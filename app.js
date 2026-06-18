@@ -196,6 +196,7 @@ let groupUsersCache = {};
 let groupSwitchMenuOpen = false;
 let pendingJoinCode = null;
 let pendingMode     = null; // 'public' | 'join' | 'create' | null
+const PENDING_JOIN_KEY = 'wc2026_pendingJoin'; // sessionStorage: invite survives reload
 
 // ---- Tournament bets state ----
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
@@ -290,6 +291,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const joinCode = (params.get('join') || '').trim().toUpperCase();
     if (joinCode && /^[A-Z0-9]{6}$/.test(joinCode)) {
         pendingJoinCode = joinCode;
+        try { sessionStorage.setItem(PENDING_JOIN_KEY, joinCode); } catch (e) {}
+    } else {
+        // Restore an in-progress invite across a reload. routeAfterLogin strips
+        // ?join from the URL, so a refresh / address-bar Enter would otherwise
+        // arrive with no code and strand the user on the mode-choice screen.
+        // Cleared only once the join actually succeeds (or on logout).
+        try {
+            const saved = sessionStorage.getItem(PENDING_JOIN_KEY);
+            if (saved && /^[A-Z0-9]{6}$/.test(saved)) pendingJoinCode = saved;
+        } catch (e) {}
     }
 
     if (isAdminMode) {
@@ -366,6 +377,13 @@ function showInitialScreen() {
     else showModeChoice();
 }
 
+// Drop the pending invite everywhere: state, the reload-survival store, and the URL.
+function clearPendingJoin() {
+    pendingJoinCode = null;
+    try { sessionStorage.removeItem(PENDING_JOIN_KEY); } catch (e) {}
+    if (location.search.includes('join=')) history.replaceState({}, '', location.pathname);
+}
+
 // Decide which screen to show once we have an identity (currentUser). Pure and
 // idempotent — safe to call from several auth callbacks. The re-entrancy guard
 // (_routing) prevents two concurrent runs and is always released. Explicit user
@@ -380,11 +398,17 @@ async function routeAfterLogin(force) {
         if (!db) { showGroupPicker(); return; }
 
         if (pendingJoinCode) {
-            const code = pendingJoinCode;
-            pendingJoinCode = null;
-            history.replaceState({}, '', location.pathname);
-            const joined = await autoJoinByCode(code);
-            if (joined) return;
+            const result = await autoJoinByCode(pendingJoinCode);
+            if (result === true) {            // joined for real — done
+                clearPendingJoin();
+                return;
+            }
+            if (result === 'invalid') {       // bad code — give up, route normally
+                clearPendingJoin();
+            }
+            // else: transient failure (auth token not ready on the fast path, or a
+            // network/permission blip). KEEP pendingJoinCode so the next routing
+            // pass — after onAuthStateChanged establishes the token — retries it.
         }
 
         const snap = await ref(`userGroups/${currentUser.userId}`).once('value');
@@ -422,7 +446,7 @@ async function autoJoinByCode(code) {
         }
         if (!snap.exists()) {
             alert(t('joinGroup.errorInvalid'));
-            return false;
+            return 'invalid'; // definitively bad code — caller stops retrying
         }
         const groupId = snap.val();
         const memberSnap = await ref(`groups/${groupId}/members/${currentUser.userId}`).once('value');
@@ -701,6 +725,7 @@ function handleLogout() {
     matches  = {};
     userBets = {};
     localStorage.removeItem('wc2026_activeGroup');
+    clearPendingJoin();
     showInitialScreen();
 }
 
