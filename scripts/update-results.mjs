@@ -31,6 +31,13 @@ const WINDOW_END = Date.parse('2026-07-22T00:00:00Z');
 // pointless API calls.
 const MIN_MINUTES_AFTER_KICKOFF = 100;
 
+// Past this long after kickoff a game is certainly over and the API has had ample
+// time to publish the FINISHED result. A candidate still unmatched at this point is
+// an anomaly (bad team-name mapping or wrong fixture date), not "not finished yet" —
+// the run fails (red) so it's visible instead of silently passing. Self-clears once
+// the result is auto-matched or entered manually (then it's no longer a candidate).
+const STALE_MINUTES = 180;
+
 // Hebrew (canonical DB form) -> English. Copy of TEAM_TRANSLATIONS.en in i18n.js.
 const HEB_TO_EN = {
     'ארצות הברית': 'USA', 'קנדה': 'Canada', 'מקסיקו': 'Mexico',
@@ -153,15 +160,20 @@ async function main() {
 
     // Match each candidate to an API fixture by team pair + ±36h date window.
     const finished = [];
+    const staleUnmatched = []; // past STALE_MINUTES but no usable API result -> fail the run
     for (const [matchId, m] of candidates) {
+        const kickoff = parseMatchDate(m.date);
+        const minsSince = (now - kickoff) / 60000;
+        const isStale = minsSince >= STALE_MINUTES;
+
         const en1 = HEB_TO_EN[m.team1];
         const en2 = HEB_TO_EN[m.team2];
         if (!en1 || !en2) {
             console.warn(`SKIP ${matchId}: no English mapping for "${m.team1}" / "${m.team2}" — enter result manually.`);
+            if (isStale) staleUnmatched.push(`${matchId} — no English mapping for "${m.team1}"/"${m.team2}"`);
             continue;
         }
         const t1 = norm(en1), t2 = norm(en2);
-        const kickoff = parseMatchDate(m.date);
 
         const hits = apiMatches.filter(am => {
             const home = norm(am.homeTeam && am.homeTeam.name);
@@ -171,15 +183,39 @@ async function main() {
             return Math.abs(Date.parse(am.utcDate) - kickoff) <= 36 * 3600 * 1000;
         });
 
-        if (hits.length === 0) continue; // not finished yet (or not in window) — retry next run
+        if (hits.length === 0) {
+            // Normally just "not finished yet" — retry next run, no noise. But once a
+            // game is well past kickoff this is an anomaly (team-name mismatch or wrong
+            // fixture date): log the nearby API fixtures and flag the run red.
+            if (isStale) {
+                const related = apiMatches
+                    .filter(am => {
+                        const h = norm(am.homeTeam && am.homeTeam.name);
+                        const a = norm(am.awayTeam && am.awayTeam.name);
+                        return h === t1 || a === t1 || h === t2 || a === t2;
+                    })
+                    .map(am => `"${am.homeTeam && am.homeTeam.name}" vs "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`);
+                console.error(`NO MATCH ${matchId}: "${en1}" vs "${en2}" near ${m.date} — no API fixture ${Math.round(minsSince)} min after kickoff.`);
+                console.error(`   API fixtures sharing a team: ${related.length ? related.join('; ') : '(none)'}`);
+                staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", no API fixture found`);
+            }
+            continue;
+        }
         if (hits.length > 1) {
             console.warn(`SKIP ${matchId}: ${hits.length} API matches fit — enter result manually.`);
+            if (isStale) staleUnmatched.push(`${matchId} — ${hits.length} ambiguous API fixtures`);
             continue;
         }
 
         const am = hits[0];
         const ft = am.score && am.score.fullTime;
-        if (am.status !== 'FINISHED' || !ft || ft.home === null || ft.away === null) continue;
+        if (am.status !== 'FINISHED' || !ft || ft.home === null || ft.away === null) {
+            if (isStale) {
+                console.error(`NO SCORE ${matchId}: matched API fixture ${am.id} but status=${am.status} score=${ft ? `${ft.home}-${ft.away}` : 'n/a'} ${Math.round(minsSince)} min after kickoff.`);
+                staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", matched fixture has no final score`);
+            }
+            continue;
+        }
 
         const homeIsTeam1 = norm(am.homeTeam.name) === t1;
         const g1 = homeIsTeam1 ? ft.home : ft.away;
@@ -193,6 +229,7 @@ async function main() {
 
     if (finished.length === 0) {
         console.log('No candidate has a finished result yet.');
+        reportStale(staleUnmatched);
         return;
     }
 
@@ -246,11 +283,26 @@ async function main() {
     if (DRY_RUN) {
         console.log(`DRY RUN — would write ${Object.keys(updates).length} path(s):`);
         console.log(JSON.stringify(updates, null, 2));
+        reportStale(staleUnmatched);
         return;
     }
 
     await fbPatch(updates, token);
     console.log(`Wrote ${Object.keys(updates).length} path(s) for ${finished.length} match(es).`);
+
+    // Write usable results first (above) so a stuck game never blocks good ones, then
+    // fail the run if anything is stuck — surfaces it as a red Action.
+    reportStale(staleUnmatched);
+}
+
+// Throws (fails the run) when matches are well past kickoff with no usable auto result.
+function reportStale(staleUnmatched) {
+    if (staleUnmatched.length === 0) return;
+    throw new Error(
+        `${staleUnmatched.length} match(es) past kickoff with no automatic result — ` +
+        `enter the result in the admin panel, or fix the team-name/date mapping:\n  ` +
+        staleUnmatched.join('\n  '),
+    );
 }
 
 main().catch(err => {
