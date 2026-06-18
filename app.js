@@ -197,6 +197,7 @@ let groupSwitchMenuOpen = false;
 let pendingJoinCode = null;
 let pendingMode     = null; // 'public' | 'join' | 'create' | null
 const PENDING_JOIN_KEY = 'wc2026_pendingJoin'; // sessionStorage: invite survives reload
+const RETURNING_KEY    = 'wc2026_returning';   // localStorage: has entered a group on this device
 
 // ---- Tournament bets state ----
 let tournamentSettings = { teams: [], scorers: [], winner: null, topScorer: null };
@@ -371,9 +372,15 @@ function showModeChoice() {
     hide('admin-panel');
 }
 
-// Entry screen for users with no identity yet.
+// Entry screen for users with no identity yet. Returning users (anyone who has
+// entered a group on this device) go straight to the login screen so they can
+// just sign in again and land back in their group — no invite code needed, and
+// no confusing mode-choice detour. Only genuinely new users see mode-choice.
 function showInitialScreen() {
-    if (pendingJoinCode || isAdminMode) showLoginScreen();
+    if (pendingJoinCode || isAdminMode) { showLoginScreen(); return; }
+    let returning = false;
+    try { returning = localStorage.getItem(RETURNING_KEY) === '1'; } catch (e) {}
+    if (returning) showLoginScreen();
     else showModeChoice();
 }
 
@@ -508,6 +515,7 @@ async function ensureUserProfile() {
 function enterAppForGroup(groupId) {
     currentGroupId = groupId;
     localStorage.setItem('wc2026_activeGroup', groupId);
+    try { localStorage.setItem(RETURNING_KEY, '1'); } catch (e) {} // returning user from now on
     hide('login-screen');
     hide('group-picker-screen');
     hide('mode-choice-screen'); // default-visible screen — must be hidden or it stacks above the app
