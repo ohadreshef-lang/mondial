@@ -117,10 +117,15 @@ async function fbPatch(updates, token) {
 }
 
 async function fetchFinishedApiMatches(dateFrom, dateTo) {
-    const url = `https://api.football-data.org/v4/competitions/WC/matches?status=FINISHED&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+    // Do NOT add status=FINISHED to the query: combining it with a date range makes
+    // football-data.org intermittently omit genuinely-finished fixtures (observed:
+    // Ghana–Panama 2026-06-17 stayed absent from the filtered view for 13+ hours while
+    // its neighbours returned). Fetching the range unfiltered and selecting FINISHED in
+    // code returns every finished match reliably.
+    const url = `https://api.football-data.org/v4/competitions/WC/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     const res = await fetch(url, { headers: { 'X-Auth-Token': FD_TOKEN } });
     if (!res.ok) throw new Error(`football-data.org request failed: ${res.status} ${await res.text()}`);
-    return (await res.json()).matches || [];
+    return ((await res.json()).matches || []).filter(m => m.status === 'FINISHED');
 }
 
 function utcDay(ms) {
@@ -152,9 +157,11 @@ async function main() {
     }
     console.log(`${candidates.length} candidate match(es) to check.`);
 
-    const kickoffs = candidates.map(([, m]) => parseMatchDate(m.date));
-    const dateFrom = utcDay(Math.min(...kickoffs) - 36 * 3600 * 1000);
-    const dateTo = utcDay(Math.max(...kickoffs) + 36 * 3600 * 1000);
+    // Query the whole tournament window in one call (104 fixtures total) and match
+    // candidates against it. A single broad fetch sidesteps the status+date-range
+    // omission quirk and costs one API call regardless of how many games are pending.
+    const dateFrom = utcDay(WINDOW_START);
+    const dateTo = utcDay(WINDOW_END);
     const apiMatches = await fetchFinishedApiMatches(dateFrom, dateTo);
     console.log(`API returned ${apiMatches.length} finished match(es) between ${dateFrom} and ${dateTo}.`);
 
@@ -197,20 +204,6 @@ async function main() {
                     .map(am => `"${am.homeTeam && am.homeTeam.name}" vs "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`);
                 console.error(`NO MATCH ${matchId}: "${en1}" vs "${en2}" near ${m.date} — no API fixture ${Math.round(minsSince)} min after kickoff.`);
                 console.error(`   API fixtures sharing a team: ${related.length ? related.join('; ') : '(none)'}`);
-                // TEMP DIAGNOSTIC — remove before merge.
-                console.error(`   [diag] all ${apiMatches.length} fetched FINISHED fixtures: ${apiMatches.map(am => `"${am.homeTeam && am.homeTeam.name}" v "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate}`).join('; ')}`);
-                try {
-                    const wideRes = await fetch(`https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-06-08&dateTo=2026-07-22`, { headers: { 'X-Auth-Token': FD_TOKEN } });
-                    const wide = (await wideRes.json()).matches || [];
-                    const teamHits = wide.filter(am => {
-                        const h = (am.homeTeam && am.homeTeam.name || '').toLowerCase();
-                        const a = (am.awayTeam && am.awayTeam.name || '').toLowerCase();
-                        return h.includes('ghana') || a.includes('ghana') || h.includes('panama') || a.includes('panama');
-                    });
-                    console.error(`   [diag] tournament-wide ${wide.length} fixtures; ghana/panama substr matches: ${teamHits.length ? teamHits.map(am => `"${am.homeTeam && am.homeTeam.name}" v "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`).join('; ') : '(NONE — teams absent from API/free-tier)'}`);
-                } catch (e) {
-                    console.error(`   [diag] wide query failed: ${e.message}`);
-                }
                 staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", no API fixture found`);
             }
             continue;
