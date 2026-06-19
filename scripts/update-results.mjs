@@ -107,14 +107,23 @@ async function fetchApiMatches(dateFrom, dateTo) {
 // We filter to our matches by team pair in mapApiFootballLive(). Returns [] on any
 // error so the live layer can never break the (authoritative) finals/points flow.
 async function fetchApiFootballLive() {
+    // Best-effort, single attempt (no retry loop). If the daily quota is reached the
+    // API returns HTTP 429 or a 200 with an `errors.requests` message — either way we
+    // just skip live for this run: finals + points (football-data.org) are unaffected,
+    // and live scores resume automatically when the quota resets at 00:00 UTC. No
+    // backoff retries — a 429 persists all day, and the next cron re-checks in minutes.
     try {
-        const res = await retryFetch('API-Football live', 'https://v3.football.api-sports.io/fixtures?live=all', {
+        const res = await fetch('https://v3.football.api-sports.io/fixtures?live=all', {
             headers: { 'x-apisports-key': AF_KEY },
         });
+        if (!res.ok) {
+            console.warn(`API-Football live unavailable (HTTP ${res.status}${res.status === 429 ? ' — daily limit/rate reached' : ''}) — skipping live scores this run.`);
+            return [];
+        }
         const json = await res.json();
         const errs = json.errors;
         if (errs && ((Array.isArray(errs) && errs.length) || (typeof errs === 'object' && Object.keys(errs).length))) {
-            console.warn('API-Football returned errors:', JSON.stringify(errs));
+            console.warn('API-Football limit/error — skipping live scores this run:', JSON.stringify(errs));
             return [];
         }
         return json.response || [];

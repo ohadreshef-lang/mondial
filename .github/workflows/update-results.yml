@@ -2,9 +2,12 @@ name: Update match results
 
 on:
   schedule:
-    # Every 10 min: API-Football free tier is 100 req/day; the live call only fires
-    # during live windows, so */10 stays well under the cap (~40-50/day on a busy day).
-    - cron: '*/10 * * * *'
+    # Every 5 min for fresher live scores. API-Football free is 100 req/day; the live
+    # call only fires during live windows. On a heavy matchday this can reach the cap —
+    # that's fine: fetchApiFootballLive() returns [] on HTTP 429 / quota error, so
+    # finals + points (football-data.org) keep working and live scores resume when the
+    # quota resets at 00:00 UTC.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
