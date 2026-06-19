@@ -216,3 +216,29 @@ test('every participating team has a flag (not the fallback)', () => {
     // Cross-realm arrays fail deepStrictEqual even when empty, so use length.
     assert.equal(missing.length, 0, `teams without flags: ${missing.join(', ')}`);
 });
+
+// --- isInLiveTab -----------------------------------------------------------
+// A game is in the Live tab when its bets are locked (<=5 min to kickoff) and it
+// is not "long finished" (kept >=1h after it ends). Dates are UTC-naive, so build
+// the string straight from a UTC instant (no timezone offset).
+function utcString(msFromNow) {
+    return new Date(Date.now() + msFromNow).toISOString().slice(0, 16);
+}
+
+test('isInLiveTab: locked (2 min to kickoff), not started -> true', () => {
+    assert.equal(app.isInLiveTab({ date: utcString(2 * 60 * 1000) }, Date.now()), true);
+});
+test('isInLiveTab: open betting (30 min out) -> false', () => {
+    assert.equal(app.isInLiveTab({ date: utcString(30 * 60 * 1000) }, Date.now()), false);
+});
+test('isInLiveTab: finished 30 min ago (finishedAt) -> true', () => {
+    const now = Date.now();
+    assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 }, finishedAt: now - 30*60*1000 }, now), true);
+});
+test('isInLiveTab: finished 90 min ago (finishedAt) -> false', () => {
+    const now = Date.now();
+    assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 }, finishedAt: now - 90*60*1000 }, now), false);
+});
+test('isInLiveTab: finished result, no finishedAt, kickoff long ago -> false (fallback kickoff+2h+1h)', () => {
+    assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 } }, Date.now()), false);
+});

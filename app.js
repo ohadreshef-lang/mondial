@@ -181,6 +181,7 @@ function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
 let currentUser = null;
 let matches      = {};
 let userBets     = {};
+let allGroupBets = {};
 let activeTab    = 'matches';
 let stageFilter  = 'all';
 let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
@@ -255,6 +256,17 @@ function formatDate(dateStr) {
 
 function matchIsLocked(match) {
     return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
+}
+
+// A match belongs in the Live tab once its bets are locked and until at least an
+// hour after it ends. End time = finishedAt when present, else kickoff + 2h.
+function isInLiveTab(m, now) {
+    if (!m || !m.date) return false;
+    if (!matchIsLocked(m)) return false;                 // bets still open
+    const hasResult = m.result !== null && m.result !== undefined;
+    if (!hasResult) return true;                         // locked + not finished
+    const endTime = m.finishedAt || (parseMatchDate(m.date).getTime() + 2 * 3600 * 1000);
+    return (now - endTime) < 60 * 60 * 1000;             // kept <1h after end
 }
 
 function formatCountdown(ms) {
@@ -719,6 +731,7 @@ function stopGroupListeners() {
     if (!db || !currentGroupId || !currentUser) return;
     ref(`groups/${currentGroupId}/members`).off();
     ref(`bets/${currentGroupId}/${currentUser.userId}`).off();
+    ref(`bets/${currentGroupId}`).off();
 }
 
 function handleLogout() {
@@ -735,8 +748,9 @@ function handleLogout() {
     userGroups     = {};
     groupMembers   = {};
     groupUsersCache = {};
-    matches  = {};
-    userBets = {};
+    matches      = {};
+    userBets     = {};
+    allGroupBets = {};
     localStorage.removeItem('wc2026_activeGroup');
     clearPendingJoin();
     showInitialScreen();
@@ -835,6 +849,12 @@ function startFirebaseListeners() {
             if (activeTab === 'tournament') renderTournament();
         }, () => {});
     }
+
+    ref(`bets/${currentGroupId}`).on('value', snap => {
+        allGroupBets = snap.val() || {};
+        if (activeTab === 'live' && typeof renderLive === 'function') renderLive();
+        if (activeTab === 'matches') renderMatches();
+    }, () => {});
 }
 
 // ============================================================
