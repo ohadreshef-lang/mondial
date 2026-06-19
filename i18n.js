@@ -122,6 +122,7 @@ const TRANSLATIONS = {
         'live.statusHalftime': 'מחצית',
         'live.statusAwaiting': 'ממתין לתוצאה',
         'live.provisional': 'נקודות (חי)',
+        'live.total': 'סה"כ',
         'live.notStarted': 'טרם החל',
 
         // Stages
@@ -414,6 +415,7 @@ const TRANSLATIONS = {
         'live.statusHalftime': 'Half-time',
         'live.statusAwaiting': 'Awaiting score',
         'live.provisional': 'pts (live)',
+        'live.total': 'Total',
         'live.notStarted': 'Not started',
 
         'stage.all': 'All',
@@ -695,6 +697,7 @@ const TRANSLATIONS = {
         'live.statusHalftime': 'Descanso',
         'live.statusAwaiting': 'Esperando resultado',
         'live.provisional': 'pts (en vivo)',
+        'live.total': 'Total',
         'live.notStarted': 'No empezó',
 
         'stage.all': 'Todos',
