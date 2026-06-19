@@ -74,10 +74,10 @@ test('getOutcome: draw', () => {
 
 // --- calcPoints ------------------------------------------------------------
 
-test('calcPoints: exact score returns 3', () => {
-    assert.equal(app.calcPoints(2, 1, 2, 1), 3);
-    assert.equal(app.calcPoints(0, 0, 0, 0), 3);
-    assert.equal(app.calcPoints(1, 3, 1, 3), 3);
+test('calcPoints: exact score returns 4', () => {
+    assert.equal(app.calcPoints(2, 1, 2, 1), 4);
+    assert.equal(app.calcPoints(0, 0, 0, 0), 4);
+    assert.equal(app.calcPoints(1, 3, 1, 3), 4);
 });
 
 test('calcPoints: correct outcome but wrong score returns 1', () => {
@@ -115,10 +115,10 @@ test('emailToId matches real prod IDs', () => {
 
 // --- parseMatchDate (Israeli-time gotcha) ---------------------------------
 
-test('parseMatchDate: treats naive string as IDT (UTC+3)', () => {
-    // "2026-06-11T19:00" in IDT = "2026-06-11T16:00Z"
+test('parseMatchDate: treats naive string as UTC', () => {
+    // "2026-06-11T19:00" parsed as UTC == "2026-06-11T19:00:00Z"
     const d = app.parseMatchDate('2026-06-11T19:00');
-    assert.equal(d.toISOString(), '2026-06-11T16:00:00.000Z');
+    assert.equal(d.toISOString(), '2026-06-11T19:00:00.000Z');
 });
 
 test('parseMatchDate: empty string returns epoch', () => {
@@ -128,30 +128,25 @@ test('parseMatchDate: empty string returns epoch', () => {
 });
 
 test('parseMatchDate: does NOT drift with host timezone', () => {
-    // Regression: if someone replaces this with `new Date(str)`, the result
-    // would be interpreted as the host's local zone and this assertion
-    // would break on any non-IDT runner (e.g. CI in UTC).
     const d = app.parseMatchDate('2026-06-11T19:00');
-    const utcHour = d.getUTCHours();
-    assert.equal(utcHour, 16, 'expected 19:00 IDT == 16:00 UTC');
+    assert.equal(d.getUTCHours(), 19, 'naive string is UTC');
 });
 
 // --- matchIsLocked ---------------------------------------------------------
 
 test('matchIsLocked: match starting in 2 hours is not locked', () => {
-    // Two hours ahead of "now" in IDT terms
-    const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    // Build an IDT-naive string: subtract 3h offset and format
-    const idt = new Date(twoHoursFromNow.getTime() + 3 * 60 * 60 * 1000);
-    const dateStr = idt.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
-    assert.equal(app.matchIsLocked({ date: dateStr }), false);
+    const in2hours = new Date(Date.now() + 2*60*60*1000).toISOString().slice(0,16);
+    assert.equal(app.matchIsLocked({ date: in2hours }), false);
 });
 
-test('matchIsLocked: match starting in 30 minutes IS locked', () => {
-    const halfHourFromNow = new Date(Date.now() + 30 * 60 * 1000);
-    const idt = new Date(halfHourFromNow.getTime() + 3 * 60 * 60 * 1000);
-    const dateStr = idt.toISOString().slice(0, 16);
-    assert.equal(app.matchIsLocked({ date: dateStr }), true);
+test('matchIsLocked: match starting in 30 minutes is NOT locked (5-min lock)', () => {
+    const in30 = new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16);
+    assert.equal(app.matchIsLocked({ date: in30 }), false);
+});
+
+test('matchIsLocked: match starting in 2 minutes IS locked (5-min lock)', () => {
+    const in2 = new Date(Date.now() + 2 * 60 * 1000).toISOString().slice(0, 16);
+    assert.equal(app.matchIsLocked({ date: in2 }), true);
 });
 
 test('matchIsLocked: past match is locked', () => {
