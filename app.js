@@ -1242,7 +1242,18 @@ function renderLive() {
         .map(([id, m]) => ({ id, ...m }))
         .filter(m => (!m.tournament || m.tournament === activeTournament) && m.stage !== 'special')
         .filter(m => isInLiveTab(m, now))
-        .sort((a, b) => parseMatchDate(a.date) - parseMatchDate(b.date));
+        // Active games (in-play / locked-not-started) on top, sorted by kickoff so the
+        // current/soonest game leads. Finished games sink below (most recently ended
+        // first) and still auto-clear 1h after they end via isInLiveTab.
+        .sort((a, b) => {
+            const aDone = a.result !== null && a.result !== undefined;
+            const bDone = b.result !== null && b.result !== undefined;
+            if (aDone !== bDone) return aDone ? 1 : -1;
+            if (!aDone) return parseMatchDate(a.date) - parseMatchDate(b.date);
+            const endA = a.finishedAt || (parseMatchDate(a.date).getTime() + 2 * 3600 * 1000);
+            const endB = b.finishedAt || (parseMatchDate(b.date).getTime() + 2 * 3600 * 1000);
+            return endB - endA;
+        });
 
     if (games.length === 0) { container.innerHTML = `<p class="state-msg">${t('live.empty')}</p>`; return; }
     container.innerHTML = games.map(buildLiveCard).join('');
