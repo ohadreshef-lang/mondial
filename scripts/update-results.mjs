@@ -13,6 +13,8 @@
 //                        (combine with DRY_RUN to verify scoring against
 //                        results that were entered manually)
 
+import { classifyMatches, buildResultUpdates, parseMatchDate } from './lib/results-core.mjs';
+
 const FIREBASE_API_KEY = 'AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g';
 const DB_URL = 'https://mondial2026-a77fc-default-rtdb.firebaseio.com';
 const ROOT = 'worldcup2026';
@@ -37,60 +39,6 @@ const MIN_MINUTES_AFTER_KICKOFF = 100;
 // the run fails (red) so it's visible instead of silently passing. Self-clears once
 // the result is auto-matched or entered manually (then it's no longer a candidate).
 const STALE_MINUTES = 180;
-
-// Hebrew (canonical DB form) -> English. Copy of TEAM_TRANSLATIONS.en in i18n.js.
-const HEB_TO_EN = {
-    'ארצות הברית': 'USA', 'קנדה': 'Canada', 'מקסיקו': 'Mexico',
-    'ברזיל': 'Brazil', 'ארגנטינה': 'Argentina', 'אורוגוואי': 'Uruguay',
-    'קולומביה': 'Colombia', 'אקוודור': 'Ecuador', 'ונצואלה': 'Venezuela',
-    'פרגוואי': 'Paraguay', 'בוליביה': 'Bolivia', "צ'ילה": 'Chile',
-    'צרפת': 'France', 'ספרד': 'Spain', 'גרמניה': 'Germany',
-    'אנגליה': 'England', 'פורטוגל': 'Portugal', 'הולנד': 'Netherlands',
-    'איטליה': 'Italy', 'בלגיה': 'Belgium', 'שווייץ': 'Switzerland',
-    'קרואטיה': 'Croatia', 'סרביה': 'Serbia', 'דנמרק': 'Denmark',
-    'אוסטריה': 'Austria', 'סקוטלנד': 'Scotland', 'טורקיה': 'Turkey',
-    'רומניה': 'Romania', 'הונגריה': 'Hungary', 'פולין': 'Poland',
-    'מרוקו': 'Morocco', 'סנגל': 'Senegal', 'ניגריה': 'Nigeria',
-    'מצרים': 'Egypt', 'קמרון': 'Cameroon', 'חוף השנהב': 'Ivory Coast',
-    "אלג'יריה": 'Algeria', 'תוניסיה': 'Tunisia', 'דרום אפריקה': 'South Africa',
-    'יפן': 'Japan', 'קוריאה הדרומית': 'South Korea', 'איראן': 'Iran',
-    'ערב הסעודית': 'Saudi Arabia', 'אוסטרליה': 'Australia', 'עיראק': 'Iraq',
-    'ירדן': 'Jordan', 'אוזבקיסטן': 'Uzbekistan', 'ניו זילנד': 'New Zealand',
-    'הונדורס': 'Honduras', 'פנמה': 'Panama', 'קוסטה ריקה': 'Costa Rica',
-    "צ'כיה": 'Czechia', 'קטאר': 'Qatar', 'בוסניה והרצגובינה': 'Bosnia and Herzegovina',
-    'האיטי': 'Haiti', 'קוראסאו': 'Curaçao', 'שוודיה': 'Sweden',
-    'קאבו ורדה': 'Cape Verde', 'נורווגיה': 'Norway', 'קונגו DR': 'DR Congo', 'גאנה': 'Ghana',
-};
-
-// football-data.org names that differ from TEAM_TRANSLATIONS.en (normalized form).
-const API_ALIASES = {
-    'bosnia-herzegovina': 'bosnia and herzegovina',
-    'cape verde islands': 'cape verde',
-    'congo dr': 'dr congo',
-    'united states': 'usa',
-};
-
-function norm(name) {
-    const n = (name || '')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .toLowerCase().replace(/\s+/g, ' ').trim();
-    return API_ALIASES[n] || n;
-}
-
-// Same semantics as parseMatchDate() in app.js: naive date string is Israeli time.
-function parseMatchDate(dateStr) {
-    return Date.parse(`${dateStr}:00+03:00`);
-}
-
-// Copy of calcPoints() in app.js: exact score 4, correct outcome 1, else 0.
-function getOutcome(g1, g2) {
-    return g1 > g2 ? 'win1' : g1 < g2 ? 'win2' : 'draw';
-}
-function calcPoints(b1, b2, r1, r2) {
-    if (b1 === r1 && b2 === r2) return 4;
-    if (getOutcome(b1, b2) === getOutcome(r1, r2)) return 1;
-    return 0;
-}
 
 // In-run retry with exponential backoff. A transient blip (network/DNS error, 429
 // rate-limit, or 5xx) self-heals within the run instead of failing it — and flipping
@@ -175,159 +123,33 @@ async function main() {
 
     const candidates = Object.entries(matches).filter(([, m]) => {
         if (!m || !m.team1 || !m.team2 || !m.date) return false;
-        const done = m.result && m.result.team1Goals !== undefined;
-        if (done && !INCLUDE_COMPLETED) return false;
-        return parseMatchDate(m.date) <= now - MIN_MINUTES_AFTER_KICKOFF * 60 * 1000;
+        if (m.result && m.result.team1Goals !== undefined) return false;
+        return parseMatchDate(m.date) <= now;            // any started, unfinished game
     });
+    if (candidates.length === 0) { console.log('No started, unfinished matches. Nothing to do.'); return; }
 
-    if (candidates.length === 0) {
-        console.log('No pending matches past kickoff, nothing to do.');
-        return;
-    }
-    console.log(`${candidates.length} candidate match(es) to check.`);
-
-    // Query the whole tournament window in one call (104 fixtures total) and match
-    // candidates against it. A single broad fetch sidesteps the status+date-range
-    // omission quirk and costs one API call regardless of how many games are pending.
     const dateFrom = utcDay(WINDOW_START);
     const dateTo = utcDay(WINDOW_END);
-    const apiMatches = await fetchFinishedApiMatches(dateFrom, dateTo);
-    console.log(`API returned ${apiMatches.length} finished match(es) between ${dateFrom} and ${dateTo}.`);
+    const apiMatches = await fetchFinishedApiMatches(dateFrom, dateTo); // now returns ALL statuses (see Task 2)
+    console.log(`API returned ${apiMatches.length} match(es) between ${dateFrom} and ${dateTo}.`);
 
-    // Match each candidate to an API fixture by team pair + ±36h date window.
-    const finished = [];
-    const staleUnmatched = []; // past STALE_MINUTES but no usable API result -> fail the run
-    for (const [matchId, m] of candidates) {
-        const kickoff = parseMatchDate(m.date);
-        const minsSince = (now - kickoff) / 60000;
-        const isStale = minsSince >= STALE_MINUTES;
+    const { finished, live, staleUnmatched } = classifyMatches({
+        matches, apiMatches, now, staleMinutes: STALE_MINUTES, inPlayWindowMs: 3 * 3600 * 1000,
+    });
+    console.log(`Classified: ${finished.length} finished, ${live.length} live.`);
 
-        const en1 = HEB_TO_EN[m.team1];
-        const en2 = HEB_TO_EN[m.team2];
-        if (!en1 || !en2) {
-            console.warn(`SKIP ${matchId}: no English mapping for "${m.team1}" / "${m.team2}" — enter result manually.`);
-            if (isStale) staleUnmatched.push(`${matchId} — no English mapping for "${m.team1}"/"${m.team2}"`);
-            continue;
-        }
-        const t1 = norm(en1), t2 = norm(en2);
-
-        const hits = apiMatches.filter(am => {
-            const home = norm(am.homeTeam && am.homeTeam.name);
-            const away = norm(am.awayTeam && am.awayTeam.name);
-            const sameTeams = (home === t1 && away === t2) || (home === t2 && away === t1);
-            if (!sameTeams) return false;
-            return Math.abs(Date.parse(am.utcDate) - kickoff) <= 36 * 3600 * 1000;
-        });
-
-        if (hits.length === 0) {
-            // Normally just "not finished yet" — retry next run, no noise. But once a
-            // game is well past kickoff this is an anomaly (team-name mismatch or wrong
-            // fixture date): log the nearby API fixtures and flag the run red.
-            if (isStale) {
-                const related = apiMatches
-                    .filter(am => {
-                        const h = norm(am.homeTeam && am.homeTeam.name);
-                        const a = norm(am.awayTeam && am.awayTeam.name);
-                        return h === t1 || a === t1 || h === t2 || a === t2;
-                    })
-                    .map(am => `"${am.homeTeam && am.homeTeam.name}" vs "${am.awayTeam && am.awayTeam.name}" @ ${am.utcDate} [${am.status}]`);
-                console.error(`NO MATCH ${matchId}: "${en1}" vs "${en2}" near ${m.date} — no API fixture ${Math.round(minsSince)} min after kickoff.`);
-                console.error(`   API fixtures sharing a team: ${related.length ? related.join('; ') : '(none)'}`);
-                staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", no API fixture found`);
-            }
-            continue;
-        }
-        if (hits.length > 1) {
-            console.warn(`SKIP ${matchId}: ${hits.length} API matches fit — enter result manually.`);
-            if (isStale) staleUnmatched.push(`${matchId} — ${hits.length} ambiguous API fixtures`);
-            continue;
-        }
-
-        const am = hits[0];
-        const ft = am.score && am.score.fullTime;
-        if (am.status !== 'FINISHED' || !ft || ft.home === null || ft.away === null) {
-            if (isStale) {
-                console.error(`NO SCORE ${matchId}: matched API fixture ${am.id} but status=${am.status} score=${ft ? `${ft.home}-${ft.away}` : 'n/a'} ${Math.round(minsSince)} min after kickoff.`);
-                staleUnmatched.push(`${matchId} — "${en1}" vs "${en2}", matched fixture has no final score`);
-            }
-            continue;
-        }
-
-        const homeIsTeam1 = norm(am.homeTeam.name) === t1;
-        const g1 = homeIsTeam1 ? ft.home : ft.away;
-        const g2 = homeIsTeam1 ? ft.away : ft.home;
-        if (am.score.duration !== 'REGULAR') {
-            console.warn(`NOTE ${matchId}: decided in ${am.score.duration}; recording full-time score ${g1}-${g2}.`);
-        }
-        finished.push({ matchId, m, g1, g2 });
-        console.log(`MATCHED ${matchId}: ${en1} ${g1}-${g2} ${en2} (api id ${am.id})`);
-    }
-
-    if (finished.length === 0) {
-        console.log('No candidate has a finished result yet.');
-        reportStale(staleUnmatched);
-        return;
-    }
-
-    // Build one multi-path update: results + recalculated points + member
-    // totals. Mirrors saveResult() / recalcPoints() / recalcMemberTotal().
-    const updates = {};
-    for (const { matchId, g1, g2 } of finished) {
-        updates[`matches/${matchId}/result`] = { team1Goals: g1, team2Goals: g2 };
-        updates[`matches/${matchId}/status`] = 'completed';
-    }
-
-    const scored = finished.filter(f => !f.m.noPoints);
-    if (scored.length > 0) {
-        const [groups, bets, specialBets] = await Promise.all([
+    let groups = {}, bets = {}, specialBets = {};
+    if (finished.some(f => !f.m.noPoints)) {
+        [groups, bets, specialBets] = await Promise.all([
             fbGet('groups', token), fbGet('bets', token), fbGet('specialBets', token),
         ]);
-        const allBets = bets || {};
-
-        for (const groupId of Object.keys(groups || {})) {
-            const members = (groups[groupId] && groups[groupId].members) || {};
-            for (const userId of Object.keys(members)) {
-                const userBets = ((allBets[groupId] || {})[userId]) || {};
-
-                for (const { matchId, g1, g2 } of scored) {
-                    const bet = userBets[matchId];
-                    if (!bet) {
-                        // Same auto-fill recalcPoints() writes for members with no bet.
-                        const filled = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: calcPoints(0, 0, g1, g2) };
-                        updates[`bets/${groupId}/${userId}/${matchId}`] = filled;
-                        userBets[matchId] = filled;
-                    } else {
-                        bet.points = calcPoints(bet.team1Goals, bet.team2Goals, g1, g2);
-                        updates[`bets/${groupId}/${userId}/${matchId}/points`] = bet.points;
-                    }
-                }
-
-                const special = ((specialBets || {})[groupId] || {})[userId] || {};
-                const matchPts = Object.values(userBets).reduce((s, b) => s + (b.points || 0), 0);
-                const specialPts = ((special.winner && special.winner.points) || 0)
-                    + ((special.topScorer && special.topScorer.points) || 0);
-                updates[`groups/${groupId}/members/${userId}/totalPoints`] = matchPts + specialPts;
-
-                if (!((allBets[groupId] || {})[userId])) {
-                    allBets[groupId] = allBets[groupId] || {};
-                    allBets[groupId][userId] = userBets;
-                }
-            }
-        }
     }
+    const updates = buildResultUpdates({ finished, live, groups: groups || {}, bets: bets || {}, specialBets: specialBets || {}, now });
 
-    if (DRY_RUN) {
-        console.log(`DRY RUN — would write ${Object.keys(updates).length} path(s):`);
-        console.log(JSON.stringify(updates, null, 2));
-        reportStale(staleUnmatched);
-        return;
-    }
-
+    if (Object.keys(updates).length === 0) { console.log('Nothing to write.'); reportStale(staleUnmatched); return; }
+    if (DRY_RUN) { console.log(`DRY RUN — ${Object.keys(updates).length} path(s):\n${JSON.stringify(updates, null, 2)}`); reportStale(staleUnmatched); return; }
     await fbPatch(updates, token);
-    console.log(`Wrote ${Object.keys(updates).length} path(s) for ${finished.length} match(es).`);
-
-    // Write usable results first (above) so a stuck game never blocks good ones, then
-    // fail the run if anything is stuck — surfaces it as a red Action.
+    console.log(`Wrote ${Object.keys(updates).length} path(s) (${finished.length} finished, ${live.length} live).`);
     reportStale(staleUnmatched);
 }
 
