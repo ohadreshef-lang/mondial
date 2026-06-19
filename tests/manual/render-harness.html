@@ -39,7 +39,7 @@
   const checks = [
     ['renders a live card', html.includes('live-card')],
     ['shows live score 1 – 0', html.includes('1 – 0')],
-    ['Alice exact -> 4 pts shown', /Alice[\s\S]*?1–0[\s\S]*?>(3|4)</.test(html)],
+    ['Alice exact -> 4 pts shown', /Alice[\s\S]*?1–0[\s\S]*?>4</.test(html)],
     ['Bob wrong -> 0 pts shown', /Bob[\s\S]*?2–2[\s\S]*?>0</.test(html)],
   ];
   document.getElementById('RESULT').textContent =

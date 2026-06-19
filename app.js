@@ -1203,12 +1203,12 @@ function buildLiveCard(m) {
     <div class="match-card live-card" id="live-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
-            <span class="match-status-badge ${live && live.status === 'IN_PLAY' ? 'badge-live' : 'badge-locked'}">${t(statusKey)}</span>
+            <span class="match-status-badge ${hasResult ? 'badge-completed' : (live && live.status === 'IN_PLAY') ? 'badge-live' : 'badge-locked'}">${t(statusKey)}</span>
         </div>
         <div class="live-scoreline">
-            <span class="live-team">${getFlag(m.team1)} ${translateTeam(m.team1)}</span>
+            <span class="live-team">${getFlag(m.team1)} ${escapeHtml(translateTeam(m.team1))}</span>
             <span class="live-score">${scoreHtml}</span>
-            <span class="live-team">${getFlag(m.team2)} ${translateTeam(m.team2)}</span>
+            <span class="live-team">${getFlag(m.team2)} ${escapeHtml(translateTeam(m.team2))}</span>
         </div>
         <div class="live-people">
             <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('live.provisional')}</span></div>
