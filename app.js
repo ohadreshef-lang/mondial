@@ -885,6 +885,7 @@ function renderCurrentTab() {
     else if (activeTab === 'leaderboard') renderLeaderboard();
     else if (activeTab === 'my-bets')     renderMyBets();
     else if (activeTab === 'tournament')  renderTournament();
+    else if (activeTab === 'live')        renderLive();
 
     if (activeTab === 'tournament') startTournamentCountdown();
     else stopTournamentCountdown();
@@ -1150,6 +1151,71 @@ function unlockBetEdit(matchId) {
     renderMatches();
 }
 
+
+// ============================================================
+// RENDER: LIVE TAB
+// ============================================================
+
+function renderLive() {
+    const container = $('live-container');
+    if (!container) return;
+    const now = Date.now();
+    const games = Object.entries(matches)
+        .map(([id, m]) => ({ id, ...m }))
+        .filter(m => (!m.tournament || m.tournament === activeTournament) && m.stage !== 'special')
+        .filter(m => isInLiveTab(m, now))
+        .sort((a, b) => parseMatchDate(a.date) - parseMatchDate(b.date));
+
+    if (games.length === 0) { container.innerHTML = `<p class="state-msg">${t('live.empty')}</p>`; return; }
+    container.innerHTML = games.map(buildLiveCard).join('');
+}
+
+function buildLiveCard(m) {
+    const live = m.live || null;
+    const hasResult = m.result !== null && m.result !== undefined;
+    const score = hasResult ? m.result : live;           // {team1Goals, team2Goals} or null
+    const started = parseMatchDate(m.date).getTime() <= Date.now();
+
+    let statusKey;
+    if (hasResult) statusKey = 'match.status.completed';
+    else if (live && live.status === 'PAUSED') statusKey = 'live.statusHalftime';
+    else if (live && live.status === 'IN_PLAY') statusKey = 'live.statusLive';
+    else if (started) statusKey = 'live.statusAwaiting';
+    else statusKey = 'live.statusLocked';
+
+    const scoreHtml = score
+        ? `${score.team1Goals} – ${score.team2Goals}`
+        : `<span class="live-not-started">${t('live.notStarted')}</span>`;
+
+    const rows = Object.keys(groupMembers).map(uid => {
+        const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
+            || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+        const bet = (allGroupBets[uid] || {})[m.id];
+        const betStr = bet ? `${bet.team1Goals}–${bet.team2Goals}` : '—';
+        const pts = (bet && score) ? calcPoints(bet.team1Goals, bet.team2Goals, score.team1Goals, score.team2Goals) : null;
+        const ptsStr = pts === null ? '—' : pts;
+        const cls = pts === null ? '' : (pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0');
+        return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span>`
+             + `<span class="lp-bet">${betStr}</span><span class="lp-pts">${ptsStr}</span></div>`;
+    }).join('');
+
+    return `
+    <div class="match-card live-card" id="live-${m.id}">
+        <div class="match-card-header">
+            <span class="match-date-str">${formatDate(m.date)}</span>
+            <span class="match-status-badge ${live && live.status === 'IN_PLAY' ? 'badge-live' : 'badge-locked'}">${t(statusKey)}</span>
+        </div>
+        <div class="live-scoreline">
+            <span class="live-team">${getFlag(m.team1)} ${translateTeam(m.team1)}</span>
+            <span class="live-score">${scoreHtml}</span>
+            <span class="live-team">${getFlag(m.team2)} ${translateTeam(m.team2)}</span>
+        </div>
+        <div class="live-people">
+            <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('live.provisional')}</span></div>
+            ${rows}
+        </div>
+    </div>`;
+}
 
 // ============================================================
 // RENDER: LEADERBOARD

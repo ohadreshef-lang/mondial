@@ -197,6 +197,7 @@
             <button class="tab-btn" data-tab="tournament">
                 <span class="tab-icon">🏆</span><span data-i18n="tabs.tournament">טורניר</span>
             </button>
+            <button class="tab-btn" data-tab="live"><span class="tab-icon">🔴</span><span data-i18n="tabs.live">חי</span></button>
         </nav>
 
         <main class="app-content">
@@ -250,6 +251,11 @@
                 <div id="tournament-container">
                     <p class="state-msg" data-i18n="common.loading">טוען...</p>
                 </div>
+            </div>
+
+            <!-- LIVE TAB -->
+            <div id="tab-live" class="tab-panel">
+                <div id="live-container"></div>
             </div>
         </main>
 
