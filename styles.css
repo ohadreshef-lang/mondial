@@ -1600,3 +1600,6 @@ section { display: block; }
 .live-person-row.points-3 .lp-pts { color:#1a7; font-weight:700; }
 .live-person-row.points-1 .lp-pts { color:#a80; }
 .live-person-row.points-0 .lp-pts { color:#c33; }
+.breakdown-toggle { margin-top:8px; background:none; border:none; color:var(--accent,#1a7); cursor:pointer; font-size:.85rem; }
+.match-breakdown { margin-top:6px; border-top:1px solid var(--divider,#eee); }
+.match-breakdown.hidden { display:none; }

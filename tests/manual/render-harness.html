@@ -42,6 +42,18 @@
     ['Alice exact -> 4 pts shown', /Alice[\s\S]*?1–0[\s\S]*?>4</.test(html)],
     ['Bob wrong -> 0 pts shown', /Bob[\s\S]*?2–2[\s\S]*?>0</.test(html)],
   ];
+
+  // Task 6: finished match breakdown
+  window.matches.g2 = { id:'g2', team1:'אנגליה', team2:'קרואטיה', date:'2026-06-10T20:00', group:'L', stage:'group',
+                        result:{ team1Goals:4, team2Goals:2 }, finishedAt: now - 3*3600*1000 };
+  window.allGroupBets.u1.g2 = { team1Goals:4, team2Goals:2 }; // exact
+  window.userBets = window.userBets || {};
+  window.stageFilter = 'all';
+  renderMatches();
+  const mhtml = document.getElementById('matches-container').innerHTML;
+  checks.push(['matches breakdown toggle present', mhtml.includes('breakdown-toggle')]);
+  checks.push(['breakdown shows Alice exact points', /Alice[\s\S]*?4–2[\s\S]*?>4</.test(mhtml)]);
+
   document.getElementById('RESULT').textContent =
     checks.map(([n,ok]) => (ok?'PASS':'FAIL')+' '+n).join('\n');
 </script>

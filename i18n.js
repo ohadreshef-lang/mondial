@@ -151,6 +151,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'לא ניחשת על משחק זה',
         'match.pointsRow': 'ניחוש',
         'match.pointsLabel': 'נקודות',
+        'match.showBreakdown': 'הצג ניחושים של כולם',
         'match.emptyState': 'אין משחקים להצגה. האדמין יכול לטעון את המשחקים.',
         'match.loadingMatches': 'טוען משחקים...',
 
@@ -440,6 +441,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'You didn\'t predict this match',
         'match.pointsRow': 'Prediction',
         'match.pointsLabel': 'points',
+        'match.showBreakdown': 'Show everyone\'s bets',
         'match.emptyState': 'No matches to display. An admin can load them.',
         'match.loadingMatches': 'Loading matches...',
 
@@ -720,6 +722,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'No predijiste este partido',
         'match.pointsRow': 'Predicción',
         'match.pointsLabel': 'puntos',
+        'match.showBreakdown': 'Ver apuestas de todos',
         'match.emptyState': 'No hay partidos. Un admin puede cargarlos.',
         'match.loadingMatches': 'Cargando partidos...',
 

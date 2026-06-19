@@ -996,6 +996,12 @@ function renderMatches() {
         c.querySelectorAll('.bet-edit-link').forEach(btn => {
             btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
         });
+        c.querySelectorAll('.breakdown-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const el = document.getElementById(`breakdown-${btn.dataset.matchId}`);
+                if (el) el.classList.toggle('hidden');
+            });
+        });
     });
 
     // Focus the last-played match only when the tab was just opened (not on every
@@ -1090,6 +1096,25 @@ function buildMatchCard(m) {
         }
     }
 
+    let breakdownHtml = '';
+    if (hasResult) {
+        const rows = Object.keys(groupMembers).map(uid => {
+            const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
+                || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+            const b = (allGroupBets[uid] || {})[m.id];
+            const betStr = b ? `${b.team1Goals}–${b.team2Goals}` : '—';
+            const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals) : 0;
+            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span><span class="lp-bet">${betStr}</span><span class="lp-pts">${pts}</span></div>`;
+        }).join('');
+        breakdownHtml = `
+        <button class="breakdown-toggle" data-match-id="${m.id}">${t('match.showBreakdown')}</button>
+        <div class="match-breakdown hidden" id="breakdown-${m.id}">
+            <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('match.pointsLabel')}</span></div>
+            ${rows}
+        </div>`;
+    }
+
     return `
     <div class="match-card${closingSoon ? ' match-card--closing-soon' : ''}" id="card-${m.id}">
         <div class="match-card-header">
@@ -1111,6 +1136,7 @@ function buildMatchCard(m) {
             </div>
             ${betAreaHtml}
             ${pointsHtml}
+            ${breakdownHtml}
         </div>
     </div>`;
 }
