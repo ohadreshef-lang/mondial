@@ -38,6 +38,10 @@ const WINDOW_END = Date.parse('2026-07-22T00:00:00Z');
 // the result is auto-matched or entered manually (then it's no longer a candidate).
 const STALE_MINUTES = 180;
 
+// The self-polling workflow run ends early (prints LOOP_IDLE) when no match is live
+// and none kicks off within this window — so the runner isn't held open all night.
+const IDLE_LOOKAHEAD_MS = 120 * 60 * 1000;
+
 // In-run retry with exponential backoff. A transient blip (network/DNS error, 429
 // rate-limit, or 5xx) self-heals within the run instead of failing it — and flipping
 // the Action red — until the next 30-min cron. Other 4xx (bad token/request) are
@@ -142,7 +146,7 @@ async function main() {
 
     const now = Date.now();
     if (now < WINDOW_START || now > WINDOW_END) {
-        console.log('Outside tournament window, nothing to do.');
+        console.log('Outside tournament window, nothing to do. LOOP_IDLE');
         return;
     }
 
@@ -154,7 +158,16 @@ async function main() {
         if (m.result && m.result.team1Goals !== undefined) return false;
         return parseMatchDate(m.date) <= now;            // any started, unfinished game
     });
-    if (candidates.length === 0) { console.log('No started, unfinished matches. Nothing to do.'); return; }
+    if (candidates.length === 0) {
+        // Nothing live. Tell the polling loop whether to keep going: stay alive if a
+        // match kicks off within IDLE_LOOKAHEAD_MS, otherwise emit LOOP_IDLE so the
+        // workflow can end this run early (the cron re-triggers before the next game).
+        const soon = Object.values(matches).some(m =>
+            m && m.date && !(m.result && m.result.team1Goals !== undefined)
+            && parseMatchDate(m.date) > now && (parseMatchDate(m.date) - now) <= IDLE_LOOKAHEAD_MS);
+        console.log(`No started, unfinished matches. Nothing to do.${soon ? ' (a match starts soon — keep polling)' : ' LOOP_IDLE'}`);
+        return;
+    }
 
     const dateFrom = utcDay(WINDOW_START);
     const dateTo = utcDay(WINDOW_END);

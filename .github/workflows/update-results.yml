@@ -2,44 +2,49 @@ name: Update match results
 
 on:
   schedule:
-    # GitHub heavily throttles high-frequency schedules — observed firing only every
-    # few hours, not every 5 min. So instead of relying on the scheduler for cadence,
-    # each run POLLS internally every 5 min for ~50 min (see the loop below). The */5
-    # schedule just maximises the chance a run is active during a match; whichever
-    # runs GitHub actually fires each cover ~an hour of 5-min polling.
+    # GitHub throttles high-frequency schedules (observed: every ~2h, not */5). So a
+    # single run polls internally every 5 min for up to ~5.5h (see the loop) — one
+    # trigger blankets a whole evening of matches with 5-min-fresh live scores, no
+    # matter how sparsely GitHub actually fires.
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
-# Sparse real firing means overlap is rare; if GitHub ever bursts, extra runs queue
-# (cancel-in-progress: false) and drain harmlessly — each iteration reads fresh state,
-# so a delayed run still writes current data, never stale.
+# cancel-in-progress so a new trigger RESTARTS the long poll instead of queueing
+# behind it (the loop is idempotent — each iteration reads fresh state). This keeps
+# coverage continuous during matches with zero backlog of stale long-running jobs.
 concurrency:
   group: update-results
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Poll finished + live matches (~5-min cadence for ~50 min)
+      - name: Poll finished + live matches (~5-min cadence, up to ~5.5h)
         run: |
-          # Poll every 5 min for ~50 min within this single run. set +e so one failing
-          # iteration (transient blip, or a stale-red) never aborts the loop; we exit
-          # with the LAST iteration's status, so a persistent problem still shows red
-          # while a recovered transient shows green.
+          # Poll every 5 min for up to ~5.5h. set +e so a single failing iteration
+          # (transient blip / stale-red) never aborts the loop; we exit with the LAST
+          # iteration's status (persistent issue -> red, recovered transient -> green).
+          # The script prints LOOP_IDLE when no match is live and none starts within
+          # ~2h — we end the run early then so the runner isn't held open all night
+          # (the cron re-triggers before the next match).
           set +e
           last=0
-          for i in $(seq 1 10); do
-            echo "::group::poll $i/10 ($(date -u +%H:%M:%S)Z)"
-            node scripts/update-results.mjs
-            last=$?
+          for i in $(seq 1 66); do
+            echo "::group::poll $i/66 ($(date -u +%H:%M:%S)Z)"
+            out=$(node scripts/update-results.mjs 2>&1); last=$?
+            printf '%s\n' "$out"
             echo "::endgroup::"
-            [ "$i" -lt 10 ] && sleep 300
+            if printf '%s' "$out" | grep -q 'LOOP_IDLE'; then
+              echo "No live game and none within ~2h — ending run early; cron will re-trigger."
+              break
+            fi
+            [ "$i" -lt 66 ] && sleep 300
           done
           exit $last
         env:
