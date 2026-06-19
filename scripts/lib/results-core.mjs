@@ -76,7 +76,7 @@ function findApiFixture(m, apiMatches) {
 
 // Split candidates into finished (final score) and live (in-play score), and flag
 // stale unmatched ones (well past kickoff, no usable API data).
-export function classifyMatches({ matches, apiMatches, now, minMinutes = 0, staleMinutes = 180, inPlayWindowMs = 3 * 3600 * 1000 }) {
+export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, inPlayWindowMs = 3 * 3600 * 1000 }) {
     const finished = [];
     const live = [];
     const staleUnmatched = [];

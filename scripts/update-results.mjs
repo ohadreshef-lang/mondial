@@ -9,9 +9,6 @@
 // Env:
 //   FOOTBALL_DATA_TOKEN  (required) football-data.org API token
 //   DRY_RUN=1            print planned writes without touching Firebase
-//   INCLUDE_COMPLETED=1  testing aid: also process already-completed matches
-//                        (combine with DRY_RUN to verify scoring against
-//                        results that were entered manually)
 
 import { classifyMatches, buildResultUpdates, parseMatchDate } from './lib/results-core.mjs';
 
@@ -21,17 +18,11 @@ const ROOT = 'worldcup2026';
 
 const FD_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
 const DRY_RUN = !!process.env.DRY_RUN;
-const INCLUDE_COMPLETED = !!process.env.INCLUDE_COMPLETED;
 
 // Tournament window: June 11 – July 19, 2026 (with margin). Outside it the
 // cron exits immediately without spending API calls.
 const WINDOW_START = Date.parse('2026-06-08T00:00:00Z');
 const WINDOW_END = Date.parse('2026-07-22T00:00:00Z');
-
-// A match becomes a candidate this long after kickoff. Games run ~105 min +
-// stoppage; the API's FINISHED status is the real gate, this only avoids
-// pointless API calls.
-const MIN_MINUTES_AFTER_KICKOFF = 100;
 
 // Past this long after kickoff a game is certainly over and the API has had ample
 // time to publish the FINISHED result. A candidate still unmatched at this point is

@@ -32,3 +32,9 @@ test('buildResultUpdates: finished writes result + finishedAt + clears live', ()
   assert.equal(updates['matches/m_fin/finishedAt'], now);
   assert.equal(updates['matches/m_fin/live'], null);
 });
+
+test('calcPoints: exact score = 4, correct outcome = 1, miss = 0', () => {
+  assert.equal(calcPoints(2, 1, 2, 1), 4); // exact
+  assert.equal(calcPoints(2, 1, 3, 0), 1); // correct outcome (win1)
+  assert.equal(calcPoints(2, 1, 1, 2), 0); // wrong outcome
+});
