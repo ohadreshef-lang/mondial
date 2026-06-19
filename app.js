@@ -1323,6 +1323,21 @@ function renderLeaderboard() {
         return;
     }
 
+    // "Form": each member's points in the last 5 finished matches (oldest→newest),
+    // shown as colored dots (gold = exact 4, green = correct 1, gray = miss 0).
+    const last5 = Object.entries(matches)
+        .map(([id, mm]) => ({ id, ...mm }))
+        .filter(mm => (!mm.tournament || mm.tournament === activeTournament) && mm.stage !== 'special'
+                   && mm.result && mm.result.team1Goals !== undefined)
+        .sort((a, b) => (a.finishedAt || parseMatchDate(a.date).getTime()) - (b.finishedAt || parseMatchDate(b.date).getTime()))
+        .slice(-5);
+    const formHtml = uid => last5.map(fm => {
+        const p = ((allGroupBets[uid] || {})[fm.id] || {}).points;
+        const pts = (p === undefined || p === null) ? 0 : p;
+        const cls = pts >= 3 ? 'f4' : pts === 1 ? 'f1' : 'f0';
+        return `<span class="lb-form-dot ${cls}">${pts}</span>`;
+    }).join('');
+
     let html = '<div class="leaderboard-table">';
     entries.forEach((u, i) => {
         const rank    = i + 1;
@@ -1333,6 +1348,7 @@ function renderLeaderboard() {
         <div class="leaderboard-row ${isMe ? 'is-me' : ''}">
             <span class="lb-rank">${medal}</span>
             <span class="lb-name">${escapeHtml(u.name)} ${meTag}</span>
+            <span class="lb-form">${formHtml(u.userId)}</span>
             <span class="lb-points">${u.totalPoints} <span class="lb-pts-label">${t('common.pts')}</span></span>
         </div>`;
     });
