@@ -85,15 +85,15 @@ async function fbPatch(updates, token) {
     });
 }
 
-async function fetchFinishedApiMatches(dateFrom, dateTo) {
+async function fetchApiMatches(dateFrom, dateTo) {
     // Do NOT add status=FINISHED to the query: combining it with a date range makes
     // football-data.org intermittently omit genuinely-finished fixtures (observed:
     // Ghana–Panama 2026-06-17 stayed absent from the filtered view for 13+ hours while
-    // its neighbours returned). Fetching the range unfiltered and selecting FINISHED in
-    // code returns every finished match reliably.
+    // its neighbours returned). Fetching the range unfiltered returns every match
+    // (FINISHED, IN_PLAY, PAUSED, SCHEDULED, etc.) so classifyMatches sees all statuses.
     const url = `https://api.football-data.org/v4/competitions/WC/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     const res = await retryFetch('football-data.org request', url, { headers: { 'X-Auth-Token': FD_TOKEN } });
-    return ((await res.json()).matches || []).filter(m => m.status === 'FINISHED');
+    return (await res.json()).matches || [];
 }
 
 function utcDay(ms) {
@@ -121,8 +121,8 @@ async function main() {
 
     const dateFrom = utcDay(WINDOW_START);
     const dateTo = utcDay(WINDOW_END);
-    const apiMatches = await fetchFinishedApiMatches(dateFrom, dateTo); // now returns ALL statuses (see Task 2)
-    console.log(`API returned ${apiMatches.length} match(es) between ${dateFrom} and ${dateTo}.`);
+    const apiMatches = await fetchApiMatches(dateFrom, dateTo);
+    console.log(`API returned ${apiMatches.length} match(es) (all statuses) between ${dateFrom} and ${dateTo}.`);
 
     const { finished, live, staleUnmatched } = classifyMatches({
         matches, apiMatches, now, staleMinutes: STALE_MINUTES, inPlayWindowMs: 3 * 3600 * 1000,
