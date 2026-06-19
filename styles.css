@@ -1609,7 +1609,6 @@ section { display: block; }
 /* ============================================================
    LIVE TAB
    ============================================================ */
-.live-card { border-inline-start: 4px solid var(--green-mid, #2e7d32); }
 .live-card .live-scoreline { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 4px 14px; }
 .live-card .live-team { flex:1; display:flex; align-items:center; gap:6px; font-weight:700; min-width:0; }
 .live-card .live-team:last-child { justify-content:flex-end; }
