@@ -113,6 +113,14 @@ test('emailToId matches real prod IDs', () => {
     assert.equal(app.emailToId('ohad.reshef@gmail.com'), 'ohad_reshef@gmail_com');
 });
 
+// --- isPaul ----------------------------------------------------------------
+
+test('isPaul: true only for the octopus id', () => {
+    assert.equal(app.isPaul('paul-octopus'), true);
+    assert.equal(app.isPaul('shay_t@helloflare_com'), false);
+    assert.equal(app.isPaul(''), false);
+});
+
 // --- parseMatchDate (Israeli-time gotcha) ---------------------------------
 
 test('parseMatchDate: treats naive string as UTC', () => {

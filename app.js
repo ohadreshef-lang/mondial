@@ -162,6 +162,11 @@ function getSortedScorerCandidates() {
     );
 }
 
+// פול התמנון (Paul the Octopus) — the automated dummy member. Same id as the
+// updater's paul-core PAUL_USER_ID; he is created/scored server-side.
+const PAUL_USER_ID = 'paul-octopus';
+function isPaul(uid) { return uid === PAUL_USER_ID; }
+
 // ---- Scoring ----
 
 function getOutcome(g1, g2) {
