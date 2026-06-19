@@ -910,7 +910,8 @@ function switchTournament(key) {
     stageFilter = 'all';
 
     const cfg = TOURNAMENTS[key];
-    $('app-bar-title').textContent = `${cfg.icon} ${cfg.label}`;
+    const titleEl = $('app-bar-title'); // removed from the slim main-app header; admin still has one
+    if (titleEl) titleEl.textContent = `${cfg.icon} ${cfg.label}`;
 
     document.querySelectorAll('.tournament-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tournament === key);

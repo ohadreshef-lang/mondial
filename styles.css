@@ -246,19 +246,35 @@ section { display: block; }
    APP BAR
    ========================================== */
 
+/* The whole header (slim green app-bar + tabs) sticks together as one unit, so it's
+   always visible and the tab bar never needs a magic-number offset below the app-bar. */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+}
+
 .app-bar {
-    /* Not sticky: it scrolls away so the slim tab bar (below) can pin to the very
-       top on its own. Pinning the app-bar too needs a magic-number offset for the
-       tab bar that breaks when the long group name wraps the app-bar taller on
-       mobile — which hid the tab bar behind it. */
+    /* Slim, single compact row (the big title + redundant tournament bar were removed).
+       Static here — the .app-header wrapper provides the stickiness. */
     position: static;
     background: var(--green-dark);
     color: #fff;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    justify-content: flex-start;
+    padding: 5px 12px;
+}
+
+/* Keep the header to one thin line: truncate a long group name rather than wrap. */
+.app-bar #active-group-name {
+    display: inline-block;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .app-bar-title {
@@ -306,9 +322,7 @@ section { display: block; }
     display: flex;
     background: var(--card-bg);
     border-bottom: 2px solid var(--border);
-    position: sticky;
-    top: 0;            /* pins to the very top once the app-bar scrolls past */
-    z-index: 90;
+    /* stickiness handled by the .app-header wrapper */
 }
 
 .tab-btn {
