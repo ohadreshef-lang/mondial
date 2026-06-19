@@ -1635,13 +1635,13 @@ section { display: block; }
 .live-person-row.points-1 .lp-pts { color:#2e7d32; font-weight:700; }  /* correct outcome — green */
 .live-person-row.points-0 .lp-pts { color:#9e9e9e; }                   /* miss — gray */
 /* Live tab projected leaderboard — fixed columns so they align across all rows */
-.live-lb-row { display:grid; grid-template-columns:3.4em minmax(0,1fr) 2.4em 2.9em 2.6em; gap:6px; align-items:center; padding:7px 4px; }
+.live-lb-row { display:grid; grid-template-columns:1.5em 1.7em minmax(0,1fr) 2.4em 2.9em 2.6em; gap:6px; align-items:center; padding:7px 4px; }
 .live-lb-row + .live-lb-row { border-top:1px solid #f0f0f0; }
 .live-lb-row.is-me { background:#eef7f0; border-radius:8px; }
 .live-lb-head { font-size:.72rem; color:#aaa; }
 .live-lb-head .live-lb-pill { background:none; color:#aaa; font-weight:600; }
-.live-lb-rank { display:flex; align-items:center; gap:3px; font-variant-numeric:tabular-nums; }
-.live-lb-num { font-weight:700; min-width:1.3em; text-align:center; }
+.live-lb-chgcol { display:flex; align-items:center; justify-content:center; }
+.live-lb-rank { text-align:center; font-weight:700; font-variant-numeric:tabular-nums; }
 .live-lb-chg { font-size:.6rem; line-height:1; font-weight:700; direction:ltr; }
 .live-lb-chg.up { color:#2e7d32; }
 .live-lb-chg.down { color:#c33; }
