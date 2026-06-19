@@ -924,6 +924,10 @@ function switchTab(tab) {
         p.style.display = p.id === `tab-${tab}` ? 'block' : 'none';
     });
     renderCurrentTab();
+    // Tabs share the page scroll, and opening משחקים scrolls down to the last-played
+    // match. Without resetting, every other tab inherits that bottom scroll. Matches
+    // manages its own scroll via the focus logic, so only reset for the rest.
+    if (tab !== 'matches') window.scrollTo(0, 0);
 }
 
 function renderCurrentTab() {
