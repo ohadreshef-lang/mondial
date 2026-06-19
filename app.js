@@ -183,6 +183,8 @@ let matches      = {};
 let userBets     = {};
 let activeTab    = 'matches';
 let stageFilter  = 'all';
+let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
+let _lastPlayedMatchId = null;  // most recent match already kicked off (set in renderMatches)
 let isAdminMode  = false;
 let isAdminAuthed = false;
 let pendingResultMatchId = null;
@@ -524,6 +526,7 @@ function enterAppForGroup(groupId) {
     $('header-username').textContent = currentUser.name;
     ensureUserProfile();
     startFirebaseListeners();
+    if (activeTab === 'matches') _matchesNeedsFocus = true; // focus last-played on first load too
     renderCurrentTab();
 }
 
@@ -840,6 +843,7 @@ function startFirebaseListeners() {
 
 function switchTab(tab) {
     activeTab = tab;
+    if (tab === 'matches') _matchesNeedsFocus = true; // focus last-played when opening the tab
     document.querySelectorAll('.tab-bar:not(.admin-tab-bar) .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
     });
@@ -940,6 +944,16 @@ function renderMatches() {
     const matchList = regularMatches
         .filter(m => stageFilter === 'all' || m.stage === stageFilter);
 
+    // Track the most recent match already kicked off (list is sorted ascending),
+    // so opening the tab can focus it instead of the top of the schedule.
+    const _now = new Date();
+    let lastPlayed = null;
+    for (const m of matchList) {
+        if (parseMatchDate(m.date) <= _now) lastPlayed = m;
+        else break;
+    }
+    _lastPlayedMatchId = lastPlayed ? lastPlayed.id : null;
+
     if (matchList.length === 0) {
         container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
     } else {
@@ -955,6 +969,23 @@ function renderMatches() {
         c.querySelectorAll('.bet-edit-link').forEach(btn => {
             btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
         });
+    });
+
+    // Focus the last-played match only when the tab was just opened (not on every
+    // background data refresh, which would yank the user's scroll position). If the
+    // data hasn't loaded yet there's no target — keep the flag for the next render.
+    if (_matchesNeedsFocus && _lastPlayedMatchId) {
+        _matchesNeedsFocus = false;
+        scrollToLastPlayedMatch();
+    }
+}
+
+function scrollToLastPlayedMatch() {
+    const id = _lastPlayedMatchId;
+    if (!id) return;
+    requestAnimationFrame(() => {
+        const el = document.getElementById(`card-${id}`);
+        if (el) el.scrollIntoView({ block: 'center' });
     });
 }
 
