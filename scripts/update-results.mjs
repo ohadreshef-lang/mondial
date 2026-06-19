@@ -6,17 +6,24 @@
 //
 // Runs from .github/workflows/update-results.yml on a 30-minute cron.
 //
+// Finished results + points come from football-data.org. Live in-play scores come
+// from API-Football (api-sports.io) — football-data.org's free tier never emits
+// IN_PLAY. The live layer is best-effort: if FOOTBALL_API_KEY is unset or the call
+// fails, finals/points still work and the Live tab simply shows no live score.
+//
 // Env:
-//   FOOTBALL_DATA_TOKEN  (required) football-data.org API token
+//   FOOTBALL_DATA_TOKEN  (required) football-data.org API token — finals + points
+//   FOOTBALL_API_KEY     (optional) API-Football (api-sports.io) key — live scores
 //   DRY_RUN=1            print planned writes without touching Firebase
 
-import { classifyMatches, buildResultUpdates, parseMatchDate } from './lib/results-core.mjs';
+import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate } from './lib/results-core.mjs';
 
 const FIREBASE_API_KEY = 'AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g';
 const DB_URL = 'https://mondial2026-a77fc-default-rtdb.firebaseio.com';
 const ROOT = 'worldcup2026';
 
 const FD_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
+const AF_KEY = process.env.FOOTBALL_API_KEY;
 const DRY_RUN = !!process.env.DRY_RUN;
 
 // Tournament window: June 11 – July 19, 2026 (with margin). Outside it the
@@ -96,6 +103,27 @@ async function fetchApiMatches(dateFrom, dateTo) {
     return (await res.json()).matches || [];
 }
 
+// API-Football: all currently in-play fixtures (one call covers every live game).
+// We filter to our matches by team pair in mapApiFootballLive(). Returns [] on any
+// error so the live layer can never break the (authoritative) finals/points flow.
+async function fetchApiFootballLive() {
+    try {
+        const res = await retryFetch('API-Football live', 'https://v3.football.api-sports.io/fixtures?live=all', {
+            headers: { 'x-apisports-key': AF_KEY },
+        });
+        const json = await res.json();
+        const errs = json.errors;
+        if (errs && ((Array.isArray(errs) && errs.length) || (typeof errs === 'object' && Object.keys(errs).length))) {
+            console.warn('API-Football returned errors:', JSON.stringify(errs));
+            return [];
+        }
+        return json.response || [];
+    } catch (err) {
+        console.warn('API-Football live fetch failed (live scores skipped this run):', err.message);
+        return [];
+    }
+}
+
 function utcDay(ms) {
     return new Date(ms).toISOString().slice(0, 10);
 }
@@ -124,9 +152,22 @@ async function main() {
     const apiMatches = await fetchApiMatches(dateFrom, dateTo);
     console.log(`API returned ${apiMatches.length} match(es) (all statuses) between ${dateFrom} and ${dateTo}.`);
 
-    const { finished, live, staleUnmatched } = classifyMatches({
+    // football-data.org is authoritative for FINISHED results (+ points). Its free
+    // tier never reports IN_PLAY, so we ignore its `live` and source live scores
+    // from API-Football instead.
+    const { finished, staleUnmatched } = classifyMatches({
         matches, apiMatches, now, staleMinutes: STALE_MINUTES, inPlayWindowMs: 3 * 3600 * 1000,
     });
+
+    // Live in-play scores from API-Football (best-effort). One call covers all live
+    // games; only spent when a started-unfinished match exists (i.e. a live window).
+    let live = [];
+    if (AF_KEY) {
+        const apiFixtures = await fetchApiFootballLive();
+        live = mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs: 3 * 3600 * 1000 });
+    } else {
+        console.warn('FOOTBALL_API_KEY not set — skipping live scores.');
+    }
     console.log(`Classified: ${finished.length} finished, ${live.length} live.`);
 
     let groups = {}, bets = {}, specialBets = {};

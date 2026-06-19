@@ -2,7 +2,9 @@ name: Update match results
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    # Every 10 min: API-Football free tier is 100 req/day; the live call only fires
+    # during live windows, so */10 stays well under the cap (~40-50/day on a busy day).
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Fetch finished matches and write results
+      - name: Fetch finished + live matches and write results
         run: node scripts/update-results.mjs
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}

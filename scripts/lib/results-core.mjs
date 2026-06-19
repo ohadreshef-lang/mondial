@@ -54,6 +54,70 @@ export function calcPoints(b1, b2, r1, r2) {
     return 0;
 }
 
+// --- API-Football live source (in-play scores only) -----------------------
+// football-data.org's free tier never emits IN_PLAY, so live scores come from
+// API-Football (api-sports.io). This maps its `fixtures?live=all` response to our
+// `live` entries. Finished results + points still come from football-data.org.
+
+// API-Football status.short -> our live status. Anything else (NS, FT, AET, PEN,
+// PST, CANC, ...) is not an in-play score and is skipped here.
+const AF_INPLAY = new Set(['1H', '2H', 'ET', 'BT', 'P', 'LIVE']);
+
+// API-Football team-name spellings that differ from our canonical English
+// (post-base-normalisation). Unmatched live fixtures are skipped gracefully.
+const AF_NAME_FIX = {
+    'korea republic': 'South Korea',
+    'czech republic': 'Czechia',
+    'cape verde islands': 'Cape Verde',
+    'congo dr': 'DR Congo',
+    'bosnia': 'Bosnia and Herzegovina',
+    "cote d'ivoire": 'Ivory Coast',
+    'usa': 'USA',
+};
+
+function normAf(name) {
+    const b = norm(name);                 // NFD + lowercase + API_ALIASES
+    return AF_NAME_FIX[b] ? norm(AF_NAME_FIX[b]) : b;
+}
+
+// Map API-Football live fixtures to our live entries. Pure — pass the fixtures in.
+// A DB match is matched to a single in-play fixture by team pair + ±36h window,
+// within inPlayWindowMs of kickoff. Returns [{ matchId, m, g1, g2, status }].
+export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs = 3 * 3600 * 1000 }) {
+    const live = [];
+    for (const [matchId, m] of Object.entries(matches || {})) {
+        if (!m || !m.team1 || !m.team2 || !m.date) continue;
+        if (m.result && m.result.team1Goals !== undefined) continue;
+        const kickoff = parseMatchDate(m.date);
+        if (kickoff > now || (now - kickoff) > inPlayWindowMs) continue;
+        const en1 = HEB_TO_EN[m.team1], en2 = HEB_TO_EN[m.team2];
+        if (!en1 || !en2) continue;
+        const t1 = norm(en1), t2 = norm(en2);
+
+        const hits = (apiFixtures || []).filter(f => {
+            const short = f.fixture && f.fixture.status && f.fixture.status.short;
+            if (short !== 'HT' && !AF_INPLAY.has(short)) return false;
+            const home = normAf(f.teams && f.teams.home && f.teams.home.name);
+            const away = normAf(f.teams && f.teams.away && f.teams.away.name);
+            const same = (home === t1 && away === t2) || (home === t2 && away === t1);
+            if (!same) return false;
+            const fdate = f.fixture && f.fixture.date ? Date.parse(f.fixture.date) : NaN;
+            return Number.isNaN(fdate) ? true : Math.abs(fdate - kickoff) <= 36 * 3600 * 1000;
+        });
+        if (hits.length !== 1) continue;  // 0 = not live/unmatched, >1 = ambiguous -> skip
+
+        const f = hits[0];
+        const gh = f.goals && f.goals.home, ga = f.goals && f.goals.away;
+        if (gh == null || ga == null) continue;
+        const homeIsT1 = normAf(f.teams.home.name) === t1;
+        const g1 = homeIsT1 ? gh : ga;
+        const g2 = homeIsT1 ? ga : gh;
+        const status = f.fixture.status.short === 'HT' ? 'PAUSED' : 'IN_PLAY';
+        live.push({ matchId, m, g1, g2, status });
+    }
+    return live;
+}
+
 // Match a DB match to a single API fixture by team pair + ±36h window.
 function findApiFixture(m, apiMatches) {
     const en1 = HEB_TO_EN[m.team1];
