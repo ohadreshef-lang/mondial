@@ -10,6 +10,7 @@
 <script src="../../i18n.js?cachebust=1"></script>
 <script src="../../app.js?cachebust=1"></script>
 <script>
+  try {
   // Inject mock state. app.js uses top-level `let` which in classic scripts does NOT land
   // on `window`, so we mutate the existing objects via Object.assign / bracket assignment.
   // All of these refs are the same objects the closures inside app.js captured.
@@ -43,12 +44,12 @@
     ['Bob wrong -> 0 pts shown', /Bob[\s\S]*?2–2[\s\S]*?>0</.test(html)],
   ];
 
-  // Task 6: finished match breakdown
-  window.matches.g2 = { id:'g2', team1:'אנגליה', team2:'קרואטיה', date:'2026-06-10T20:00', group:'L', stage:'group',
-                        result:{ team1Goals:4, team2Goals:2 }, finishedAt: now - 3*3600*1000 };
-  window.allGroupBets.u1.g2 = { team1Goals:4, team2Goals:2 }; // exact
-  window.userBets = window.userBets || {};
-  window.stageFilter = 'all';
+  // Task 6: finished match breakdown. Mutate the same `let` objects in place (bare
+  // refs — these are NOT on `window`; using window.matches here would be undefined).
+  matches.g2 = { id:'g2', team1:'אנגליה', team2:'קרואטיה', date:'2026-06-10T20:00', group:'L', stage:'group',
+                 result:{ team1Goals:4, team2Goals:2 }, finishedAt: now - 3*3600*1000 };
+  allGroupBets.u1.g2 = { team1Goals:4, team2Goals:2 }; // exact
+  stageFilter = 'all';
   renderMatches();
   const mhtml = document.getElementById('matches-container').innerHTML;
   checks.push(['matches breakdown toggle present', mhtml.includes('breakdown-toggle')]);
@@ -56,4 +57,8 @@
 
   document.getElementById('RESULT').textContent =
     checks.map(([n,ok]) => (ok?'PASS':'FAIL')+' '+n).join('\n');
+  } catch (e) {
+    // Surface render throws instead of leaving #RESULT empty (which hides failures).
+    document.getElementById('RESULT').textContent = 'FAIL (threw): ' + (e && e.message) + '\n' + (e && e.stack);
+  }
 </script>
