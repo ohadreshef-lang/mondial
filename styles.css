@@ -1627,6 +1627,21 @@ section { display: block; }
 .live-person-row.points-3 .lp-pts { color:#9a7d0a; font-weight:800; }  /* exact — gold */
 .live-person-row.points-1 .lp-pts { color:#2e7d32; font-weight:700; }  /* correct outcome — green */
 .live-person-row.points-0 .lp-pts { color:#9e9e9e; }                   /* miss — gray */
+/* Live tab projected leaderboard rows */
+.live-lb-row { display:grid; grid-template-columns:1.9em 1fr auto auto; gap:8px; align-items:center; padding:6px 4px; }
+.live-lb-row + .live-lb-row { border-top:1px solid #f2f2f2; }
+.live-lb-row.is-me { background:#eef7f0; border-radius:6px; }
+.live-lb-head { font-size:.75rem; color:var(--text-light,#888); }
+.live-lb-rank { text-align:center; font-variant-numeric:tabular-nums; }
+.live-lb-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.live-lb-bet { font-size:.85rem; color:var(--text-light,#888); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.live-lb-gain { font-weight:800; }
+.live-lb-gain.d3 { color:#9a7d0a; }
+.live-lb-gain.d1 { color:#2e7d32; }
+.live-lb-total { font-weight:800; font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:3px; justify-content:flex-end; white-space:nowrap; }
+.live-lb-arrow { font-size:.7rem; line-height:1; }
+.live-lb-arrow.up { color:#2e7d32; }
+.live-lb-arrow.down { color:#c33; }
 .breakdown-toggle { margin-top:8px; background:none; border:none; color:var(--accent,#1a7); cursor:pointer; font-size:.85rem; }
 .match-breakdown { margin-top:6px; border-top:1px solid var(--divider,#eee); }
 .match-breakdown.hidden { display:none; }

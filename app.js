@@ -1237,20 +1237,35 @@ function buildLiveCard(m) {
         ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
         : `<span class="live-not-started">${t('live.notStarted')}</span>`;
 
-    // Per-person rows; while there's a score, sort as a live mini-leaderboard (best first).
-    const rows = Object.keys(groupMembers).map(uid => {
-        const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
-            || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
-        const bet = (allGroupBets[uid] || {})[m.id];
-        const pts = (bet && score) ? calcPoints(bet.team1Goals, bet.team2Goals, score.team1Goals, score.team2Goals) : null;
-        return { name, betStr: bet ? `${bet.team1Goals}–${bet.team2Goals}` : '—', pts };
-    });
-    if (score) rows.sort((a, b) => (b.pts || 0) - (a.pts || 0) || a.name.localeCompare(b.name));
-    const rowsHtml = rows.map(r => {
-        const ptsStr = r.pts === null ? '—' : r.pts;
-        const cls = r.pts === null ? '' : (r.pts >= 3 ? 'points-3' : r.pts === 1 ? 'points-1' : 'points-0');
-        return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(r.name)}</span>`
-             + `<span class="lp-bet">${r.betStr}</span><span class="lp-pts">${ptsStr}</span></div>`;
+    // Projected live leaderboard: each member's current total + this match's
+    // provisional points, ranked, with medals (🥇🥈🥉) and ↑/↓ vs their current spot.
+    const uids   = Object.keys(groupMembers);
+    const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+    const baseOf = uid => (groupMembers[uid] && groupMembers[uid].totalPoints) || 0;
+    const matchOf = uid => { const b = (allGroupBets[uid] || {})[m.id]; return (b && score) ? calcPoints(b.team1Goals, b.team2Goals, score.team1Goals, score.team2Goals) : 0; };
+    const betOf  = uid => { const b = (allGroupBets[uid] || {})[m.id]; return b ? `${b.team1Goals}–${b.team2Goals}` : '—'; };
+    // Current standing (tie-break by name so positions are stable), then projected.
+    const oldPos = {};
+    [...uids].sort((a, b) => baseOf(b) - baseOf(a) || nameOf(a).localeCompare(nameOf(b))).forEach((uid, i) => { oldPos[uid] = i + 1; });
+    const newOrder = [...uids].sort((a, b) =>
+        (baseOf(b) + matchOf(b)) - (baseOf(a) + matchOf(a)) || baseOf(b) - baseOf(a) || nameOf(a).localeCompare(nameOf(b)));
+
+    const rowsHtml = newOrder.map((uid, i) => {
+        const rank  = i + 1;
+        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+        const isMe  = currentUser && uid === currentUser.userId;
+        const mp    = matchOf(uid);
+        const total = baseOf(uid) + mp;
+        const delta = oldPos[uid] - rank;   // > 0 = climbed
+        const arrow = delta > 0 ? '<span class="live-lb-arrow up">▲</span>'
+                    : delta < 0 ? '<span class="live-lb-arrow down">▼</span>' : '';
+        const gain  = (score && mp) ? ` <b class="live-lb-gain ${mp >= 3 ? 'd3' : 'd1'}">+${mp}</b>` : '';
+        return `<div class="live-lb-row ${isMe ? 'is-me' : ''}">`
+             + `<span class="live-lb-rank">${medal}</span>`
+             + `<span class="live-lb-name">${escapeHtml(nameOf(uid))}</span>`
+             + `<span class="live-lb-bet">${betOf(uid)}${gain}</span>`
+             + `<span class="live-lb-total">${total}${arrow}</span>`
+             + `</div>`;
     }).join('');
 
     return `
@@ -1265,7 +1280,7 @@ function buildLiveCard(m) {
             <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
         <div class="live-people">
-            <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('live.provisional')}</span></div>
+            <div class="live-lb-row live-lb-head"><span></span><span></span><span>${t('match.yourBet')}</span><span>${t('live.total')}</span></div>
             ${rowsHtml}
         </div>
     </div>`;
