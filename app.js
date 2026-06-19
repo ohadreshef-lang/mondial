@@ -182,6 +182,7 @@ let currentUser = null;
 let matches      = {};
 let userBets     = {};
 let allGroupBets = {};
+let onAllGroupBets = null; // named callback so it can be detached precisely
 let activeTab    = 'matches';
 let stageFilter  = 'all';
 let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
@@ -731,7 +732,11 @@ function stopGroupListeners() {
     if (!db || !currentGroupId || !currentUser) return;
     ref(`groups/${currentGroupId}/members`).off();
     ref(`bets/${currentGroupId}/${currentUser.userId}`).off();
-    ref(`bets/${currentGroupId}`).off();
+    if (onAllGroupBets) {
+        ref(`bets/${currentGroupId}`).off('value', onAllGroupBets);
+        onAllGroupBets = null;
+    }
+    allGroupBets = {};
 }
 
 function handleLogout() {
@@ -850,11 +855,12 @@ function startFirebaseListeners() {
         }, () => {});
     }
 
-    ref(`bets/${currentGroupId}`).on('value', snap => {
+    onAllGroupBets = snap => {
         allGroupBets = snap.val() || {};
         if (activeTab === 'live' && typeof renderLive === 'function') renderLive();
         if (activeTab === 'matches') renderMatches();
-    }, () => {});
+    };
+    ref(`bets/${currentGroupId}`).on('value', onAllGroupBets, () => {});
 }
 
 // ============================================================
