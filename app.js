@@ -1292,7 +1292,8 @@ function buildLiveCard(m) {
         const pillCls = !score ? 'p0' : mp >= 3 ? 'p4' : mp === 1 ? 'p1' : 'p0';
         const pillTxt = (!score || mp === 0) ? '–' : `+${mp}`;
         return `<div class="live-lb-row ${isMe ? 'is-me' : ''}">`
-             + `<span class="live-lb-rank">${chg}<span class="live-lb-num">${rankLabel}</span></span>`
+             + `<span class="live-lb-chgcol">${chg}</span>`
+             + `<span class="live-lb-rank">${rankLabel}</span>`
              + `<span class="live-lb-name">${escapeHtml(nameOf(uid))}${meTag}</span>`
              + `<span class="live-lb-total">${total}</span>`
              + `<span class="live-lb-pill ${pillCls}">${pillTxt}</span>`
@@ -1321,7 +1322,7 @@ function buildLiveCard(m) {
             <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
         <div class="live-people">
-            <div class="live-lb-row live-lb-head"><span class="live-lb-rank">#</span><span class="live-lb-name"></span><span class="live-lb-total">${t('live.total')}</span><span class="live-lb-pill">±</span><span class="live-lb-pick">${t('match.yourBet')}</span></div>
+            <div class="live-lb-row live-lb-head"><span class="live-lb-chgcol"></span><span class="live-lb-rank">#</span><span class="live-lb-name"></span><span class="live-lb-total">${t('live.total')}</span><span class="live-lb-pill">±</span><span class="live-lb-pick">${t('match.yourBet')}</span></div>
             ${rowsHtml}
         </div>
     </div>`;
