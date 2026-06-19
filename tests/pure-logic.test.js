@@ -243,19 +243,24 @@ test('isInLiveTab: finished result, no finishedAt, kickoff long ago -> false (fa
     assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 } }, Date.now()), false);
 });
 
-// --- computeLiveMinute -----------------------------------------------------
+// --- computeLiveMinute (now, kickoffMs, elapsed, extra, upd, status) -------
 test('computeLiveMinute: ticks from API minute + elapsed since update', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.computeLiveMinute(now, now - 50*60000, 50, now - 2*60000, 'IN_PLAY'), "52'");
+    assert.equal(app.computeLiveMinute(now, now - 50*60000, 50, null, now - 2*60000, 'IN_PLAY'), "52'");
 });
-test('computeLiveMinute: halftime shows nothing (badge says HT)', () => {
-    assert.equal(app.computeLiveMinute(Date.now(), Date.now(), 45, Date.now(), 'PAUSED'), '');
+test('computeLiveMinute: stoppage shown as 90+N (ticks the extra)', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.computeLiveMinute(now, now - 95*60000, 90, 3, now - 1*60000, 'IN_PLAY'), "90+4'");
+});
+test('computeLiveMinute: halftime and FT show nothing (badge says it)', () => {
+    assert.equal(app.computeLiveMinute(Date.now(), Date.now(), 45, 2, Date.now(), 'PAUSED'), '');
+    assert.equal(app.computeLiveMinute(Date.now(), Date.now(), null, null, null, 'FT'), '');
 });
 test('computeLiveMinute: estimates from kickoff when no API minute', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.computeLiveMinute(now, now - 10*60000, null, null, 'IN_PLAY'), "10'");
+    assert.equal(app.computeLiveMinute(now, now - 10*60000, null, null, null, 'IN_PLAY'), "10'");
 });
 test('computeLiveMinute: estimate caps at 90+', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.computeLiveMinute(now, now - 200*60000, null, null, 'IN_PLAY'), "90+'");
+    assert.equal(app.computeLiveMinute(now, now - 200*60000, null, null, null, 'IN_PLAY'), "90+'");
 });

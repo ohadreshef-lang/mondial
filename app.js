@@ -275,25 +275,26 @@ function isInLiveTab(m, now) {
 // as the base and ticks forward by wall-clock since then; falls back to estimating
 // from kickoff when no API minute is available yet. Returns '' at halftime (the
 // status badge already says so).
-function computeLiveMinute(now, kickoffMs, apiMin, upd, status) {
-    if (status === 'PAUSED') return '';
-    let mins;
-    if (apiMin != null && upd != null) {
-        mins = apiMin + Math.max(0, Math.floor((now - upd) / 60000));   // real minute, ticking
-    } else {
-        mins = Math.floor((now - kickoffMs) / 60000);                   // estimate (ignores stoppage/HT)
-        if (mins > 90) return "90+'";
+function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status) {
+    if (status === 'PAUSED' || status === 'FT') return '';   // badge conveys these
+    const tick = (upd != null && status === 'IN_PLAY') ? Math.max(0, Math.floor((now - upd) / 60000)) : 0;
+    if (elapsed == null) {                                    // estimate from kickoff (rough)
+        const est = Math.floor((now - kickoffMs) / 60000);
+        return est > 90 ? "90+'" : (est < 0 ? 0 : est) + "'";
     }
-    return (mins < 0 ? 0 : mins) + "'";
+    // API caps elapsed at 45/90; stoppage lives in `extra`, shown as "45+2'" / "90+3'".
+    if (extra != null && extra > 0) return `${elapsed}+${extra + tick}'`;
+    return `${elapsed + tick}'`;
 }
 
 // Re-tick all live-minute labels (called from the 1s interval).
 function updateLiveMinutes() {
     const now = Date.now();
     document.querySelectorAll('.live-minute').forEach(el => {
-        const apiMin = el.dataset.min === '' ? null : +el.dataset.min;
+        const elapsed = el.dataset.min === '' ? null : +el.dataset.min;
+        const extra = el.dataset.extra === '' ? null : +el.dataset.extra;
         const upd = el.dataset.upd === '' ? null : +el.dataset.upd;
-        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, apiMin, upd, el.dataset.status);
+        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, el.dataset.status);
     });
 }
 
@@ -1245,19 +1246,22 @@ function renderLive() {
 
 function buildLiveCard(m) {
     const live = m.live || null;
+    const liveStatus = live ? live.status : null;            // 'IN_PLAY' | 'PAUSED' | 'FT'
     const hasResult = m.result !== null && m.result !== undefined;
     const started = parseMatchDate(m.date).getTime() <= Date.now();
-    const isLive = !hasResult && started;   // in progress — true even before the live node lands
-    // Score: final result → live node → 0-0 once kicked off → none (still locked pre-kickoff).
+    const isFt = liveStatus === 'FT';                        // API says full-time (await official result)
+    const isPaused = liveStatus === 'PAUSED';
+    const inPlay = started && !hasResult && !isFt && !isPaused;  // actively playing (IN_PLAY or pre-node estimate)
+    // Score: official result → live node (incl. FT) → 0-0 once kicked off → none (locked pre-kickoff).
     const score = hasResult ? m.result
                 : live ? live
                 : started ? { team1Goals: 0, team2Goals: 0 }
                 : null;
 
     let statusKey, badgeClass, dot = '';
-    if (hasResult) { statusKey = 'match.status.completed'; badgeClass = 'badge-completed'; }
-    else if (live && live.status === 'PAUSED') { statusKey = 'live.statusHalftime'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
-    else if (isLive) { statusKey = 'live.statusLive'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
+    if (hasResult || isFt) { statusKey = 'match.status.completed'; badgeClass = 'badge-completed'; }  // game over
+    else if (isPaused) { statusKey = 'live.statusHalftime'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
+    else if (inPlay) { statusKey = 'live.statusLive'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
     else { statusKey = 'live.statusLocked'; badgeClass = 'badge-locked'; }   // locked, not started yet
 
     const scoreHtml = score
@@ -1301,13 +1305,15 @@ function buildLiveCard(m) {
              + `</div>`;
     }).join('');
 
-    // Live minute label; data attrs let the 1s interval tick it between API updates.
+    // Live minute label (only while actually playing — not at FT). Data attrs let the
+    // 1s interval tick it between API polls; extra = stoppage minutes ("90+3'").
     const kickoffMs = parseMatchDate(m.date).getTime();
     const apiMin = live && typeof live.minute === 'number' ? live.minute : '';
+    const apiExtra = live && typeof live.extra === 'number' ? live.extra : '';
     const upd = live && live.updatedAt ? live.updatedAt : '';
-    const minStatus = (live && live.status === 'PAUSED') ? 'PAUSED' : 'IN_PLAY';
-    const minuteHtml = isLive
-        ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, upd === '' ? null : upd, minStatus)}</span>`
+    const minStatus = isPaused ? 'PAUSED' : 'IN_PLAY';
+    const minuteHtml = (inPlay || isPaused)
+        ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-extra="${apiExtra}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, apiExtra === '' ? null : apiExtra, upd === '' ? null : upd, minStatus)}</span>`
         : '';
 
     return `

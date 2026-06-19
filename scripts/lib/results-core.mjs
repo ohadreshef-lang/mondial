@@ -62,6 +62,10 @@ export function calcPoints(b1, b2, r1, r2) {
 // API-Football status.short -> our live status. Anything else (NS, FT, AET, PEN,
 // PST, CANC, ...) is not an in-play score and is skipped here.
 const AF_INPLAY = new Set(['1H', '2H', 'ET', 'BT', 'P', 'LIVE']);
+// Finished statuses — used to CLOSE the game promptly (football-data.org's free tier
+// is delayed, so we mark FT from API-Football and let football-data set the official
+// result + points when it catches up).
+const AF_FINISHED = new Set(['FT', 'AET', 'PEN']);
 
 // API-Football team-name spellings that differ from our canonical English
 // (post-base-normalisation). Unmatched live fixtures are skipped gracefully.
@@ -96,7 +100,7 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
 
         const hits = (apiFixtures || []).filter(f => {
             const short = f.fixture && f.fixture.status && f.fixture.status.short;
-            if (short !== 'HT' && !AF_INPLAY.has(short)) return false;
+            if (short !== 'HT' && !AF_INPLAY.has(short) && !AF_FINISHED.has(short)) return false;
             const home = normAf(f.teams && f.teams.home && f.teams.home.name);
             const away = normAf(f.teams && f.teams.away && f.teams.away.name);
             const same = (home === t1 && away === t2) || (home === t2 && away === t1);
@@ -112,9 +116,13 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
         const homeIsT1 = normAf(f.teams.home.name) === t1;
         const g1 = homeIsT1 ? gh : ga;
         const g2 = homeIsT1 ? ga : gh;
-        const status = f.fixture.status.short === 'HT' ? 'PAUSED' : 'IN_PLAY';
-        const minute = (f.fixture.status && typeof f.fixture.status.elapsed === 'number') ? f.fixture.status.elapsed : null;
-        live.push({ matchId, m, g1, g2, status, minute });
+        const st = f.fixture.status || {};
+        const short = st.short;
+        const status = short === 'HT' ? 'PAUSED' : AF_FINISHED.has(short) ? 'FT' : 'IN_PLAY';
+        // FT carries no running clock; otherwise capture elapsed (caps 45/90) + stoppage.
+        const minute = status === 'FT' ? null : (typeof st.elapsed === 'number' ? st.elapsed : null);
+        const extra = status === 'FT' ? null : (typeof st.extra === 'number' ? st.extra : null);
+        live.push({ matchId, m, g1, g2, status, minute, extra });
     }
     return live;
 }
@@ -182,8 +190,8 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
 export function buildResultUpdates({ finished, live, groups, bets, specialBets, now }) {
     const updates = {};
 
-    for (const { matchId, g1, g2, status, minute } of live) {
-        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute };
+    for (const { matchId, g1, g2, status, minute, extra } of live) {
+        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra };
     }
 
     for (const { matchId, g1, g2 } of finished) {

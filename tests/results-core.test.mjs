@@ -60,7 +60,7 @@ test('buildResultUpdates: live entry writes a live node only', () => {
   const now = 1750000000000;
   const live = [{ matchId: 'm_live', m: { team1:'גאנה', team2:'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY' }];
   const updates = buildResultUpdates({ finished: [], live, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null });
+  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null, extra: null });
   assert.equal(updates['matches/m_live/result'], undefined);
 });
 
@@ -99,6 +99,22 @@ test('mapApiFootballLive: in-play (1H) -> live entry with correct orientation', 
   assert.equal(live[0].minute, 50); // captured from fixture.status.elapsed
 });
 
+test('mapApiFootballLive: stoppage time captured in extra', () => {
+  const f = afFixture('Ghana', 'Panama', 1, 0, '2H'); f.fixture.status.elapsed = 90; f.fixture.status.extra = 3;
+  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
+  assert.equal(live[0].minute, 90);
+  assert.equal(live[0].extra, 3);
+});
+
+test('mapApiFootballLive: FT closes the game (status FT, no clock)', () => {
+  const f = afFixture('Ghana', 'Panama', 1, 0, 'FT');
+  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
+  assert.equal(live.length, 1);
+  assert.equal(live[0].status, 'FT');
+  assert.equal(live[0].minute, null);
+  assert.equal(live[0].extra, null);
+});
+
 test('mapApiFootballLive: away-home swap orients to team1/team2', () => {
   // API has Panama at home; our DB has Ghana as team1 -> g1 must follow Ghana.
   const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Panama', 'Ghana', 0, 2, '2H')], now: afNow });
@@ -121,11 +137,9 @@ test('mapApiFootballLive: team-name alias (Korea Republic -> South Korea)', () =
   assert.equal(live[0].status, 'IN_PLAY');
 });
 
-test('mapApiFootballLive: non-live status (NS/FT) is skipped', () => {
+test('mapApiFootballLive: not-started (NS) is skipped', () => {
   const ns = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 0, 0, 'NS')], now: afNow });
-  const ft = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 1, 0, 'FT')], now: afNow });
   assert.equal(ns.length, 0);
-  assert.equal(ft.length, 0);
 });
 
 test('mapApiFootballLive: null goals skipped; already-finished match skipped; unmatched skipped', () => {
