@@ -783,6 +783,7 @@ function startFirebaseListeners() {
         if (activeTab === 'matches') renderMatches();
         if (activeTab === 'my-bets') renderMyBets();
         if (activeTab === 'tournament') renderTournament();
+        if (activeTab === 'live') renderLive();
     }, permissionError);
 
     ref('settings/tournament').on('value', snap => {
@@ -931,6 +932,7 @@ function switchTournament(key) {
             if (activeTab === 'matches') renderMatches();
             if (activeTab === 'my-bets') renderMyBets();
             if (activeTab === 'tournament') renderTournament();
+            if (activeTab === 'live') renderLive();
         }, () => {});
     }
 
