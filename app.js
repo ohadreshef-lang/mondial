@@ -1252,19 +1252,22 @@ function buildLiveCard(m) {
 
     const rowsHtml = newOrder.map((uid, i) => {
         const rank  = i + 1;
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
         const isMe  = currentUser && uid === currentUser.userId;
         const mp    = matchOf(uid);
         const total = baseOf(uid) + mp;
         const delta = oldPos[uid] - rank;   // > 0 = climbed
-        const arrow = delta > 0 ? '<span class="live-lb-arrow up">▲</span>'
-                    : delta < 0 ? '<span class="live-lb-arrow down">▼</span>' : '';
-        const gain  = (score && mp) ? ` <b class="live-lb-gain ${mp >= 3 ? 'd3' : 'd1'}">+${mp}</b>` : '';
+        const chg   = delta > 0 ? `<span class="live-lb-chg up">▲${delta}</span>`
+                    : delta < 0 ? `<span class="live-lb-chg down">▼${-delta}</span>` : '';
+        const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+        const meTag = isMe ? ` <span class="lb-me-tag">${t('leaderboard.meTag')}</span>` : '';
+        const pillCls = !score ? 'p0' : mp >= 3 ? 'p4' : mp === 1 ? 'p1' : 'p0';
+        const pillTxt = (!score || mp === 0) ? '–' : `+${mp}`;
         return `<div class="live-lb-row ${isMe ? 'is-me' : ''}">`
-             + `<span class="live-lb-rank">${medal}</span>`
-             + `<span class="live-lb-name">${escapeHtml(nameOf(uid))}</span>`
-             + `<span class="live-lb-bet">${betOf(uid)}${gain}</span>`
-             + `<span class="live-lb-total">${total}${arrow}</span>`
+             + `<span class="live-lb-rank">${chg}<span class="live-lb-num">${rankLabel}</span></span>`
+             + `<span class="live-lb-name">${escapeHtml(nameOf(uid))}${meTag}</span>`
+             + `<span class="live-lb-total">${total}</span>`
+             + `<span class="live-lb-pill ${pillCls}">${pillTxt}</span>`
+             + `<span class="live-lb-pick">${betOf(uid)}</span>`
              + `</div>`;
     }).join('');
 
@@ -1280,7 +1283,7 @@ function buildLiveCard(m) {
             <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
         <div class="live-people">
-            <div class="live-lb-row live-lb-head"><span></span><span></span><span>${t('match.yourBet')}</span><span>${t('live.total')}</span></div>
+            <div class="live-lb-row live-lb-head"><span class="live-lb-rank">#</span><span class="live-lb-name"></span><span class="live-lb-total">${t('live.total')}</span><span class="live-lb-pill">±</span><span class="live-lb-pick">${t('match.yourBet')}</span></div>
             ${rowsHtml}
         </div>
     </div>`;
