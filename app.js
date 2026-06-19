@@ -1272,7 +1272,14 @@ function buildLiveCard(m) {
     // provisional points, ranked, with medals (🥇🥈🥉) and ↑/↓ vs their current spot.
     const uids   = Object.keys(groupMembers);
     const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
-    const baseOf = uid => (groupMembers[uid] && groupMembers[uid].totalPoints) || 0;
+    // Once the updater finalizes a match it writes this match's points into the bet
+    // AND folds them into totalPoints. The projection adds the match's provisional
+    // points itself (matchOf), so we must strip any already-counted points out of the
+    // base first — otherwise the finished match is counted twice (base + matchOf) and
+    // totals jump the moment the leaderboard updates. During the live phase no points
+    // are stored yet, so countedOf is 0 and base == totalPoints as before.
+    const countedOf = uid => { const b = (allGroupBets[uid] || {})[m.id]; return (b && typeof b.points === 'number') ? b.points : 0; };
+    const baseOf = uid => (((groupMembers[uid] && groupMembers[uid].totalPoints) || 0) - countedOf(uid));
     // A missing bet counts as 0–0 (matches how the updater auto-fills no-bets when a
     // match finishes), so no-betters are scored and shown as 0–0, never "—".
     const matchOf = uid => { if (!score) return 0; const b = (allGroupBets[uid] || {})[m.id]; return calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, score.team1Goals, score.team2Goals); };
