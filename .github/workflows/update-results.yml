@@ -2,7 +2,12 @@ name: Update match results
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # Every 5 min for fresher live scores. API-Football free is 100 req/day; the live
+    # call only fires during live windows. On a heavy matchday this can reach the cap —
+    # that's fine: fetchApiFootballLive() returns [] on HTTP 429 / quota error, so
+    # finals + points (football-data.org) keep working and live scores resume when the
+    # quota resets at 00:00 UTC.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Fetch finished matches and write results
+      - name: Fetch finished + live matches and write results
         run: node scripts/update-results.mjs
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}

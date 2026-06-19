@@ -181,6 +181,8 @@ function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
 let currentUser = null;
 let matches      = {};
 let userBets     = {};
+let allGroupBets = {};
+let onAllGroupBets = null; // named callback so it can be detached precisely
 let activeTab    = 'matches';
 let stageFilter  = 'all';
 let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
@@ -255,6 +257,17 @@ function formatDate(dateStr) {
 
 function matchIsLocked(match) {
     return parseMatchDate(match.date) - new Date() <= 5 * 60 * 1000;
+}
+
+// A match belongs in the Live tab once its bets are locked and until at least an
+// hour after it ends. End time = finishedAt when present, else kickoff + 2h.
+function isInLiveTab(m, now) {
+    if (!m || !m.date) return false;
+    if (!matchIsLocked(m)) return false;                 // bets still open
+    const hasResult = m.result !== null && m.result !== undefined;
+    if (!hasResult) return true;                         // locked + not finished
+    const endTime = m.finishedAt || (parseMatchDate(m.date).getTime() + 2 * 3600 * 1000);
+    return (now - endTime) < 60 * 60 * 1000;             // kept <1h after end
 }
 
 function formatCountdown(ms) {
@@ -719,6 +732,11 @@ function stopGroupListeners() {
     if (!db || !currentGroupId || !currentUser) return;
     ref(`groups/${currentGroupId}/members`).off();
     ref(`bets/${currentGroupId}/${currentUser.userId}`).off();
+    if (onAllGroupBets) {
+        ref(`bets/${currentGroupId}`).off('value', onAllGroupBets);
+        onAllGroupBets = null;
+    }
+    allGroupBets = {};
 }
 
 function handleLogout() {
@@ -735,8 +753,9 @@ function handleLogout() {
     userGroups     = {};
     groupMembers   = {};
     groupUsersCache = {};
-    matches  = {};
-    userBets = {};
+    matches      = {};
+    userBets     = {};
+    allGroupBets = {};
     localStorage.removeItem('wc2026_activeGroup');
     clearPendingJoin();
     showInitialScreen();
@@ -764,6 +783,7 @@ function startFirebaseListeners() {
         if (activeTab === 'matches') renderMatches();
         if (activeTab === 'my-bets') renderMyBets();
         if (activeTab === 'tournament') renderTournament();
+        if (activeTab === 'live') renderLive();
     }, permissionError);
 
     ref('settings/tournament').on('value', snap => {
@@ -835,6 +855,13 @@ function startFirebaseListeners() {
             if (activeTab === 'tournament') renderTournament();
         }, () => {});
     }
+
+    onAllGroupBets = snap => {
+        allGroupBets = snap.val() || {};
+        if (activeTab === 'live' && typeof renderLive === 'function') renderLive();
+        if (activeTab === 'matches') renderMatches();
+    };
+    ref(`bets/${currentGroupId}`).on('value', onAllGroupBets, () => {});
 }
 
 // ============================================================
@@ -859,6 +886,7 @@ function renderCurrentTab() {
     else if (activeTab === 'leaderboard') renderLeaderboard();
     else if (activeTab === 'my-bets')     renderMyBets();
     else if (activeTab === 'tournament')  renderTournament();
+    else if (activeTab === 'live')        renderLive();
 
     if (activeTab === 'tournament') startTournamentCountdown();
     else stopTournamentCountdown();
@@ -904,6 +932,7 @@ function switchTournament(key) {
             if (activeTab === 'matches') renderMatches();
             if (activeTab === 'my-bets') renderMyBets();
             if (activeTab === 'tournament') renderTournament();
+            if (activeTab === 'live') renderLive();
         }, () => {});
     }
 
@@ -968,6 +997,12 @@ function renderMatches() {
         });
         c.querySelectorAll('.bet-edit-link').forEach(btn => {
             btn.addEventListener('click', () => unlockBetEdit(btn.dataset.matchId));
+        });
+        c.querySelectorAll('.breakdown-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const el = document.getElementById(`breakdown-${btn.dataset.matchId}`);
+                if (el) el.classList.toggle('hidden');
+            });
         });
     });
 
@@ -1063,6 +1098,25 @@ function buildMatchCard(m) {
         }
     }
 
+    let breakdownHtml = '';
+    if (hasResult) {
+        const rows = Object.keys(groupMembers).map(uid => {
+            const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
+                || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+            const b = (allGroupBets[uid] || {})[m.id];
+            const betStr = b ? `${b.team1Goals}–${b.team2Goals}` : '—';
+            const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals) : 0;
+            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span><span class="lp-bet">${betStr}</span><span class="lp-pts">${pts}</span></div>`;
+        }).join('');
+        breakdownHtml = `
+        <button class="breakdown-toggle" data-match-id="${m.id}">${t('match.showBreakdown')}</button>
+        <div class="match-breakdown hidden" id="breakdown-${m.id}">
+            <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('match.pointsLabel')}</span></div>
+            ${rows}
+        </div>`;
+    }
+
     return `
     <div class="match-card${closingSoon ? ' match-card--closing-soon' : ''}" id="card-${m.id}">
         <div class="match-card-header">
@@ -1084,6 +1138,7 @@ function buildMatchCard(m) {
             </div>
             ${betAreaHtml}
             ${pointsHtml}
+            ${breakdownHtml}
         </div>
     </div>`;
 }
@@ -1124,6 +1179,71 @@ function unlockBetEdit(matchId) {
     renderMatches();
 }
 
+
+// ============================================================
+// RENDER: LIVE TAB
+// ============================================================
+
+function renderLive() {
+    const container = $('live-container');
+    if (!container) return;
+    const now = Date.now();
+    const games = Object.entries(matches)
+        .map(([id, m]) => ({ id, ...m }))
+        .filter(m => (!m.tournament || m.tournament === activeTournament) && m.stage !== 'special')
+        .filter(m => isInLiveTab(m, now))
+        .sort((a, b) => parseMatchDate(a.date) - parseMatchDate(b.date));
+
+    if (games.length === 0) { container.innerHTML = `<p class="state-msg">${t('live.empty')}</p>`; return; }
+    container.innerHTML = games.map(buildLiveCard).join('');
+}
+
+function buildLiveCard(m) {
+    const live = m.live || null;
+    const hasResult = m.result !== null && m.result !== undefined;
+    const score = hasResult ? m.result : live;           // {team1Goals, team2Goals} or null
+    const started = parseMatchDate(m.date).getTime() <= Date.now();
+
+    let statusKey;
+    if (hasResult) statusKey = 'match.status.completed';
+    else if (live && live.status === 'PAUSED') statusKey = 'live.statusHalftime';
+    else if (live && live.status === 'IN_PLAY') statusKey = 'live.statusLive';
+    else if (started) statusKey = 'live.statusAwaiting';
+    else statusKey = 'live.statusLocked';
+
+    const scoreHtml = score
+        ? `${score.team1Goals} – ${score.team2Goals}`
+        : `<span class="live-not-started">${t('live.notStarted')}</span>`;
+
+    const rows = Object.keys(groupMembers).map(uid => {
+        const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
+            || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+        const bet = (allGroupBets[uid] || {})[m.id];
+        const betStr = bet ? `${bet.team1Goals}–${bet.team2Goals}` : '—';
+        const pts = (bet && score) ? calcPoints(bet.team1Goals, bet.team2Goals, score.team1Goals, score.team2Goals) : null;
+        const ptsStr = pts === null ? '—' : pts;
+        const cls = pts === null ? '' : (pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0');
+        return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span>`
+             + `<span class="lp-bet">${betStr}</span><span class="lp-pts">${ptsStr}</span></div>`;
+    }).join('');
+
+    return `
+    <div class="match-card live-card" id="live-${m.id}">
+        <div class="match-card-header">
+            <span class="match-date-str">${formatDate(m.date)}</span>
+            <span class="match-status-badge ${hasResult ? 'badge-completed' : (live && live.status === 'IN_PLAY') ? 'badge-live' : 'badge-locked'}">${t(statusKey)}</span>
+        </div>
+        <div class="live-scoreline">
+            <span class="live-team">${getFlag(m.team1)} ${escapeHtml(translateTeam(m.team1))}</span>
+            <span class="live-score">${scoreHtml}</span>
+            <span class="live-team">${getFlag(m.team2)} ${escapeHtml(translateTeam(m.team2))}</span>
+        </div>
+        <div class="live-people">
+            <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('live.provisional')}</span></div>
+            ${rows}
+        </div>
+    </div>`;
+}
 
 // ============================================================
 // RENDER: LEADERBOARD

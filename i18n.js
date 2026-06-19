@@ -113,6 +113,16 @@ const TRANSLATIONS = {
         'tabs.leaderboard': 'לידרבורד',
         'tabs.myBets': 'הניחושים שלי',
         'tabs.tournament': 'טורניר',
+        'tabs.live': 'חי',
+
+        // Live tab
+        'live.empty': 'אין משחקים פעילים כרגע',
+        'live.statusLocked': 'ניחושים נעולים',
+        'live.statusLive': 'משחק חי',
+        'live.statusHalftime': 'מחצית',
+        'live.statusAwaiting': 'ממתין לתוצאה',
+        'live.provisional': 'נקודות (חי)',
+        'live.notStarted': 'טרם החל',
 
         // Stages
         'stage.all': 'הכל',
@@ -141,6 +151,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'לא ניחשת על משחק זה',
         'match.pointsRow': 'ניחוש',
         'match.pointsLabel': 'נקודות',
+        'match.showBreakdown': 'הצג ניחושים של כולם',
         'match.emptyState': 'אין משחקים להצגה. האדמין יכול לטעון את המשחקים.',
         'match.loadingMatches': 'טוען משחקים...',
 
@@ -394,6 +405,16 @@ const TRANSLATIONS = {
         'tabs.leaderboard': 'Leaderboard',
         'tabs.myBets': 'My predictions',
         'tabs.tournament': 'Tournament',
+        'tabs.live': 'Live',
+
+        // Live tab
+        'live.empty': 'No active games right now',
+        'live.statusLocked': 'Bets locked',
+        'live.statusLive': 'Live',
+        'live.statusHalftime': 'Half-time',
+        'live.statusAwaiting': 'Awaiting score',
+        'live.provisional': 'pts (live)',
+        'live.notStarted': 'Not started',
 
         'stage.all': 'All',
         'stage.group': 'Group stage',
@@ -420,6 +441,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'You didn\'t predict this match',
         'match.pointsRow': 'Prediction',
         'match.pointsLabel': 'points',
+        'match.showBreakdown': 'Show everyone\'s bets',
         'match.emptyState': 'No matches to display. An admin can load them.',
         'match.loadingMatches': 'Loading matches...',
 
@@ -664,6 +686,16 @@ const TRANSLATIONS = {
         'tabs.leaderboard': 'Tabla',
         'tabs.myBets': 'Mis predicciones',
         'tabs.tournament': 'Torneo',
+        'tabs.live': 'En vivo',
+
+        // Live tab
+        'live.empty': 'No hay partidos activos ahora',
+        'live.statusLocked': 'Apuestas cerradas',
+        'live.statusLive': 'En vivo',
+        'live.statusHalftime': 'Descanso',
+        'live.statusAwaiting': 'Esperando resultado',
+        'live.provisional': 'pts (en vivo)',
+        'live.notStarted': 'No empezó',
 
         'stage.all': 'Todos',
         'stage.group': 'Fase de grupos',
@@ -690,6 +722,7 @@ const TRANSLATIONS = {
         'match.noBetRow': 'No predijiste este partido',
         'match.pointsRow': 'Predicción',
         'match.pointsLabel': 'puntos',
+        'match.showBreakdown': 'Ver apuestas de todos',
         'match.emptyState': 'No hay partidos. Un admin puede cargarlos.',
         'match.loadingMatches': 'Cargando partidos...',
 
