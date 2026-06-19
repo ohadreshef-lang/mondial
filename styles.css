@@ -27,7 +27,11 @@
 }
 
 html, body {
-    height: 100%;
+    /* min-height (not height) so the body grows with content. A fixed height:100%
+       caps the body to the viewport, which breaks `position: sticky` on the tab bar
+       (it scrolled away with the capped body box). Login/mode-choice/group-picker
+       set their own min-height:100vh, so full-height backgrounds are unaffected. */
+    min-height: 100%;
     font-family: 'Segoe UI', 'Arial', sans-serif;
     background: var(--bg);
     color: var(--text);
@@ -243,9 +247,11 @@ section { display: block; }
    ========================================== */
 
 .app-bar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    /* Not sticky: it scrolls away so the slim tab bar (below) can pin to the very
+       top on its own. Pinning the app-bar too needs a magic-number offset for the
+       tab bar that breaks when the long group name wraps the app-bar taller on
+       mobile — which hid the tab bar behind it. */
+    position: static;
     background: var(--green-dark);
     color: #fff;
     display: flex;
@@ -301,7 +307,7 @@ section { display: block; }
     background: var(--card-bg);
     border-bottom: 2px solid var(--border);
     position: sticky;
-    top: 53px;
+    top: 0;            /* pins to the very top once the app-bar scrolls past */
     z-index: 90;
 }
 
