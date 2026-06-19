@@ -40,8 +40,15 @@ fares. He appears in the leaderboard and live board like any member, with a smal
 The updater is the only context that has write credentials, already reads the
 needed data, and already scores every member. Paul's logic is a new **pure**
 module called from the updater each run. Paul's prediction for a given match is
-**seeded by the matchId**, making it fixed forever, identical across all groups,
-and reproducible in tests.
+**seeded by `groupId:matchId`**, making it fixed forever per group (different
+across groups, stable within one) and reproducible in tests.
+
+Because Paul bets on **every match, including already-finished ones**, and the
+results updater only scores matches that finish *during that run*, `paul-core` is
+the **sole authority** for everything Paul: it generates his bets, computes his
+match points (for any match that already has a result), and maintains his
+`totalPoints`. Paul is therefore **excluded from `buildResultUpdates`** so the two
+modules never write the same Paul paths.
 
 Rejected alternatives:
 - **Client-side** (first client writes Paul): clients race and could regenerate
@@ -52,6 +59,8 @@ Rejected alternatives:
 ## Components
 
 ### 1. `scripts/lib/paul-core.mjs` (new, pure — no I/O)
+
+Imports `calcPoints` from `results-core.mjs` (the single scoring source of truth).
 
 Exports:
 
@@ -65,39 +74,58 @@ Exports:
 - `randomPick(rng, list)` — returns a deterministic element of a non-empty array
   (or `null` for an empty/missing list).
 - `buildPaulUpdates({ groups, matches, bets, specialBets, tournament, now })` —
-  returns a flat `{ path: value }` updates object (same shape the updater patches):
+  returns a flat `{ path: value }` updates object (same shape the updater patches).
+  `paul-core` fully owns Paul; the function is **idempotent** (re-running converges):
   1. **User record:** if `users/paul-octopus` absent from the data given, set
-     `users/paul-octopus = { name: PAUL_NAME, email: '' }`. (The updater passes the
-     `users` node so this is computed, not blindly overwritten.)
+     `users/paul-octopus = { name: PAUL_NAME, email: '' }`.
   2. **Membership:** for every group id in `groups`, if
      `groups/{gid}/members/paul-octopus` is absent, set it to
      `{ joinedAt: now, totalPoints: 0, name: PAUL_NAME }`.
-  3. **Match bets:** for every match where `parseMatchDate(date).getTime() > now`
-     (not started) **and** `result` is absent (not finished): for every group where
-     `bets/{gid}/paul-octopus/{matchId}` is absent, set it to
-     `{ ...randomScore(seededRandom(matchId)), placedAt: now }`. The same matchId
-     seed is reused for all groups, so Paul's pick is identical everywhere.
-  4. **Special bets:** for every group where `specialBets/{gid}/paul-octopus/winner`
-     is absent and `tournament.teams` is a non-empty array, set
-     `{ team: randomPick(seededRandom('paul-champion'), tournament.teams), placedAt: now }`.
-     Likewise `topScorer` from `tournament.scorers` seeded `'paul-topscorer'`. If a
-     list is missing/empty, skip that special bet (graceful).
+  3. **Match bets (every match — past and future):** for every match and every
+     group where `bets/{gid}/paul-octopus/{matchId}` is **absent**, generate
+     `score = randomScore(seededRandom(`${gid}:${matchId}`))` and set
+     `bets/{gid}/paul-octopus/{matchId} = { ...score, placedAt: now }` (plus
+     `points` per step 5). The `groupId:matchId` seed makes the pick stable per
+     group and **different across groups**. Existing Paul bets are left as-is (not
+     regenerated) to preserve `placedAt`.
+  4. **Special bets (per group):** for every group where
+     `specialBets/{gid}/paul-octopus/winner` is absent and `tournament.teams` is a
+     non-empty array, set
+     `{ team: randomPick(seededRandom(`${gid}:champion`), tournament.teams), placedAt: now }`
+     (plus `points` per step 5). Likewise `topScorer` from `tournament.scorers`
+     seeded `` `${gid}:topscorer` ``. If a list is missing/empty, skip that special
+     bet (graceful).
+  5. **Scoring + total (Paul is sole authority):** for each group, build Paul's full
+     bet set (existing bets from the data merged with the ones generated this run).
+     For every Paul bet whose match has a `result`, set
+     `points = calcPoints(team1Goals, team2Goals, result.team1Goals, result.team2Goals)`.
+     For special bets, set `points = TOURNAMENT_POINTS` when the pick equals
+     `tournament.winner` / `tournament.topScorer` (and those are set), else `0`.
+     Then write `groups/{gid}/members/paul-octopus/totalPoints =
+     sum(match points) + sum(special points)`.
 
-`buildPaulUpdates` performs **no scoring** — points are filled by the existing
-match recalc and `recalcTournamentPoints`.
+`TOURNAMENT_POINTS = 10` is defined locally in `paul-core.mjs` with a comment that
+it mirrors the constant in `app.js` (there is no shared constants module).
 
-### 2. `scripts/update-results.mjs` (modify)
+### 2. `scripts/lib/results-core.mjs` (modify)
+
+- `buildResultUpdates` gains an optional `excludeUserIds = []` parameter. Any member
+  whose userId is in that set is **skipped** in the member-scoring loop. Default `[]`
+  preserves current behavior (existing tests unchanged).
+
+### 3. `scripts/update-results.mjs` (modify)
 
 - Read the `users` and `settings/tournament` nodes (it already reads `groups`,
   `bets`, `specialBets`).
+- Pass `excludeUserIds: [PAUL_USER_ID]` to `buildResultUpdates` so Paul is never
+  scored there (he is owned by `paul-core`).
 - Call `buildPaulUpdates(...)` and **merge** its result into the existing `updates`
   object before the single `fbPatch(updates, token)`.
-- Ordering note: scoring in the same run uses the data read at the start, so on the
-  very first run that creates Paul he is not yet scored; he is scored on the next run
-  when a result lands (or auto-filled 0–0 for a result that lands the same run). This
-  is acceptable and documented.
+- Ordering note: `buildPaulUpdates` is idempotent and self-contained — it recomputes
+  Paul's points/total from the matches/results it reads each run, so there is no
+  cross-module write conflict and Paul self-heals on the next run if data changes.
 
-### 3. `app.js` (modify — display only)
+### 4. `app.js` (modify — display only)
 
 - Add `const PAUL_USER_ID = 'paul-octopus';` near the other top-level constants.
 - A small helper to render a member's display label:
@@ -110,17 +138,17 @@ match recalc and `recalcTournamentPoints`.
   - **Live board** rows (`buildLiveCard`'s `nameOf` usage).
 - No other behavior changes — Paul shows up because he is a member.
 
-### 4. `i18n.js` (modify)
+### 5. `i18n.js` (modify)
 
 Add a `paul.name` key in all three languages:
 `he: 'פול התמנון'`, `en: 'Paul the Octopus'`, `es: 'Paul el Pulpo'`.
 
-### 5. `styles.css` (modify)
+### 6. `styles.css` (modify)
 
 Add `.octo-icon` (small inline icon, slight spacing). RTL-aware (margin on the
 logical inline-end so it sits next to the name correctly in Hebrew).
 
-### 6. Cache-busting (`index.html`)
+### 7. Cache-busting (`index.html`)
 
 Bump the `?v=` version strings for `app.js`, `i18n.js`, `styles.css` (and the rest,
 consistent with the project rule).
@@ -130,12 +158,14 @@ consistent with the project rule).
 ```
 updater run
   ├─ read matches, groups, bets, specialBets, users, settings/tournament
-  ├─ results-core: buildResultUpdates(...)  → match results + per-member points
-  ├─ paul-core:    buildPaulUpdates(...)     → Paul membership + random bets
+  ├─ results-core: buildResultUpdates(..., excludeUserIds:[PAUL])  → results + non-Paul points
+  ├─ paul-core:    buildPaulUpdates(...)  → Paul membership + per-group random bets
+  │                                          + Paul's match/special points + totalPoints
   ├─ merge both into one updates object
   └─ fbPatch(updates)  (single multi-path PATCH)
 
-admin sets finals → recalcTournamentPoints() scores Paul's special bets (he's a member)
+admin sets finals → recalcTournamentPoints()/recalcMemberTotal() agree with paul-core
+                     (both sum match points + special points) → consistent
 
 client render
   └─ leaderboard / live board list members incl. paul-octopus → 🐙 + i18n name
@@ -150,36 +180,46 @@ Real match scorelines cluster at 0–2 goals per side. The weighted table
 
 ## Determinism
 
-- Match prediction seeded by `matchId` ⇒ stable forever and identical in every
-  group, even if Paul joins a group later or the updater reruns.
-- Champion/top-scorer seeded by fixed constants ⇒ one stable pick.
+- Match prediction seeded by `groupId:matchId` ⇒ stable forever within a group and
+  different across groups, even if Paul joins a group later or the updater reruns.
+- Champion/top-scorer seeded by `groupId:champion` / `groupId:topscorer` ⇒ one
+  stable pick per group.
 - This makes the whole feature unit-testable without mocking time/randomness.
 
 ## Edge cases
 
-- **Match already played before Paul existed:** no Paul bet is written; the existing
-  auto-fill scores it 0–0. Paul effectively "joined late" for those — acceptable.
-- **In-progress match (started, no result):** treated as not-future, so no late bet
-  is written; auto-filled 0–0 if it finishes before Paul ever bet it. Rare.
+- **Already-finished match:** Paul still gets a random bet (per the requirement);
+  `paul-core` scores it immediately via `calcPoints` against the known result and
+  folds it into his `totalPoints`.
+- **Match finishing the same run Paul is created:** no conflict — `buildResultUpdates`
+  skips Paul, and `buildPaulUpdates` scores it from the result it read.
 - **Empty/missing `settings/tournament.teams`/`scorers`:** special bets skipped, no
-  crash.
-- **Paul already fully set up:** `buildPaulUpdates` returns an empty/minimal object;
-  the updater's PATCH is a no-op for Paul's paths (idempotent).
+  crash; they get written on a later run once the lists exist.
+- **Paul already fully set up with no new matches:** `buildPaulUpdates` only rewrites
+  his `points`/`totalPoints` (idempotent, converges to the same values).
 
 ## Testing
 
 `tests/paul-core.test.mjs` (Node `node --test`):
 
 - `randomScore` returns goals within `[0,5]` for both sides.
-- `seededRandom` determinism: same seed ⇒ identical score; different matchIds ⇒
+- `seededRandom` determinism: same seed ⇒ identical score; different seeds ⇒
   (generally) different scores.
 - `buildPaulUpdates`:
   - creates membership + user record when absent; **omits** them when present.
-  - writes a match bet only for future, unfinished matches; **skips** started/
-    finished matches and matches Paul already bet.
-  - the same match's Paul bet is identical across two groups.
+  - writes a Paul bet for **every** match (past and future) he hasn't bet; **skips**
+    matches Paul already bet (no regeneration).
+  - the same match's Paul bet **differs** between two groups (per-group seed).
+  - finished matches get `points = calcPoints(...)`; `totalPoints` equals the sum of
+    match points + special points.
   - writes random champion/top-scorer from `tournament.teams`/`scorers`; skips when
-    the lists are empty; omits when Paul already has the special bet.
+    the lists are empty; omits when Paul already has the special bet; scores special
+    points when `tournament.winner`/`topScorer` are set.
+
+`tests/results-core.test.mjs`:
+
+- `buildResultUpdates` with `excludeUserIds:[PAUL_USER_ID]` skips Paul; default `[]`
+  is unchanged (regression guard).
 
 Frontend icon verified with a headless render harness showing a leaderboard /
 live board containing `paul-octopus` and asserting the 🐙 + name render.
@@ -187,6 +227,3 @@ live board containing `paul-octopus` and asserting the 🐙 + name render.
 ## Out of scope
 
 - No admin UI to manage Paul (he is fully automatic).
-- No per-group independent randomness (Paul is one octopus; one pick per match,
-  shared across groups).
-- No retroactive random bets for already-played matches.
