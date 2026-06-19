@@ -17,6 +17,7 @@
 //   DRY_RUN=1            print planned writes without touching Firebase
 
 import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate } from './lib/results-core.mjs';
+import { buildPaulUpdates } from './lib/paul-core.mjs';
 
 const FIREBASE_API_KEY = 'AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g';
 const DB_URL = 'https://mondial2026-a77fc-default-rtdb.firebaseio.com';
@@ -153,6 +154,11 @@ async function main() {
     const token = await firebaseSignIn();
     const matches = (await fbGet('matches', token)) || {};
 
+    // Ensure פול התמנון exists in every group with random predictions. Runs every
+    // invocation (independent of live state) so Paul bets on matches well before
+    // kickoff. buildPaulUpdates only writes absent paths, so this is idempotent.
+    await ensurePaul(token, matches, now);
+
     const candidates = Object.entries(matches).filter(([, m]) => {
         if (!m || !m.team1 || !m.team2 || !m.date) return false;
         if (m.result && m.result.team1Goals !== undefined) return false;
@@ -215,6 +221,32 @@ function reportStale(staleUnmatched) {
         `enter the result in the admin panel, or fix the team-name/date mapping:\n  ` +
         staleUnmatched.join('\n  '),
     );
+}
+
+// One Firebase read of the nodes paul-core needs, build, and patch. Best-effort:
+// reuses the same token and the existing fbGet/fbPatch helpers.
+async function ensurePaul(token, matches, now) {
+  const [users, groups, bets, specialBets, tournament] = await Promise.all([
+    fbGet('users', token),
+    fbGet('groups', token),
+    fbGet('bets', token),
+    fbGet('specialBets', token),
+    fbGet('settings/tournament', token),
+  ]);
+  const updates = buildPaulUpdates({
+    users: users || {},
+    groups: groups || {},
+    matches: matches || {},
+    bets: bets || {},
+    specialBets: specialBets || {},
+    tournament: tournament || {},
+    now,
+  });
+  const n = Object.keys(updates).length;
+  if (n === 0) { console.log('Paul: nothing to write.'); return; }
+  if (DRY_RUN) { console.log(`Paul DRY RUN — ${n} path(s):\n${JSON.stringify(updates, null, 2)}`); return; }
+  await fbPatch(updates, token);
+  console.log(`Paul: wrote ${n} path(s).`);
 }
 
 main().catch(err => {

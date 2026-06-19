@@ -798,6 +798,8 @@ section { display: block; }
     font-weight: 700;
 }
 
+.octo-icon { margin-inline-end: 0.25em; font-size: 0.95em; }
+
 .lb-points {
     font-size: 1.1rem;
     font-weight: 800;

@@ -162,6 +162,18 @@ function getSortedScorerCandidates() {
     );
 }
 
+// פול התמנון (Paul the Octopus) — the automated dummy member. Same id as the
+// updater's paul-core PAUL_USER_ID; he is created/scored server-side.
+const PAUL_USER_ID = 'paul-octopus';
+function isPaul(uid) { return uid === PAUL_USER_ID; }
+
+// HTML label for a member in lists: Paul gets a 🐙 + his localized name; everyone
+// else their (escaped) stored name. Returns markup, so callers insert it directly.
+function memberLabel(uid, fallbackName) {
+    if (isPaul(uid)) return `<span class="octo-icon">🐙</span>${escapeHtml(t('paul.name'))}`;
+    return escapeHtml(fallbackName);
+}
+
 // ---- Scoring ----
 
 function getOutcome(g1, g2) {
@@ -1320,7 +1332,7 @@ function buildLiveCard(m) {
         return `<div class="live-lb-row ${isMe ? 'is-me' : ''}">`
              + `<span class="live-lb-chgcol">${chg}</span>`
              + `<span class="live-lb-rank">${rankLabel}</span>`
-             + `<span class="live-lb-name">${escapeHtml(nameOf(uid))}${meTag}</span>`
+             + `<span class="live-lb-name">${memberLabel(uid, nameOf(uid))}${meTag}</span>`
              + `<span class="live-lb-total">${total}</span>`
              + `<span class="live-lb-pill ${pillCls}">${pillTxt}</span>`
              + `<span class="live-lb-pick">${betOf(uid)}</span>`
@@ -1414,7 +1426,7 @@ function renderLeaderboard() {
         html += `
         <div class="leaderboard-row ${isMe ? 'is-me' : ''}">
             <span class="lb-rank">${medal}</span>
-            <span class="lb-name">${escapeHtml(u.name)} ${meTag}</span>
+            <span class="lb-name">${memberLabel(u.userId, u.name)} ${meTag}</span>
             <span class="lb-form">${formHtml(u.userId)}</span>
             <span class="lb-points">${u.totalPoints} <span class="lb-pts-label">${t('common.pts')}</span></span>
         </div>`;

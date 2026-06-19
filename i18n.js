@@ -162,6 +162,7 @@ const TRANSLATIONS = {
         'leaderboard.scoringWinner': 'מנצח נכון = 1 נק\'',
         'leaderboard.empty': 'אין משתתפים עדיין בקבוצה זו.',
         'leaderboard.meTag': 'אני',
+        'paul.name': 'פול התמנון',
 
         // My bets
         'myBets.title': '🎯 הניחושים שלי',
@@ -452,6 +453,7 @@ const TRANSLATIONS = {
         'leaderboard.scoringWinner': 'Correct winner = 1 pt',
         'leaderboard.empty': 'No members in this group yet.',
         'leaderboard.meTag': 'you',
+        'paul.name': 'Paul the Octopus',
 
         'myBets.title': '🎯 My predictions',
         'myBets.empty': 'You haven\'t predicted any match yet.',
@@ -734,6 +736,7 @@ const TRANSLATIONS = {
         'leaderboard.scoringWinner': 'Ganador correcto = 1 pt',
         'leaderboard.empty': 'Aún no hay miembros en este grupo.',
         'leaderboard.meTag': 'tú',
+        'paul.name': 'Paul el Pulpo',
 
         'myBets.title': '🎯 Mis predicciones',
         'myBets.empty': 'Aún no predijiste ningún partido.',

@@ -113,6 +113,27 @@ test('emailToId matches real prod IDs', () => {
     assert.equal(app.emailToId('ohad.reshef@gmail.com'), 'ohad_reshef@gmail_com');
 });
 
+// --- isPaul ----------------------------------------------------------------
+
+test('isPaul: true only for the octopus id', () => {
+    assert.equal(app.isPaul('paul-octopus'), true);
+    assert.equal(app.isPaul('shay_t@helloflare_com'), false);
+    assert.equal(app.isPaul(''), false);
+});
+
+// --- memberLabel -----------------------------------------------------------
+
+test('memberLabel: Paul gets octopus icon + i18n name', () => {
+    const paul = app.memberLabel('paul-octopus', 'ignored-fallback');
+    assert.match(paul, /octo-icon/);
+    assert.match(paul, /🐙/);
+    assert.match(paul, /paul\.name/); // t() stub returns the key
+});
+
+test('memberLabel: other members get their escaped name', () => {
+    assert.equal(app.memberLabel('u1', 'Tom & Jerry'), 'Tom &amp; Jerry');
+});
+
 // --- parseMatchDate (Israeli-time gotcha) ---------------------------------
 
 test('parseMatchDate: treats naive string as UTC', () => {
