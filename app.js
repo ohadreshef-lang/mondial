@@ -187,6 +187,7 @@ let activeTab    = 'matches';
 let stageFilter  = 'all';
 let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
 let _lastPlayedMatchId = null;  // most recent match already kicked off (set in renderMatches)
+let _autoLiveTabPending = false; // on first matches load after login, open Live tab if a game is on
 let isAdminMode  = false;
 let isAdminAuthed = false;
 let pendingResultMatchId = null;
@@ -539,6 +540,7 @@ function enterAppForGroup(groupId) {
     show('main-app');
     $('header-username').textContent = currentUser.name;
     ensureUserProfile();
+    _autoLiveTabPending = true;                             // open Live tab on first load if a game is on
     startFirebaseListeners();
     if (activeTab === 'matches') _matchesNeedsFocus = true; // focus last-played on first load too
     renderCurrentTab();
@@ -785,6 +787,11 @@ function startFirebaseListeners() {
 
     ref('matches').on('value', snap => {
         matches = snap.val() || {};
+        // On first load after login, jump straight to the Live tab if a game is on.
+        if (_autoLiveTabPending) {
+            _autoLiveTabPending = false;
+            if (hasLiveGameNow()) { switchTab('live'); return; }  // switchTab renders
+        }
         if (activeTab === 'matches') renderMatches();
         if (activeTab === 'my-bets') renderMyBets();
         if (activeTab === 'tournament') renderTournament();
@@ -1207,48 +1214,70 @@ function renderLive() {
 function buildLiveCard(m) {
     const live = m.live || null;
     const hasResult = m.result !== null && m.result !== undefined;
-    const score = hasResult ? m.result : live;           // {team1Goals, team2Goals} or null
     const started = parseMatchDate(m.date).getTime() <= Date.now();
+    const isLive = !hasResult && started;   // in progress — true even before the live node lands
+    // Score: final result → live node → 0-0 once kicked off → none (still locked pre-kickoff).
+    const score = hasResult ? m.result
+                : live ? live
+                : started ? { team1Goals: 0, team2Goals: 0 }
+                : null;
 
-    let statusKey;
-    if (hasResult) statusKey = 'match.status.completed';
-    else if (live && live.status === 'PAUSED') statusKey = 'live.statusHalftime';
-    else if (live && live.status === 'IN_PLAY') statusKey = 'live.statusLive';
-    else if (started) statusKey = 'live.statusAwaiting';
-    else statusKey = 'live.statusLocked';
+    let statusKey, badgeClass, dot = '';
+    if (hasResult) { statusKey = 'match.status.completed'; badgeClass = 'badge-completed'; }
+    else if (live && live.status === 'PAUSED') { statusKey = 'live.statusHalftime'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
+    else if (isLive) { statusKey = 'live.statusLive'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
+    else { statusKey = 'live.statusLocked'; badgeClass = 'badge-locked'; }   // locked, not started yet
 
     const scoreHtml = score
-        ? `${score.team1Goals} – ${score.team2Goals}`
+        ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
         : `<span class="live-not-started">${t('live.notStarted')}</span>`;
 
+    // Per-person rows; while there's a score, sort as a live mini-leaderboard (best first).
     const rows = Object.keys(groupMembers).map(uid => {
         const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
             || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
         const bet = (allGroupBets[uid] || {})[m.id];
-        const betStr = bet ? `${bet.team1Goals}–${bet.team2Goals}` : '—';
         const pts = (bet && score) ? calcPoints(bet.team1Goals, bet.team2Goals, score.team1Goals, score.team2Goals) : null;
-        const ptsStr = pts === null ? '—' : pts;
-        const cls = pts === null ? '' : (pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0');
-        return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span>`
-             + `<span class="lp-bet">${betStr}</span><span class="lp-pts">${ptsStr}</span></div>`;
+        return { name, betStr: bet ? `${bet.team1Goals}–${bet.team2Goals}` : '—', pts };
+    });
+    if (score) rows.sort((a, b) => (b.pts || 0) - (a.pts || 0) || a.name.localeCompare(b.name));
+    const rowsHtml = rows.map(r => {
+        const ptsStr = r.pts === null ? '—' : r.pts;
+        const cls = r.pts === null ? '' : (r.pts >= 3 ? 'points-3' : r.pts === 1 ? 'points-1' : 'points-0');
+        return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(r.name)}</span>`
+             + `<span class="lp-bet">${r.betStr}</span><span class="lp-pts">${ptsStr}</span></div>`;
     }).join('');
 
     return `
     <div class="match-card live-card" id="live-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
-            <span class="match-status-badge ${hasResult ? 'badge-completed' : (live && live.status === 'IN_PLAY') ? 'badge-live' : 'badge-locked'}">${t(statusKey)}</span>
+            <span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>
         </div>
         <div class="live-scoreline">
-            <span class="live-team">${getFlag(m.team1)} ${escapeHtml(translateTeam(m.team1))}</span>
+            <span class="live-team">${getFlag(m.team1)} <span class="live-team-name">${escapeHtml(translateTeam(m.team1))}</span></span>
             <span class="live-score">${scoreHtml}</span>
-            <span class="live-team">${getFlag(m.team2)} ${escapeHtml(translateTeam(m.team2))}</span>
+            <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
         <div class="live-people">
             <div class="live-person-row live-person-head"><span>${t('match.yourBet')}</span><span></span><span>${t('live.provisional')}</span></div>
-            ${rows}
+            ${rowsHtml}
         </div>
     </div>`;
+}
+
+// True when a game of the active tournament is currently in progress (started, not
+// finished, within the in-play window) — used to auto-open the Live tab on login.
+function hasLiveGameNow() {
+    const now = Date.now();
+    return Object.values(matches || {}).some(m => {
+        if (!m || !m.team1 || !m.date) return false;
+        if (m.tournament && m.tournament !== activeTournament) return false;
+        if (m.stage === 'special') return false;
+        if (m.result && m.result.team1Goals !== undefined) return false;
+        const k = parseMatchDate(m.date).getTime();
+        return k <= now && (now - k) <= 3 * 60 * 60 * 1000;
+    });
 }
 
 // ============================================================
