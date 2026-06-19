@@ -115,13 +115,27 @@ per project convention, since JS/CSS/HTML change.
 
 ## Testing / verification
 
-- Deterministic logic tests (Node, mirroring app logic): Live-tab inclusion window
+**Hard rule: everything is verified with mock data and NO writes to the production
+Firebase, before any merge/deploy.** Concretely:
+
+- **Deterministic logic tests (Node, mirroring app logic):** Live-tab inclusion window
   (locked-not-started, in-play, finished-<1h-ago stays, finished->1h-ago drops, with
   and without `finishedAt`); provisional `calcPoints` for live scores.
-- Updater: dry-run / `INCLUDE_COMPLETED` style check that an `IN_PLAY` fixture maps to
-  a `live` write and a `FINISHED` fixture writes `result` + `finishedAt` + clears `live`.
-- Headless smoke load for no console errors; manual real-browser check during a live
-  match window where feasible.
+- **Updater with mock API + no prod writes:** drive `update-results.mjs` with a mocked
+  football-data response (an `IN_PLAY` fixture and a `FINISHED` fixture) and a mocked
+  `fbPatch` (or `DRY_RUN`) so it never touches prod. Assert the planned writes: a
+  `live` node for the in-play game; `result` + `finishedAt` + `live: null` for the
+  finished one. Achieve this by factoring the pure planning logic so it can be called
+  with injected data (no network), keeping `main()` as the thin I/O wrapper.
+- **Frontend with mock state:** a local/headless harness loads the app, stubs Firebase,
+  injects mock `matches` (incl. a `live` node), `groupMembers`, and `allGroupBets`,
+  then calls `renderLive()` / `renderMatches()` and asserts the DOM: per-person rows,
+  provisional points, inclusion window, privacy gate (open game hides bets), and the
+  finished-card expand showing bet/real-score/points. No prod connection.
+- **Headless smoke load** for no console errors.
+- Only after all the above pass on the branch do we merge; the existing cron keeps
+  running the old script until merge. A real-match sanity check can follow in prod
+  once a live game is available, but is not a gate for merge.
 
 ## Open question to confirm during implementation
 
