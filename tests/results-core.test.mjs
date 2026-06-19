@@ -60,7 +60,7 @@ test('buildResultUpdates: live entry writes a live node only', () => {
   const now = 1750000000000;
   const live = [{ matchId: 'm_live', m: { team1:'גאנה', team2:'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY' }];
   const updates = buildResultUpdates({ finished: [], live, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now });
+  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null });
   assert.equal(updates['matches/m_live/result'], undefined);
 });
 
@@ -96,6 +96,7 @@ test('mapApiFootballLive: in-play (1H) -> live entry with correct orientation', 
   assert.equal(live[0].g1, 1); // Ghana == team1
   assert.equal(live[0].g2, 0);
   assert.equal(live[0].status, 'IN_PLAY');
+  assert.equal(live[0].minute, 50); // captured from fixture.status.elapsed
 });
 
 test('mapApiFootballLive: away-home swap orients to team1/team2', () => {

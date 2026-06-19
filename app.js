@@ -271,6 +271,32 @@ function isInLiveTab(m, now) {
     return (now - endTime) < 60 * 60 * 1000;             // kept <1h after end
 }
 
+// Live match minute. Uses the API's real elapsed minute (apiMin, captured at `upd`)
+// as the base and ticks forward by wall-clock since then; falls back to estimating
+// from kickoff when no API minute is available yet. Returns '' at halftime (the
+// status badge already says so).
+function computeLiveMinute(now, kickoffMs, apiMin, upd, status) {
+    if (status === 'PAUSED') return '';
+    let mins;
+    if (apiMin != null && upd != null) {
+        mins = apiMin + Math.max(0, Math.floor((now - upd) / 60000));   // real minute, ticking
+    } else {
+        mins = Math.floor((now - kickoffMs) / 60000);                   // estimate (ignores stoppage/HT)
+        if (mins > 90) return "90+'";
+    }
+    return (mins < 0 ? 0 : mins) + "'";
+}
+
+// Re-tick all live-minute labels (called from the 1s interval).
+function updateLiveMinutes() {
+    const now = Date.now();
+    document.querySelectorAll('.live-minute').forEach(el => {
+        const apiMin = el.dataset.min === '' ? null : +el.dataset.min;
+        const upd = el.dataset.upd === '' ? null : +el.dataset.upd;
+        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, apiMin, upd, el.dataset.status);
+    });
+}
+
 function formatCountdown(ms) {
     if (ms <= 0) return t('match.started');
     const s = Math.floor(ms / 1000);
@@ -288,6 +314,7 @@ setInterval(() => {
         const diff = parseMatchDate(el.dataset.matchDate) - new Date();
         el.textContent = formatCountdown(diff);
     });
+    updateLiveMinutes();
 }, 1000);
 
 function $ (id) { return document.getElementById(id); }
@@ -1242,8 +1269,10 @@ function buildLiveCard(m) {
     const uids   = Object.keys(groupMembers);
     const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
     const baseOf = uid => (groupMembers[uid] && groupMembers[uid].totalPoints) || 0;
-    const matchOf = uid => { const b = (allGroupBets[uid] || {})[m.id]; return (b && score) ? calcPoints(b.team1Goals, b.team2Goals, score.team1Goals, score.team2Goals) : 0; };
-    const betOf  = uid => { const b = (allGroupBets[uid] || {})[m.id]; return b ? `${b.team1Goals}–${b.team2Goals}` : '—'; };
+    // A missing bet counts as 0–0 (matches how the updater auto-fills no-bets when a
+    // match finishes), so no-betters are scored and shown as 0–0, never "—".
+    const matchOf = uid => { if (!score) return 0; const b = (allGroupBets[uid] || {})[m.id]; return calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, score.team1Goals, score.team2Goals); };
+    const betOf  = uid => { const b = (allGroupBets[uid] || {})[m.id]; return b ? `${b.team1Goals}–${b.team2Goals}` : '0–0'; };
     // Current standing (tie-break by name so positions are stable), then projected.
     const oldPos = {};
     [...uids].sort((a, b) => baseOf(b) - baseOf(a) || nameOf(a).localeCompare(nameOf(b))).forEach((uid, i) => { oldPos[uid] = i + 1; });
@@ -1271,6 +1300,15 @@ function buildLiveCard(m) {
              + `</div>`;
     }).join('');
 
+    // Live minute label; data attrs let the 1s interval tick it between API updates.
+    const kickoffMs = parseMatchDate(m.date).getTime();
+    const apiMin = live && typeof live.minute === 'number' ? live.minute : '';
+    const upd = live && live.updatedAt ? live.updatedAt : '';
+    const minStatus = (live && live.status === 'PAUSED') ? 'PAUSED' : 'IN_PLAY';
+    const minuteHtml = isLive
+        ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, upd === '' ? null : upd, minStatus)}</span>`
+        : '';
+
     return `
     <div class="match-card live-card" id="live-${m.id}">
         <div class="match-card-header">
@@ -1279,7 +1317,7 @@ function buildLiveCard(m) {
         </div>
         <div class="live-scoreline">
             <span class="live-team">${getFlag(m.team1)} <span class="live-team-name">${escapeHtml(translateTeam(m.team1))}</span></span>
-            <span class="live-score">${scoreHtml}</span>
+            <span class="live-score-wrap"><span class="live-score">${scoreHtml}</span>${minuteHtml}</span>
             <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
         <div class="live-people">

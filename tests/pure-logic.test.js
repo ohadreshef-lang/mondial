@@ -242,3 +242,20 @@ test('isInLiveTab: finished 90 min ago (finishedAt) -> false', () => {
 test('isInLiveTab: finished result, no finishedAt, kickoff long ago -> false (fallback kickoff+2h+1h)', () => {
     assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 } }, Date.now()), false);
 });
+
+// --- computeLiveMinute -----------------------------------------------------
+test('computeLiveMinute: ticks from API minute + elapsed since update', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.computeLiveMinute(now, now - 50*60000, 50, now - 2*60000, 'IN_PLAY'), "52'");
+});
+test('computeLiveMinute: halftime shows nothing (badge says HT)', () => {
+    assert.equal(app.computeLiveMinute(Date.now(), Date.now(), 45, Date.now(), 'PAUSED'), '');
+});
+test('computeLiveMinute: estimates from kickoff when no API minute', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.computeLiveMinute(now, now - 10*60000, null, null, 'IN_PLAY'), "10'");
+});
+test('computeLiveMinute: estimate caps at 90+', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.computeLiveMinute(now, now - 200*60000, null, null, 'IN_PLAY'), "90+'");
+});

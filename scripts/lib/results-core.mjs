@@ -113,7 +113,8 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
         const g1 = homeIsT1 ? gh : ga;
         const g2 = homeIsT1 ? ga : gh;
         const status = f.fixture.status.short === 'HT' ? 'PAUSED' : 'IN_PLAY';
-        live.push({ matchId, m, g1, g2, status });
+        const minute = (f.fixture.status && typeof f.fixture.status.elapsed === 'number') ? f.fixture.status.elapsed : null;
+        live.push({ matchId, m, g1, g2, status, minute });
     }
     return live;
 }
@@ -181,8 +182,8 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
 export function buildResultUpdates({ finished, live, groups, bets, specialBets, now }) {
     const updates = {};
 
-    for (const { matchId, g1, g2, status } of live) {
-        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now };
+    for (const { matchId, g1, g2, status, minute } of live) {
+        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute };
     }
 
     for (const { matchId, g1, g2 } of finished) {
