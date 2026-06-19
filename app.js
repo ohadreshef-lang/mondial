@@ -852,7 +852,12 @@ function startFirebaseListeners() {
                 try { await ref(`users/${uid}`).set({ name: groupMembers[uid].name }); } catch(e) {}
             }
         }));
+        // Names for members whose name lives only in users/{uid} are resolved above
+        // (into groupUsersCache). Re-render the active name-showing tab so they replace
+        // the "unknown user" fallback instead of waiting for the next data update.
         if (activeTab === 'leaderboard') renderLeaderboard();
+        else if (activeTab === 'live') renderLive();
+        else if (activeTab === 'matches') renderMatches();
     }, () => {});
 
     if (currentUser) {
