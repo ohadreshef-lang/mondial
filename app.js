@@ -324,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     $('btn-google-login').addEventListener('click', handleGoogleLogin);
+    $('btn-google-login-mode').addEventListener('click', handleGoogleLogin);
     $('email-login-form').addEventListener('submit', handleEmailLogin);
 
     $('btn-mode-public').addEventListener('click',  () => { pendingMode = 'public';  showLoginScreen(); });
@@ -669,9 +670,14 @@ async function setupUserFromAuth(firebaseUser) {
     saveUserSession(currentUser);
 }
 
+// Google sign-in is offered on both the login screen and the mode-choice screen,
+// so surface errors on whichever error element is present/visible.
+function loginErrorEls() {
+    return ['login-error', 'mode-login-error'].map(id => $(id)).filter(Boolean);
+}
+
 async function handleGoogleLogin() {
-    const errEl = $('login-error');
-    hideEl(errEl);
+    loginErrorEls().forEach(hideEl);
     if (!auth) return;
     try {
         const provider = new firebase.auth.GoogleAuthProvider();
@@ -687,8 +693,7 @@ async function handleGoogleLogin() {
         ) {
             msg = 'כניסה עם Google לא נתמכת בדפדפן המובנה (WhatsApp/Telegram). אנא פתח את ' + window.location.hostname + ' ב-Safari או Chrome.';
         }
-        errEl.textContent = msg;
-        showEl(errEl);
+        loginErrorEls().forEach(el => { el.textContent = msg; showEl(el); });
     }
 }
 
