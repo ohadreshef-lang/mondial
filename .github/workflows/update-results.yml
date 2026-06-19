@@ -2,14 +2,17 @@ name: Update match results
 
 on:
   schedule:
-    # Every 5 min for fresher live scores. API-Football free is 100 req/day; the live
-    # call only fires during live windows. On a heavy matchday this can reach the cap —
-    # that's fine: fetchApiFootballLive() returns [] on HTTP 429 / quota error, so
-    # finals + points (football-data.org) keep working and live scores resume when the
-    # quota resets at 00:00 UTC.
+    # GitHub heavily throttles high-frequency schedules — observed firing only every
+    # few hours, not every 5 min. So instead of relying on the scheduler for cadence,
+    # each run POLLS internally every 5 min for ~50 min (see the loop below). The */5
+    # schedule just maximises the chance a run is active during a match; whichever
+    # runs GitHub actually fires each cover ~an hour of 5-min polling.
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+# Sparse real firing means overlap is rare; if GitHub ever bursts, extra runs queue
+# (cancel-in-progress: false) and drain harmlessly — each iteration reads fresh state,
+# so a delayed run still writes current data, never stale.
 concurrency:
   group: update-results
   cancel-in-progress: false
@@ -17,13 +20,28 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Fetch finished + live matches and write results
-        run: node scripts/update-results.mjs
+      - name: Poll finished + live matches (~5-min cadence for ~50 min)
+        run: |
+          # Poll every 5 min for ~50 min within this single run. set +e so one failing
+          # iteration (transient blip, or a stale-red) never aborts the loop; we exit
+          # with the LAST iteration's status, so a persistent problem still shows red
+          # while a recovered transient shows green.
+          set +e
+          last=0
+          for i in $(seq 1 10); do
+            echo "::group::poll $i/10 ($(date -u +%H:%M:%S)Z)"
+            node scripts/update-results.mjs
+            last=$?
+            echo "::endgroup::"
+            [ "$i" -lt 10 ] && sleep 300
+          done
+          exit $last
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
           FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
