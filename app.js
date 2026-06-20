@@ -174,6 +174,16 @@ function memberLabel(uid, fallbackName) {
     return escapeHtml(fallbackName);
 }
 
+// One scorer line for the live card: "⚽ <minute> <name>" with a penalty/own-goal mark.
+// Returns markup, so callers insert it directly.
+function scorerLine(s) {
+    const min = typeof s.minute === 'number'
+        ? (typeof s.extra === 'number' && s.extra > 0 ? `${s.minute}+${s.extra}'` : `${s.minute}'`)
+        : '';
+    const mark = s.kind === 'pen' ? ` ${t('live.penaltyMark')}` : s.kind === 'og' ? ` ${t('live.ownGoalMark')}` : '';
+    return `<div class="live-scorer">⚽ <span class="live-scorer-min">${min}</span> ${escapeHtml(s.player)}${mark}</div>`;
+}
+
 // ---- Scoring ----
 
 function getOutcome(g1, g2) {
@@ -1295,6 +1305,12 @@ function buildLiveCard(m) {
         ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
         : `<span class="live-not-started">${t('live.notStarted')}</span>`;
 
+    const scorers = (live && Array.isArray(live.scorers)) ? live.scorers : [];
+    const scorersCol = team => scorers.filter(s => s.team === team).map(scorerLine).join('');
+    const scorersHtml = scorers.length
+        ? `<div class="live-scorers"><div class="live-scorers-col">${scorersCol(1)}</div><div class="live-scorers-col">${scorersCol(2)}</div></div>`
+        : '';
+
     // Projected live leaderboard: each member's current total + this match's
     // provisional points, ranked, with medals (🥇🥈🥉) and ↑/↓ vs their current spot.
     const uids   = Object.keys(groupMembers);
@@ -1361,6 +1377,7 @@ function buildLiveCard(m) {
             <span class="live-score-wrap"><span class="live-score">${scoreHtml}</span>${minuteHtml}</span>
             <span class="live-team">${getFlag(m.team2)} <span class="live-team-name">${escapeHtml(translateTeam(m.team2))}</span></span>
         </div>
+        ${scorersHtml}
         <div class="live-people">
             <div class="live-lb-row live-lb-head"><span class="live-lb-chgcol"></span><span class="live-lb-rank">#</span><span class="live-lb-name"></span><span class="live-lb-total">${t('live.total')}</span><span class="live-lb-pill">±</span><span class="live-lb-pick">${t('match.yourBet')}</span></div>
             ${rowsHtml}

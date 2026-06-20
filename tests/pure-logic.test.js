@@ -264,6 +264,29 @@ test('isInLiveTab: finished result, no finishedAt, kickoff long ago -> false (fa
     assert.equal(app.isInLiveTab({ date: '2020-01-01T12:00', result: { team1Goals:1, team2Goals:0 } }, Date.now()), false);
 });
 
+// --- scorerLine ------------------------------------------------------------
+
+test('scorerLine: goal shows minute + escaped name, no mark', () => {
+    const html = app.scorerLine({ team: 1, player: 'Brobbey', minute: 5, extra: null, kind: 'goal' });
+    assert.match(html, /⚽/);
+    assert.match(html, /5'/);
+    assert.match(html, /Brobbey/);
+    assert.doesNotMatch(html, /penaltyMark|ownGoalMark/);
+});
+
+test('scorerLine: stoppage minute formatted as N+M', () => {
+    assert.match(app.scorerLine({ team: 1, player: 'X', minute: 45, extra: 2, kind: 'goal' }), /45\+2'/);
+});
+
+test('scorerLine: penalty and own-goal marks via i18n', () => {
+    assert.match(app.scorerLine({ team: 1, player: 'X', minute: 60, extra: null, kind: 'pen' }), /live\.penaltyMark/);
+    assert.match(app.scorerLine({ team: 2, player: 'Y', minute: 80, extra: null, kind: 'og' }), /live\.ownGoalMark/);
+});
+
+test('scorerLine: escapes player name', () => {
+    assert.match(app.scorerLine({ team: 1, player: 'A & B', minute: 1, extra: null, kind: 'goal' }), /A &amp; B/);
+});
+
 // --- computeLiveMinute (now, kickoffMs, elapsed, extra, upd, status) -------
 test('computeLiveMinute: ticks from API minute + elapsed since update', () => {
     const now = 1_000_000_000_000;
