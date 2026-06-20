@@ -160,3 +160,60 @@ test('mapApiFootballLive: past the in-play window is skipped', () => {
   const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 1, 0, '2H')], now: lateNow });
   assert.equal(live.length, 0);
 });
+
+// --- parseGoalEvents (API-Football goal events -> scorer list) -------------
+
+import { parseGoalEvents } from '../scripts/lib/results-core.mjs';
+
+const goalEv = (detail, teamName, player, elapsed, extra = null) => ({
+  type: 'Goal', detail, team: { name: teamName }, player: { name: player }, time: { elapsed, extra },
+});
+
+test('parseGoalEvents: normal goal -> scoring team, minute, kind goal', () => {
+  const out = parseGoalEvents([goalEv('Normal Goal', 'Netherlands', 'Brobbey', 5)],
+    { homeName: 'Netherlands', homeIsT1: true });
+  assert.deepEqual(out, [{ team: 1, player: 'Brobbey', minute: 5, extra: null, kind: 'goal' }]);
+});
+
+test('parseGoalEvents: penalty -> kind pen; missed penalty excluded', () => {
+  const out = parseGoalEvents([
+    goalEv('Penalty', 'Netherlands', 'Depay', 60),
+    goalEv('Missed Penalty', 'Netherlands', 'Depay', 70),
+  ], { homeName: 'Netherlands', homeIsT1: true });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].kind, 'pen');
+  assert.equal(out[0].player, 'Depay');
+});
+
+test('parseGoalEvents: own goal counts for the opposing team, kind og', () => {
+  // Home = Netherlands (team1). A Sweden player own-goals -> counts for Netherlands (team1).
+  const out = parseGoalEvents([goalEv('Own Goal', 'Sweden', 'Lindelof', 80)],
+    { homeName: 'Netherlands', homeIsT1: true });
+  assert.deepEqual(out, [{ team: 1, player: 'Lindelof', minute: 80, extra: null, kind: 'og' }]);
+});
+
+test('parseGoalEvents: away orientation (homeIsT1 false) flips team numbers', () => {
+  // Home side scores but home is our team2.
+  const out = parseGoalEvents([goalEv('Normal Goal', 'Sweden', 'Gyokeres', 10)],
+    { homeName: 'Sweden', homeIsT1: false });
+  assert.equal(out[0].team, 2);
+});
+
+test('parseGoalEvents: stoppage captured and sorted by minute then extra', () => {
+  const out = parseGoalEvents([
+    goalEv('Normal Goal', 'Netherlands', 'C', 45, 2),
+    goalEv('Normal Goal', 'Netherlands', 'B', 45),
+    goalEv('Normal Goal', 'Netherlands', 'A', 10),
+  ], { homeName: 'Netherlands', homeIsT1: true });
+  assert.deepEqual(out.map(s => s.player), ['A', 'B', 'C']);
+  assert.equal(out[2].extra, 2);
+});
+
+test('parseGoalEvents: malformed/non-goal events skipped, never throws', () => {
+  const out = parseGoalEvents([
+    null,
+    { type: 'Card', detail: 'Yellow Card', team: { name: 'Netherlands' }, player: { name: 'X' }, time: { elapsed: 5 } },
+    { type: 'Goal', detail: 'Normal Goal', team: { name: 'Netherlands' }, time: { elapsed: 5 } }, // no player
+  ], { homeName: 'Netherlands', homeIsT1: true });
+  assert.deepEqual(out, []);
+});

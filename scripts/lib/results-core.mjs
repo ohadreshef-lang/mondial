@@ -127,6 +127,31 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
     return live;
 }
 
+// Map API-Football goal events to our scorer list. Pure. Keeps real goals (incl.
+// penalties), drops missed penalties, attributes own goals to the opposing team, and
+// returns them time-ordered. `homeName` is the API home-team name; `homeIsT1` says
+// whether the API home side is our team1.
+export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
+    const out = [];
+    for (const e of (apiEvents || [])) {
+        if (!e || e.type !== 'Goal') continue;
+        const detail = e.detail || '';
+        if (detail === 'Missed Penalty') continue;
+        const player = e.player && e.player.name;
+        if (!player) continue;
+        const time = e.time || {};
+        const minute = typeof time.elapsed === 'number' ? time.elapsed : null;
+        const extra = typeof time.extra === 'number' ? time.extra : null;
+        const kind = detail === 'Penalty' ? 'pen' : detail === 'Own Goal' ? 'og' : 'goal';
+        const eventIsHome = normAf(e.team && e.team.name) === normAf(homeName);
+        let team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
+        if (kind === 'og') team = team === 1 ? 2 : 1; // own goal counts for the opponent
+        out.push({ team, player, minute, extra, kind });
+    }
+    out.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0) || (a.extra ?? 0) - (b.extra ?? 0));
+    return out;
+}
+
 // Match a DB match to a single API fixture by team pair + ±36h window.
 function findApiFixture(m, apiMatches) {
     const en1 = HEB_TO_EN[m.team1];
