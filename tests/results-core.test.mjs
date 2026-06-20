@@ -60,7 +60,7 @@ test('buildResultUpdates: live entry writes a live node only', () => {
   const now = 1750000000000;
   const live = [{ matchId: 'm_live', m: { team1:'גאנה', team2:'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY' }];
   const updates = buildResultUpdates({ finished: [], live, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null, extra: null });
+  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null, extra: null, scorers: [] });
   assert.equal(updates['matches/m_live/result'], undefined);
 });
 
@@ -216,4 +216,33 @@ test('parseGoalEvents: malformed/non-goal events skipped, never throws', () => {
     { type: 'Goal', detail: 'Normal Goal', team: { name: 'Netherlands' }, time: { elapsed: 5 } }, // no player
   ], { homeName: 'Netherlands', homeIsT1: true });
   assert.deepEqual(out, []);
+});
+
+test('mapApiFootballLive: entry exposes fixtureId, homeName, homeIsT1, inlineEvents', () => {
+  const f = afFixture('Ghana', 'Panama', 1, 0, '1H');
+  f.fixture.id = 4242;
+  f.events = [{ type: 'Goal', detail: 'Normal Goal', team: { name: 'Ghana' }, player: { name: 'Z' }, time: { elapsed: 8 } }];
+  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
+  assert.equal(live.length, 1);
+  assert.equal(live[0].fixtureId, 4242);
+  assert.equal(live[0].homeName, 'Ghana');
+  assert.equal(live[0].homeIsT1, true);       // Ghana is team1 in afMatches.m_live
+  assert.equal(live[0].inlineEvents.length, 1);
+});
+
+test('mapApiFootballLive: no events array -> inlineEvents null', () => {
+  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 0, 0, '1H')], now: afNow });
+  assert.equal(live[0].inlineEvents, null);
+});
+
+test('buildResultUpdates: live node includes scorers (passed through; default [])', () => {
+  const now = 1750000000000;
+  const withScorers = [{ matchId: 'm_live', m: { team1: 'גאנה', team2: 'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY',
+    scorers: [{ team: 1, player: 'Z', minute: 8, extra: null, kind: 'goal' }] }];
+  const u1 = buildResultUpdates({ finished: [], live: withScorers, groups: {}, bets: {}, specialBets: {}, now });
+  assert.deepEqual(u1['matches/m_live/live'].scorers, [{ team: 1, player: 'Z', minute: 8, extra: null, kind: 'goal' }]);
+
+  const noScorers = [{ matchId: 'm_live', m: { team1: 'גאנה', team2: 'פנמה' }, g1: 0, g2: 0, status: 'IN_PLAY' }];
+  const u2 = buildResultUpdates({ finished: [], live: noScorers, groups: {}, bets: {}, specialBets: {}, now });
+  assert.deepEqual(u2['matches/m_live/live'].scorers, []);
 });

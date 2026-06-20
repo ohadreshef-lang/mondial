@@ -122,7 +122,9 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
         // FT carries no running clock; otherwise capture elapsed (caps 45/90) + stoppage.
         const minute = status === 'FT' ? null : (typeof st.elapsed === 'number' ? st.elapsed : null);
         const extra = status === 'FT' ? null : (typeof st.extra === 'number' ? st.extra : null);
-        live.push({ matchId, m, g1, g2, status, minute, extra });
+        const inlineEvents = Array.isArray(f.events) ? f.events : null;
+        live.push({ matchId, m, g1, g2, status, minute, extra,
+            fixtureId: f.fixture && f.fixture.id, homeName: f.teams.home.name, homeIsT1, inlineEvents });
     }
     return live;
 }
@@ -215,8 +217,8 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
 export function buildResultUpdates({ finished, live, groups, bets, specialBets, now }) {
     const updates = {};
 
-    for (const { matchId, g1, g2, status, minute, extra } of live) {
-        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra };
+    for (const { matchId, g1, g2, status, minute, extra, scorers } of live) {
+        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra, scorers: Array.isArray(scorers) ? scorers : [] };
     }
 
     for (const { matchId, g1, g2 } of finished) {
