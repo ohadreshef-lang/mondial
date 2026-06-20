@@ -122,9 +122,36 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
         // FT carries no running clock; otherwise capture elapsed (caps 45/90) + stoppage.
         const minute = status === 'FT' ? null : (typeof st.elapsed === 'number' ? st.elapsed : null);
         const extra = status === 'FT' ? null : (typeof st.extra === 'number' ? st.extra : null);
-        live.push({ matchId, m, g1, g2, status, minute, extra });
+        const inlineEvents = Array.isArray(f.events) ? f.events : null;
+        live.push({ matchId, m, g1, g2, status, minute, extra,
+            fixtureId: f.fixture && f.fixture.id, homeName: f.teams.home.name, homeIsT1, inlineEvents });
     }
     return live;
+}
+
+// Map API-Football goal events to our scorer list. Pure. Keeps real goals (incl.
+// penalties), drops missed penalties, attributes own goals to the opposing team, and
+// returns them time-ordered. `homeName` is the API home-team name; `homeIsT1` says
+// whether the API home side is our team1.
+export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
+    const out = [];
+    for (const e of (apiEvents || [])) {
+        if (!e || e.type !== 'Goal') continue;
+        const detail = e.detail || '';
+        if (detail === 'Missed Penalty') continue;
+        const player = e.player && e.player.name;
+        if (!player) continue;
+        const time = e.time || {};
+        const minute = typeof time.elapsed === 'number' ? time.elapsed : null;
+        const extra = typeof time.extra === 'number' ? time.extra : null;
+        const kind = detail === 'Penalty' ? 'pen' : detail === 'Own Goal' ? 'og' : 'goal';
+        const eventIsHome = normAf(e.team && e.team.name) === normAf(homeName);
+        let team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
+        if (kind === 'og') team = team === 1 ? 2 : 1; // own goal counts for the opponent
+        out.push({ team, player, minute, extra, kind });
+    }
+    out.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0) || (a.extra ?? 0) - (b.extra ?? 0));
+    return out;
 }
 
 // Match a DB match to a single API fixture by team pair + ±36h window.
@@ -190,8 +217,8 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
 export function buildResultUpdates({ finished, live, groups, bets, specialBets, now }) {
     const updates = {};
 
-    for (const { matchId, g1, g2, status, minute, extra } of live) {
-        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra };
+    for (const { matchId, g1, g2, status, minute, extra, scorers } of live) {
+        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra, scorers: Array.isArray(scorers) ? scorers : [] };
     }
 
     for (const { matchId, g1, g2 } of finished) {

@@ -1617,6 +1617,12 @@ section { display: block; }
    LIVE TAB
    ============================================================ */
 .live-card .live-scoreline { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 4px 14px; }
+.live-scorers { display:flex; gap:12px; padding:2px 16px 10px; }
+.live-scorers-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.live-scorers-col:first-child { text-align:right; }
+.live-scorers-col:last-child { text-align:left; }
+.live-scorer { font-size:0.82em; color:#5b6b62; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.live-scorer-min { font-weight:700; color:#1a4731; direction:ltr; display:inline-block; }
 .live-card .live-team { flex:1; display:flex; align-items:center; gap:6px; font-weight:700; min-width:0; }
 .live-card .live-team:last-child { justify-content:flex-end; }
 .live-card .live-team-name { font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

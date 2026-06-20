@@ -16,7 +16,7 @@
 //   FOOTBALL_API_KEY     (optional) API-Football (api-sports.io) key — live scores
 //   DRY_RUN=1            print planned writes without touching Firebase
 
-import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate } from './lib/results-core.mjs';
+import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate, parseGoalEvents } from './lib/results-core.mjs';
 import { buildPaulUpdates } from './lib/paul-core.mjs';
 
 const FIREBASE_API_KEY = 'AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g';
@@ -138,6 +138,32 @@ async function fetchApiFootballLive() {
     }
 }
 
+// Goal events for one fixture (scorers + minutes). Best-effort, single attempt, same
+// quota-graceful contract as fetchApiFootballLive: any failure -> [] (scorers stay
+// empty; score/finals unaffected).
+async function fetchApiFootballEvents(fixtureId) {
+    if (!fixtureId) return [];
+    try {
+        const res = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`, {
+            headers: { 'x-apisports-key': AF_KEY },
+        });
+        if (!res.ok) {
+            console.warn(`API-Football events unavailable (HTTP ${res.status}) for fixture ${fixtureId} — scorers skipped.`);
+            return [];
+        }
+        const json = await res.json();
+        const errs = json.errors;
+        if (errs && ((Array.isArray(errs) && errs.length) || (typeof errs === 'object' && Object.keys(errs).length))) {
+            console.warn('API-Football events limit/error — scorers skipped:', JSON.stringify(errs));
+            return [];
+        }
+        return json.response || [];
+    } catch (err) {
+        console.warn(`API-Football events fetch failed for fixture ${fixtureId} (scorers skipped):`, err.message);
+        return [];
+    }
+}
+
 function utcDay(ms) {
     return new Date(ms).toISOString().slice(0, 10);
 }
@@ -193,6 +219,26 @@ async function main() {
     if (AF_KEY) {
         const apiFixtures = await fetchApiFootballLive();
         live = mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs: 3 * 3600 * 1000 });
+        for (const entry of live) {
+            const prev = entry.m.live;
+            const prevScorers = (prev && Array.isArray(prev.scorers)) ? prev.scorers : [];
+            const prevTotal = (prev && prev.team1Goals != null ? prev.team1Goals : 0)
+                            + (prev && prev.team2Goals != null ? prev.team2Goals : 0);
+            const newTotal = entry.g1 + entry.g2;
+            // No new goal and the stored list is already complete -> reuse, no call.
+            if (newTotal === 0 || (newTotal === prevTotal && prevScorers.length === newTotal)) {
+                entry.scorers = prevScorers;
+                continue;
+            }
+            // Prefer inline events from live=all (no extra call); fall back to a single
+            // /fixtures/events call only if inline didn't yield enough goals.
+            const opts = { homeName: entry.homeName, homeIsT1: entry.homeIsT1 };
+            let scorers = entry.inlineEvents && entry.inlineEvents.length ? parseGoalEvents(entry.inlineEvents, opts) : [];
+            if (scorers.length < newTotal && entry.fixtureId) {
+                scorers = parseGoalEvents(await fetchApiFootballEvents(entry.fixtureId), opts);
+            }
+            entry.scorers = scorers;
+        }
     } else {
         console.warn('FOOTBALL_API_KEY not set — skipping live scores.');
     }

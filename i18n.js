@@ -124,6 +124,8 @@ const TRANSLATIONS = {
         'live.provisional': 'נקודות (חי)',
         'live.total': 'סה"כ',
         'live.notStarted': 'טרם החל',
+        'live.penaltyMark': '(פנדל)',
+        'live.ownGoalMark': '(ש.ע)',
 
         // Stages
         'stage.all': 'הכל',
@@ -418,6 +420,8 @@ const TRANSLATIONS = {
         'live.provisional': 'pts (live)',
         'live.total': 'Total',
         'live.notStarted': 'Not started',
+        'live.penaltyMark': '(pen)',
+        'live.ownGoalMark': '(OG)',
 
         'stage.all': 'All',
         'stage.group': 'Group stage',
@@ -701,6 +705,8 @@ const TRANSLATIONS = {
         'live.provisional': 'pts (en vivo)',
         'live.total': 'Total',
         'live.notStarted': 'No empezó',
+        'live.penaltyMark': '(pen)',
+        'live.ownGoalMark': '(a.p.)',
 
         'stage.all': 'Todos',
         'stage.group': 'Fase de grupos',
