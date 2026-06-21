@@ -1172,9 +1172,13 @@ function buildMatchCard(m) {
 
     let breakdownHtml = '';
     if (hasResult) {
-        const rows = Object.keys(groupMembers).map(uid => {
-            const name = (groupUsersCache[uid] && groupUsersCache[uid].name)
-                || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+        const nameForUid = uid => (groupUsersCache[uid] && groupUsersCache[uid].name)
+            || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
+        const orderedUids = Object.keys(groupMembers).sort((a, b) =>
+            (((groupMembers[b] && groupMembers[b].totalPoints) || 0) - ((groupMembers[a] && groupMembers[a].totalPoints) || 0))
+            || nameForUid(a).localeCompare(nameForUid(b)));
+        const rows = orderedUids.map(uid => {
+            const name = nameForUid(uid);
             const b = (allGroupBets[uid] || {})[m.id];
             const betStr = b ? `${b.team1Goals}–${b.team2Goals}` : '—';
             const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals) : 0;
@@ -1188,6 +1192,12 @@ function buildMatchCard(m) {
             ${rows}
         </div>`;
     }
+
+    const matchScorers = Array.isArray(m.scorers) ? m.scorers : [];
+    const matchScorersCol = team => matchScorers.filter(s => s.team === team).map(scorerLine).join('');
+    const scorersHtml = matchScorers.length
+        ? `<div class="live-scorers"><div class="live-scorers-col">${matchScorersCol(1)}</div><div class="live-scorers-col">${matchScorersCol(2)}</div></div>`
+        : '';
 
     return `
     <div class="match-card${closingSoon ? ' match-card--closing-soon' : ''}" id="card-${m.id}">
@@ -1208,6 +1218,7 @@ function buildMatchCard(m) {
                     <span class="team-name">${translateTeam(m.team2)}</span>
                 </div>
             </div>
+            ${scorersHtml}
             ${betAreaHtml}
             ${pointsHtml}
             ${breakdownHtml}
@@ -1305,7 +1316,7 @@ function buildLiveCard(m) {
         ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
         : `<span class="live-not-started">${t('live.notStarted')}</span>`;
 
-    const scorers = (live && Array.isArray(live.scorers)) ? live.scorers : [];
+    const scorers = Array.isArray(m.scorers) ? m.scorers : ((live && Array.isArray(live.scorers)) ? live.scorers : []);
     const scorersCol = team => scorers.filter(s => s.team === team).map(scorerLine).join('');
     const scorersHtml = scorers.length
         ? `<div class="live-scorers"><div class="live-scorers-col">${scorersCol(1)}</div><div class="live-scorers-col">${scorersCol(2)}</div></div>`
