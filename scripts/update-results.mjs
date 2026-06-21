@@ -221,7 +221,10 @@ async function main() {
         live = mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs: 3 * 3600 * 1000 });
         for (const entry of live) {
             const prev = entry.m.live;
-            const prevScorers = (prev && Array.isArray(prev.scorers)) ? prev.scorers : [];
+            // Scorers now live on the persistent matches/{id}/scorers path; fall back to the
+            // live node only for transitional data written before that move.
+            const prevScorers = Array.isArray(entry.m.scorers) ? entry.m.scorers
+                : ((prev && Array.isArray(prev.scorers)) ? prev.scorers : []);
             const prevTotal = (prev && prev.team1Goals != null ? prev.team1Goals : 0)
                             + (prev && prev.team2Goals != null ? prev.team2Goals : 0);
             const newTotal = entry.g1 + entry.g2;
