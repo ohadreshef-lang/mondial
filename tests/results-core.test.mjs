@@ -60,7 +60,8 @@ test('buildResultUpdates: live entry writes a live node only', () => {
   const now = 1750000000000;
   const live = [{ matchId: 'm_live', m: { team1:'גאנה', team2:'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY' }];
   const updates = buildResultUpdates({ finished: [], live, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null, extra: null, scorers: [] });
+  assert.deepEqual(updates['matches/m_live/live'], { team1Goals: 1, team2Goals: 0, status: 'IN_PLAY', updatedAt: now, minute: null, extra: null });
+  assert.deepEqual(updates['matches/m_live/scorers'], []);
   assert.equal(updates['matches/m_live/result'], undefined);
 });
 
@@ -235,14 +236,15 @@ test('mapApiFootballLive: no events array -> inlineEvents null', () => {
   assert.equal(live[0].inlineEvents, null);
 });
 
-test('buildResultUpdates: live node includes scorers (passed through; default [])', () => {
+test('buildResultUpdates: scorers persisted to matches/{id}/scorers, not in the live node', () => {
   const now = 1750000000000;
   const withScorers = [{ matchId: 'm_live', m: { team1: 'גאנה', team2: 'פנמה' }, g1: 1, g2: 0, status: 'IN_PLAY',
     scorers: [{ team: 1, player: 'Z', minute: 8, extra: null, kind: 'goal' }] }];
   const u1 = buildResultUpdates({ finished: [], live: withScorers, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(u1['matches/m_live/live'].scorers, [{ team: 1, player: 'Z', minute: 8, extra: null, kind: 'goal' }]);
+  assert.deepEqual(u1['matches/m_live/scorers'], [{ team: 1, player: 'Z', minute: 8, extra: null, kind: 'goal' }]);
+  assert.equal('scorers' in u1['matches/m_live/live'], false); // scorers no longer in the live node
 
   const noScorers = [{ matchId: 'm_live', m: { team1: 'גאנה', team2: 'פנמה' }, g1: 0, g2: 0, status: 'IN_PLAY' }];
   const u2 = buildResultUpdates({ finished: [], live: noScorers, groups: {}, bets: {}, specialBets: {}, now });
-  assert.deepEqual(u2['matches/m_live/live'].scorers, []);
+  assert.deepEqual(u2['matches/m_live/scorers'], []);
 });

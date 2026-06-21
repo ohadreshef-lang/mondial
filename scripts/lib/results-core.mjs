@@ -218,7 +218,10 @@ export function buildResultUpdates({ finished, live, groups, bets, specialBets, 
     const updates = {};
 
     for (const { matchId, g1, g2, status, minute, extra, scorers } of live) {
-        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra, scorers: Array.isArray(scorers) ? scorers : [] };
+        updates[`matches/${matchId}/live`] = { team1Goals: g1, team2Goals: g2, status, updatedAt: now, minute: minute == null ? null : minute, extra: extra == null ? null : extra };
+        // Scorers live on a PERSISTENT path so they survive finalize (when the live node
+        // is nulled). Never cleared — becomes part of the match's history.
+        updates[`matches/${matchId}/scorers`] = Array.isArray(scorers) ? scorers : [];
     }
 
     for (const { matchId, g1, g2 } of finished) {
