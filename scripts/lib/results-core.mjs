@@ -130,9 +130,9 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
 }
 
 // Map API-Football goal events to our scorer list. Pure. Keeps real goals (incl.
-// penalties), drops missed penalties, attributes own goals to the opposing team, and
-// returns them time-ordered. `homeName` is the API home-team name; `homeIsT1` says
-// whether the API home side is our team1.
+// penalties), drops missed penalties, credits own goals to the benefiting team (the
+// team the API already names on the event), and returns them time-ordered. `homeName`
+// is the API home-team name; `homeIsT1` says whether the API home side is our team1.
 export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
     const out = [];
     for (const e of (apiEvents || [])) {
@@ -145,9 +145,10 @@ export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
         const minute = typeof time.elapsed === 'number' ? time.elapsed : null;
         const extra = typeof time.extra === 'number' ? time.extra : null;
         const kind = detail === 'Penalty' ? 'pen' : detail === 'Own Goal' ? 'og' : 'goal';
+        // API-Football already names the BENEFITING team on the event (including own
+        // goals, where `player` is the own-goaler) — so no flip is needed for any kind.
         const eventIsHome = normAf(e.team && e.team.name) === normAf(homeName);
-        let team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
-        if (kind === 'og') team = team === 1 ? 2 : 1; // own goal counts for the opponent
+        const team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
         out.push({ team, player, minute, extra, kind });
     }
     out.sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0) || (a.extra ?? 0) - (b.extra ?? 0));
@@ -176,7 +177,7 @@ function findApiFixture(m, apiMatches) {
 
 // Split candidates into finished (final score) and live (in-play score), and flag
 // stale unmatched ones (well past kickoff, no usable API data).
-export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, inPlayWindowMs = 3 * 3600 * 1000 }) {
+export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, inPlayWindowMs = 3 * 3600 * 1000, refinalizeWindowMs = 6 * 3600 * 1000 }) {
     const finished = [];
     const live = [];
     const staleUnmatched = [];
@@ -184,7 +185,10 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
     for (const [matchId, m] of Object.entries(matches || {})) {
         if (!m || !m.team1 || !m.team2 || !m.date) continue;
         const hasResult = m.result && m.result.team1Goals !== undefined;
-        if (hasResult) continue;
+        // A finalized match is normally done. Re-examine it only briefly after finishing
+        // so a VAR correction to the final score can still be applied.
+        const withinRefinalize = hasResult && m.finishedAt != null && (now - m.finishedAt) <= refinalizeWindowMs;
+        if (hasResult && !withinRefinalize) continue;
         const kickoff = parseMatchDate(m.date);
         if (kickoff > now) continue;                       // not started -> nothing to fetch
         const minsSince = (now - kickoff) / 60000;
@@ -192,7 +196,7 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
 
         const found = findApiFixture(m, apiMatches);
         if (found.error) {
-            if (isStale) staleUnmatched.push(`${matchId} — "${found.en1 || m.team1}" vs "${found.en2 || m.team2}", ${found.error}`);
+            if (isStale && !hasResult) staleUnmatched.push(`${matchId} — "${found.en1 || m.team1}" vs "${found.en2 || m.team2}", ${found.error}`);
             continue;
         }
         const am = found.am;
@@ -201,11 +205,18 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
         const g2 = found.t1IsHome ? (ft && ft.away) : (ft && ft.home);
 
         if (am.status === 'FINISHED' && ft && ft.home !== null && ft.away !== null) {
-            finished.push({ matchId, m, g1, g2 });
-        } else if ((am.status === 'IN_PLAY' || am.status === 'PAUSED') && ft && ft.home !== null && ft.away !== null
+            if (hasResult) {
+                // Re-finalize only if the authoritative score actually changed.
+                if (g1 !== m.result.team1Goals || g2 !== m.result.team2Goals) {
+                    finished.push({ matchId, m, g1, g2 });
+                }
+            } else {
+                finished.push({ matchId, m, g1, g2 });
+            }
+        } else if (!hasResult && (am.status === 'IN_PLAY' || am.status === 'PAUSED') && ft && ft.home !== null && ft.away !== null
                    && (now - kickoff) <= inPlayWindowMs) {
             live.push({ matchId, m, g1, g2, status: am.status });
-        } else if (isStale) {
+        } else if (isStale && !hasResult) {
             staleUnmatched.push(`${matchId} — "${found.en1}" vs "${found.en2}", status=${am.status}, no usable score`);
         }
     }

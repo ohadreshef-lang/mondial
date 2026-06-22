@@ -186,9 +186,10 @@ test('parseGoalEvents: penalty -> kind pen; missed penalty excluded', () => {
   assert.equal(out[0].player, 'Depay');
 });
 
-test('parseGoalEvents: own goal counts for the opposing team, kind og', () => {
-  // Home = Netherlands (team1). A Sweden player own-goals -> counts for Netherlands (team1).
-  const out = parseGoalEvents([goalEv('Own Goal', 'Sweden', 'Lindelof', 80)],
+test('parseGoalEvents: own goal credited to the benefiting team named by the API, kind og', () => {
+  // API-Football names the BENEFITING team on an own-goal event (player = own-goaler).
+  // Netherlands (home, team1) benefits from Lindelof's own goal.
+  const out = parseGoalEvents([goalEv('Own Goal', 'Netherlands', 'Lindelof', 80)],
     { homeName: 'Netherlands', homeIsT1: true });
   assert.deepEqual(out, [{ team: 1, player: 'Lindelof', minute: 80, extra: null, kind: 'og' }]);
 });
@@ -234,6 +235,37 @@ test('mapApiFootballLive: entry exposes fixtureId, homeName, homeIsT1, inlineEve
 test('mapApiFootballLive: no events array -> inlineEvents null', () => {
   const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 0, 0, '1H')], now: afNow });
   assert.equal(live[0].inlineEvents, null);
+});
+
+const fdFinished = (h, a) => ([{ id: 1, status: 'FINISHED', utcDate: '2026-06-17T20:00:00Z',
+  homeTeam: { name: 'England' }, awayTeam: { name: 'Croatia' },
+  score: { duration: 'REGULAR', fullTime: { home: h, away: a } } }]);
+
+test('classifyMatches: re-finalizes a recently-finished match whose score changed', () => {
+  const matches = { m_fin: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-06-17T20:00',
+    result: { team1Goals: 5, team2Goals: 2 }, finishedAt: Date.parse('2026-06-17T22:00:00Z') } };
+  const now = Date.parse('2026-06-17T22:30:00Z'); // 30 min after finishedAt, within window
+  const { finished } = classifyMatches({ matches, apiMatches: fdFinished(4, 2), now, refinalizeWindowMs: 6 * 3600 * 1000 });
+  assert.equal(finished.length, 1);
+  assert.equal(finished[0].matchId, 'm_fin');
+  assert.equal(finished[0].g1, 4);
+  assert.equal(finished[0].g2, 2);
+});
+
+test('classifyMatches: does NOT re-finalize when the score is unchanged', () => {
+  const matches = { m_fin: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-06-17T20:00',
+    result: { team1Goals: 4, team2Goals: 2 }, finishedAt: Date.parse('2026-06-17T22:00:00Z') } };
+  const now = Date.parse('2026-06-17T22:30:00Z');
+  const { finished } = classifyMatches({ matches, apiMatches: fdFinished(4, 2), now, refinalizeWindowMs: 6 * 3600 * 1000 });
+  assert.equal(finished.length, 0);
+});
+
+test('classifyMatches: does NOT re-finalize past the window', () => {
+  const matches = { m_fin: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-06-17T20:00',
+    result: { team1Goals: 5, team2Goals: 2 }, finishedAt: Date.parse('2026-06-17T12:00:00Z') } };
+  const now = Date.parse('2026-06-17T22:30:00Z'); // 10.5h after finishedAt, outside 6h window
+  const { finished } = classifyMatches({ matches, apiMatches: fdFinished(4, 2), now, refinalizeWindowMs: 6 * 3600 * 1000 });
+  assert.equal(finished.length, 0);
 });
 
 test('buildResultUpdates: scorers persisted to matches/{id}/scorers, not in the live node', () => {
