@@ -130,9 +130,9 @@ export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs =
 }
 
 // Map API-Football goal events to our scorer list. Pure. Keeps real goals (incl.
-// penalties), drops missed penalties, attributes own goals to the opposing team, and
-// returns them time-ordered. `homeName` is the API home-team name; `homeIsT1` says
-// whether the API home side is our team1.
+// penalties), drops missed penalties, credits own goals to the benefiting team (the
+// team the API already names on the event), and returns them time-ordered. `homeName`
+// is the API home-team name; `homeIsT1` says whether the API home side is our team1.
 export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
     const out = [];
     for (const e of (apiEvents || [])) {
