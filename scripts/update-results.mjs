@@ -42,6 +42,7 @@ const STALE_MINUTES = 180;
 // The self-polling workflow run ends early (prints LOOP_IDLE) when no match is live
 // and none kicks off within this window — so the runner isn't held open all night.
 const IDLE_LOOKAHEAD_MS = 120 * 60 * 1000;
+const REFINALIZE_WINDOW_MS = 6 * 60 * 60 * 1000; // re-check a finished match this long for VAR score corrections
 
 // In-run retry with exponential backoff. A transient blip (network/DNS error, 429
 // rate-limit, or 5xx) self-heals within the run instead of failing it — and flipping
@@ -190,14 +191,19 @@ async function main() {
         if (m.result && m.result.team1Goals !== undefined) return false;
         return parseMatchDate(m.date) <= now;            // any started, unfinished game
     });
-    if (candidates.length === 0) {
+    // Recently-finished matches are re-checked so a VAR correction to the final score
+    // can be applied (classifyMatches with refinalizeWindowMs).
+    const recheckable = Object.values(matches).filter(m =>
+        m && m.result && m.result.team1Goals !== undefined
+        && m.finishedAt != null && (now - m.finishedAt) <= REFINALIZE_WINDOW_MS);
+    if (candidates.length === 0 && recheckable.length === 0) {
         // Nothing live. Tell the polling loop whether to keep going: stay alive if a
         // match kicks off within IDLE_LOOKAHEAD_MS, otherwise emit LOOP_IDLE so the
         // workflow can end this run early (the cron re-triggers before the next game).
         const soon = Object.values(matches).some(m =>
             m && m.date && !(m.result && m.result.team1Goals !== undefined)
             && parseMatchDate(m.date) > now && (parseMatchDate(m.date) - now) <= IDLE_LOOKAHEAD_MS);
-        console.log(`No started, unfinished matches. Nothing to do.${soon ? ' (a match starts soon — keep polling)' : ' LOOP_IDLE'}`);
+        console.log(`No started, unfinished matches and nothing to re-check.${soon ? ' (a match starts soon — keep polling)' : ' LOOP_IDLE'}`);
         return;
     }
 
@@ -211,6 +217,7 @@ async function main() {
     // from API-Football instead.
     const { finished, staleUnmatched } = classifyMatches({
         matches, apiMatches, now, staleMinutes: STALE_MINUTES, inPlayWindowMs: 3 * 3600 * 1000,
+        refinalizeWindowMs: REFINALIZE_WINDOW_MS,
     });
 
     // Live in-play scores from API-Football (best-effort). One call covers all live
@@ -228,8 +235,10 @@ async function main() {
             const prevTotal = (prev && prev.team1Goals != null ? prev.team1Goals : 0)
                             + (prev && prev.team2Goals != null ? prev.team2Goals : 0);
             const newTotal = entry.g1 + entry.g2;
-            // No new goal and the stored list is already complete -> reuse, no call.
-            if (newTotal === 0 || (newTotal === prevTotal && prevScorers.length === newTotal)) {
+            // Score back to 0 (e.g. a goal was cancelled) -> clear the list.
+            if (newTotal === 0) { entry.scorers = []; continue; }
+            // No change and the stored list is already complete -> reuse, no call.
+            if (newTotal === prevTotal && prevScorers.length === newTotal) {
                 entry.scorers = prevScorers;
                 continue;
             }
