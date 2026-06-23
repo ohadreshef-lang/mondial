@@ -3,9 +3,9 @@ name: Update match results
 on:
   schedule:
     # GitHub throttles high-frequency schedules (observed: every ~2h, not */5). So a
-    # single run polls internally every 5 min for up to ~5.5h (see the loop) — one
-    # trigger blankets a whole evening of matches with 5-min-fresh live scores, no
-    # matter how sparsely GitHub actually fires.
+    # single run polls internally every 5–10 min (adaptive by API quota, see the loop)
+    # for up to ~5.5h — one trigger blankets a whole evening of matches with fresh live
+    # scores, no matter how sparsely GitHub actually fires.
     - cron: '*/5 * * * *'
   workflow_dispatch:
 

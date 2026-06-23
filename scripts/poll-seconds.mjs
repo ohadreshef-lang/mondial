@@ -10,6 +10,7 @@ async function remainingQuota() {
     try {
         const res = await fetch('https://v3.football.api-sports.io/status', {
             headers: { 'x-apisports-key': KEY },
+            signal: AbortSignal.timeout(10000),   // never hang an unattended loop iteration
         });
         if (!res.ok) return undefined;
         const json = await res.json();
