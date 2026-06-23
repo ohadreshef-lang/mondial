@@ -25,9 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Poll finished + live matches (~5-min cadence, up to ~5.5h)
+      - name: Poll finished + live matches (~10-min cadence, up to ~5.5h)
         run: |
-          # Poll every 5 min for up to ~5.5h. set +e so a single failing iteration
+          # TEMPORARY: 10-min cadence to conserve API-Football quota (revert to 5 min /
+          # sleep 300 / seq 66 after the daily quota renewal at 00:00 UTC).
+          # Poll every 10 min for up to ~5.5h. set +e so a single failing iteration
           # (transient blip / stale-red) never aborts the loop; we exit with the LAST
           # iteration's status (persistent issue -> red, recovered transient -> green).
           # The script prints LOOP_IDLE when no match is live and none starts within
@@ -35,8 +37,8 @@ jobs:
           # (the cron re-triggers before the next match).
           set +e
           last=0
-          for i in $(seq 1 66); do
-            echo "::group::poll $i/66 ($(date -u +%H:%M:%S)Z)"
+          for i in $(seq 1 33); do
+            echo "::group::poll $i/33 ($(date -u +%H:%M:%S)Z)"
             out=$(node scripts/update-results.mjs 2>&1); last=$?
             printf '%s\n' "$out"
             echo "::endgroup::"
@@ -44,7 +46,7 @@ jobs:
               echo "No live game and none within ~2h — ending run early; cron will re-trigger."
               break
             fi
-            [ "$i" -lt 66 ] && sleep 300
+            [ "$i" -lt 33 ] && sleep 600
           done
           exit $last
         env:
