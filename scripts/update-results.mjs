@@ -222,8 +222,11 @@ async function main() {
 
     // Live in-play scores from API-Football (best-effort). One call covers all live
     // games; only spent when a started-unfinished match exists (i.e. a live window).
+    // Gate on `candidates` so the re-finalize loop (which keeps running for hours after a
+    // game to catch VAR corrections via football-data) does NOT burn API-Football calls
+    // while nothing is actually live.
     let live = [];
-    if (AF_KEY) {
+    if (AF_KEY && candidates.length > 0) {
         const apiFixtures = await fetchApiFootballLive();
         live = mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs: 3 * 3600 * 1000 });
         for (const entry of live) {
