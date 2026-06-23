@@ -297,11 +297,22 @@ function isInLiveTab(m, now) {
 // as the base and ticks forward by wall-clock since then; falls back to estimating
 // from kickoff when no API minute is available yet. Returns '' at halftime (the
 // status badge already says so).
-function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status) {
+// A live game whose data hasn't refreshed in LIVE_STALE_MS is "stale" — the live API
+// stopped updating. Only in-play games run a clock, so only they can go stale.
+const LIVE_STALE_MS = 10 * 60 * 1000;
+function isLiveStale(now, upd, status) {
+    return status === 'IN_PLAY' && typeof upd === 'number' && (now - upd) > LIVE_STALE_MS;
+}
+
+function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status, staleMs = LIVE_STALE_MS) {
     if (status === 'PAUSED' || status === 'FT') return '';   // badge conveys these
-    const tick = (upd != null && status === 'IN_PLAY') ? Math.max(0, Math.floor((now - upd) / 60000)) : 0;
+    // When data is stale, freeze the clock at the last real update instead of ticking
+    // forward off wall-clock.
+    const stale = typeof upd === 'number' && (now - upd) > staleMs;
+    const clock = stale ? upd : now;
+    const tick = (upd != null && status === 'IN_PLAY') ? Math.max(0, Math.floor((clock - upd) / 60000)) : 0;
     if (elapsed == null) {                                    // estimate from kickoff (rough)
-        const est = Math.floor((now - kickoffMs) / 60000);
+        const est = Math.floor((clock - kickoffMs) / 60000);
         return est > 90 ? "90+'" : (est < 0 ? 0 : est) + "'";
     }
     // API caps elapsed at 45/90; stoppage lives in `extra`, shown as "45+2'" / "90+3'".

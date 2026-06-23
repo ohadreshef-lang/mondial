@@ -308,3 +308,32 @@ test('computeLiveMinute: estimate caps at 90+', () => {
     const now = 1_000_000_000_000;
     assert.equal(app.computeLiveMinute(now, now - 200*60000, null, null, null, 'IN_PLAY'), "90+'");
 });
+
+// --- isLiveStale -----------------------------------------------------------
+
+test('isLiveStale: in-play with an update older than 10 min -> true', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.isLiveStale(now, now - 11 * 60000, 'IN_PLAY'), true);
+});
+test('isLiveStale: in-play with a recent update -> false', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.isLiveStale(now, now - 3 * 60000, 'IN_PLAY'), false);
+});
+test('isLiveStale: PAUSED/FT or missing upd -> false', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.isLiveStale(now, now - 30 * 60000, 'PAUSED'), false);
+    assert.equal(app.isLiveStale(now, now - 30 * 60000, 'FT'), false);
+    assert.equal(app.isLiveStale(now, null, 'IN_PLAY'), false);
+});
+
+// --- computeLiveMinute: stale freeze ---------------------------------------
+
+test('computeLiveMinute: freezes once data is stale (>10 min since upd)', () => {
+    const now = 1_000_000_000_000;
+    // elapsed 50 captured 12 min ago -> frozen at 50, not 50+12
+    assert.equal(app.computeLiveMinute(now, now - 62 * 60000, 50, null, now - 12 * 60000, 'IN_PLAY'), "50'");
+});
+test('computeLiveMinute: still ticks when data is fresh (<10 min)', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.computeLiveMinute(now, now - 52 * 60000, 50, null, now - 2 * 60000, 'IN_PLAY'), "52'");
+});
