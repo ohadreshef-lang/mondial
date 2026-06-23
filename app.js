@@ -297,11 +297,22 @@ function isInLiveTab(m, now) {
 // as the base and ticks forward by wall-clock since then; falls back to estimating
 // from kickoff when no API minute is available yet. Returns '' at halftime (the
 // status badge already says so).
-function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status) {
+// A live game whose data hasn't refreshed in LIVE_STALE_MS is "stale" — the live API
+// stopped updating. Only in-play games run a clock, so only they can go stale.
+const LIVE_STALE_MS = 10 * 60 * 1000;
+function isLiveStale(now, upd, status) {
+    return status === 'IN_PLAY' && typeof upd === 'number' && (now - upd) > LIVE_STALE_MS;
+}
+
+function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status, staleMs = LIVE_STALE_MS) {
     if (status === 'PAUSED' || status === 'FT') return '';   // badge conveys these
-    const tick = (upd != null && status === 'IN_PLAY') ? Math.max(0, Math.floor((now - upd) / 60000)) : 0;
+    // When data is stale, freeze the clock at the last real update instead of ticking
+    // forward off wall-clock.
+    const stale = typeof upd === 'number' && (now - upd) > staleMs;
+    const clock = stale ? upd : now;
+    const tick = (upd != null && status === 'IN_PLAY') ? Math.max(0, Math.floor((clock - upd) / 60000)) : 0;
     if (elapsed == null) {                                    // estimate from kickoff (rough)
-        const est = Math.floor((now - kickoffMs) / 60000);
+        const est = Math.floor((clock - kickoffMs) / 60000);
         return est > 90 ? "90+'" : (est < 0 ? 0 : est) + "'";
     }
     // API caps elapsed at 45/90; stoppage lives in `extra`, shown as "45+2'" / "90+3'".
@@ -316,7 +327,17 @@ function updateLiveMinutes() {
         const elapsed = el.dataset.min === '' ? null : +el.dataset.min;
         const extra = el.dataset.extra === '' ? null : +el.dataset.extra;
         const upd = el.dataset.upd === '' ? null : +el.dataset.upd;
-        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, el.dataset.status);
+        const status = el.dataset.status;
+        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, status);
+        // Toggle the "updates paused" (stale) state on the card and refresh the "X min ago".
+        const card = el.closest('.live-card');
+        if (!card) return;
+        const stale = isLiveStale(now, upd, status);
+        card.classList.toggle('live-stale', stale);
+        if (stale) {
+            const ago = card.querySelector('.live-stale-ago');
+            if (ago) ago.textContent = t('live.updatedAgo').replace('{n}', String(Math.round((now - upd) / 60000)));
+        }
     });
 }
 
@@ -1377,11 +1398,22 @@ function buildLiveCard(m) {
         ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-extra="${apiExtra}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, apiExtra === '' ? null : apiExtra, upd === '' ? null : upd, minStatus)}</span>`
         : '';
 
+    // "Updates paused" (stale) state — only for actively-playing games. The card carries
+    // both a live badge and a paused badge; CSS shows one based on the .live-stale class
+    // (set here initially, kept current by updateLiveMinutes).
+    const liveUpd = live && typeof live.updatedAt === 'number' ? live.updatedAt : null;
+    const stale = inPlay && isLiveStale(Date.now(), liveUpd, 'IN_PLAY');
+    const agoInit = stale ? escapeHtml(t('live.updatedAgo').replace('{n}', String(Math.round((Date.now() - liveUpd) / 60000)))) : '';
+    const badgeHtml = inPlay
+        ? `<span class="match-status-badge badge-live live-badge-active">${dot}${t('live.statusLive')}</span>`
+          + `<span class="match-status-badge badge-stale live-badge-stale">⏸ <span class="live-stale-ago">${agoInit}</span></span>`
+        : `<span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>`;
+
     return `
-    <div class="match-card live-card" id="live-${m.id}">
+    <div class="match-card live-card${stale ? ' live-stale' : ''}" id="live-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
-            <span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>
+            ${badgeHtml}
         </div>
         <div class="live-scoreline">
             <span class="live-team">${getFlag(m.team1)} <span class="live-team-name">${escapeHtml(translateTeam(m.team1))}</span></span>

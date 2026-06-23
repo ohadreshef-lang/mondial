@@ -1629,6 +1629,11 @@ section { display: block; }
 .live-card .live-score-wrap { display:flex; flex-direction:column; align-items:center; }
 .live-card .live-score { font-size:1.9rem; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--green-dark,#1a4731); }
 .live-card .live-minute { font-size:.7rem; font-weight:700; color:#e23; margin-top:1px; min-height:.9em; direction:ltr; }
+.live-badge-stale { display: none; }
+.live-card.live-stale .live-badge-active { display: none; }
+.live-card.live-stale .live-badge-stale { display: inline-flex; align-items: center; gap: 4px; }
+.badge-stale { background: #6b7280; color: #fff; }
+.live-card.live-stale .live-score { opacity: 0.45; }
 .live-card .live-score-sep { margin:0 8px; color:var(--text-light,#888); font-weight:600; }
 .live-not-started { font-size:.85rem; color:var(--text-light, #888); font-weight:500; }
 .badge-live { background:#e23; color:#fff; }
