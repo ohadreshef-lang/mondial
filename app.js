@@ -327,7 +327,17 @@ function updateLiveMinutes() {
         const elapsed = el.dataset.min === '' ? null : +el.dataset.min;
         const extra = el.dataset.extra === '' ? null : +el.dataset.extra;
         const upd = el.dataset.upd === '' ? null : +el.dataset.upd;
-        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, el.dataset.status);
+        const status = el.dataset.status;
+        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, status);
+        // Toggle the "updates paused" (stale) state on the card and refresh the "X min ago".
+        const card = el.closest('.live-card');
+        if (!card) return;
+        const stale = isLiveStale(now, upd, status);
+        card.classList.toggle('live-stale', stale);
+        if (stale) {
+            const ago = card.querySelector('.live-stale-ago');
+            if (ago) ago.textContent = t('live.updatedAgo').replace('{n}', String(Math.round((now - upd) / 60000)));
+        }
     });
 }
 
@@ -1388,11 +1398,22 @@ function buildLiveCard(m) {
         ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-extra="${apiExtra}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, apiExtra === '' ? null : apiExtra, upd === '' ? null : upd, minStatus)}</span>`
         : '';
 
+    // "Updates paused" (stale) state — only for actively-playing games. The card carries
+    // both a live badge and a paused badge; CSS shows one based on the .live-stale class
+    // (set here initially, kept current by updateLiveMinutes).
+    const liveUpd = live && typeof live.updatedAt === 'number' ? live.updatedAt : null;
+    const stale = inPlay && isLiveStale(Date.now(), liveUpd, 'IN_PLAY');
+    const agoInit = stale ? escapeHtml(t('live.updatedAgo').replace('{n}', String(Math.round((Date.now() - liveUpd) / 60000)))) : '';
+    const badgeHtml = inPlay
+        ? `<span class="match-status-badge badge-live live-badge-active">${dot}${t('live.statusLive')}</span>`
+          + `<span class="match-status-badge badge-stale live-badge-stale">⏸ <span class="live-stale-ago">${agoInit}</span></span>`
+        : `<span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>`;
+
     return `
-    <div class="match-card live-card" id="live-${m.id}">
+    <div class="match-card live-card${stale ? ' live-stale' : ''}" id="live-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
-            <span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>
+            ${badgeHtml}
         </div>
         <div class="live-scoreline">
             <span class="live-team">${getFlag(m.team1)} <span class="live-team-name">${escapeHtml(translateTeam(m.team1))}</span></span>
