@@ -1310,10 +1310,44 @@ function renderLive() {
         });
 
     if (games.length === 0) { container.innerHTML = `<p class="state-msg">${t('live.empty')}</p>`; return; }
-    container.innerHTML = games.map(buildLiveCard).join('');
+    // Combined standings across ALL live games, computed once and shared by every card.
+    const standings = projectLiveStandings(games, groupMembers, allGroupBets, now);
+    container.innerHTML = games.map(m => buildLiveCard(m, standings)).join('');
 }
 
-function buildLiveCard(m) {
+// Projected live standings across ALL currently-live games, so concurrent games
+// accumulate. Pure. For each member: currentTotal − Σ already-counted + Σ provisional
+// over every scored game (a finalized game nets 0; an in-play game adds its live points).
+function projectLiveStandings(games, members, bets, now) {
+    const uids = Object.keys(members || {});
+    const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (members[uid] && members[uid].name) || t('groupSettings.unknownUser');
+    const scoreOf = g => {
+        const hasResult = g.result !== null && g.result !== undefined;
+        const started = parseMatchDate(g.date).getTime() <= now;
+        return hasResult ? g.result : (g.live ? g.live : (started ? { team1Goals: 0, team2Goals: 0 } : null));
+    };
+    const scored = (games || []).map(g => ({ g, s: scoreOf(g) })).filter(x => x.s);
+    const currentTotal = uid => (members[uid] && members[uid].totalPoints) || 0;
+    const projectedTotal = {};
+    for (const uid of uids) {
+        let delta = 0;
+        for (const { g, s } of scored) {
+            const b = (bets[uid] || {})[g.id];
+            const provisional = calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, s.team1Goals, s.team2Goals);
+            const counted = (b && typeof b.points === 'number') ? b.points : 0;
+            delta += provisional - counted;
+        }
+        projectedTotal[uid] = currentTotal(uid) + delta;
+    }
+    const oldPos = {};
+    [...uids].sort((a, b) => currentTotal(b) - currentTotal(a) || nameOf(a).localeCompare(nameOf(b)))
+        .forEach((uid, i) => { oldPos[uid] = i + 1; });
+    const orderedUids = Array.from(uids).sort((a, b) =>
+        projectedTotal[b] - projectedTotal[a] || currentTotal(b) - currentTotal(a) || nameOf(a).localeCompare(nameOf(b)));
+    return { orderedUids, projectedTotal, oldPos };
+}
+
+function buildLiveCard(m, ctx) {
     const live = m.live || null;
     const liveStatus = live ? live.status : null;            // 'IN_PLAY' | 'PAUSED' | 'FT'
     const hasResult = m.result !== null && m.result !== undefined;
@@ -1345,31 +1379,20 @@ function buildLiveCard(m) {
 
     // Projected live leaderboard: each member's current total + this match's
     // provisional points, ranked, with medals (🥇🥈🥉) and ↑/↓ vs their current spot.
-    const uids   = Object.keys(groupMembers);
     const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
-    // Once the updater finalizes a match it writes this match's points into the bet
-    // AND folds them into totalPoints. The projection adds the match's provisional
-    // points itself (matchOf), so we must strip any already-counted points out of the
-    // base first — otherwise the finished match is counted twice (base + matchOf) and
-    // totals jump the moment the leaderboard updates. During the live phase no points
-    // are stored yet, so countedOf is 0 and base == totalPoints as before.
-    const countedOf = uid => { const b = (allGroupBets[uid] || {})[m.id]; return (b && typeof b.points === 'number') ? b.points : 0; };
-    const baseOf = uid => (((groupMembers[uid] && groupMembers[uid].totalPoints) || 0) - countedOf(uid));
-    // A missing bet counts as 0–0 (matches how the updater auto-fills no-bets when a
-    // match finishes), so no-betters are scored and shown as 0–0, never "—".
+    // This card's OWN provisional points (for the +N pill / pick). Missing bet = 0–0,
+    // matching the updater's auto-fill.
     const matchOf = uid => { if (!score) return 0; const b = (allGroupBets[uid] || {})[m.id]; return calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, score.team1Goals, score.team2Goals); };
     const betOf  = uid => { const b = (allGroupBets[uid] || {})[m.id]; return b ? `${b.team1Goals}–${b.team2Goals}` : '0–0'; };
-    // Current standing (tie-break by name so positions are stable), then projected.
-    const oldPos = {};
-    [...uids].sort((a, b) => baseOf(b) - baseOf(a) || nameOf(a).localeCompare(nameOf(b))).forEach((uid, i) => { oldPos[uid] = i + 1; });
-    const newOrder = [...uids].sort((a, b) =>
-        (baseOf(b) + matchOf(b)) - (baseOf(a) + matchOf(a)) || baseOf(b) - baseOf(a) || nameOf(a).localeCompare(nameOf(b)));
+    // Standings are computed once across ALL live games (so concurrent games accumulate)
+    // and shared via ctx — every live card shows the same combined projected total.
+    const { orderedUids, projectedTotal, oldPos } = ctx;
 
-    const rowsHtml = newOrder.map((uid, i) => {
+    const rowsHtml = orderedUids.map((uid, i) => {
         const rank  = i + 1;
         const isMe  = currentUser && uid === currentUser.userId;
         const mp    = matchOf(uid);
-        const total = baseOf(uid) + mp;
+        const total = projectedTotal[uid];
         const delta = oldPos[uid] - rank;   // > 0 = climbed
         const chg   = delta > 0 ? `<span class="live-lb-chg up">▲${delta}</span>`
                     : delta < 0 ? `<span class="live-lb-chg down">▼${-delta}</span>` : '';
