@@ -26,6 +26,7 @@ export const HEB_TO_EN = {
 
 export const API_ALIASES = {
     'bosnia-herzegovina': 'bosnia and herzegovina',
+    'bosnia & herzegovina': 'bosnia and herzegovina',   // API-Football's live-feed form (ampersand)
     'cape verde islands': 'cape verde',
     'congo dr': 'dr congo',
     'united states': 'usa',
