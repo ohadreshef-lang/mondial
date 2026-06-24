@@ -1313,6 +1313,38 @@ function renderLive() {
     container.innerHTML = games.map(buildLiveCard).join('');
 }
 
+// Projected live standings across ALL currently-live games, so concurrent games
+// accumulate. Pure. For each member: currentTotal − Σ already-counted + Σ provisional
+// over every scored game (a finalized game nets 0; an in-play game adds its live points).
+function projectLiveStandings(games, members, bets, now) {
+    const uids = Object.keys(members || {});
+    const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (members[uid] && members[uid].name) || t('groupSettings.unknownUser');
+    const scoreOf = g => {
+        const hasResult = g.result !== null && g.result !== undefined;
+        const started = parseMatchDate(g.date).getTime() <= now;
+        return hasResult ? g.result : (g.live ? g.live : (started ? { team1Goals: 0, team2Goals: 0 } : null));
+    };
+    const scored = (games || []).map(g => ({ g, s: scoreOf(g) })).filter(x => x.s);
+    const currentTotal = uid => (members[uid] && members[uid].totalPoints) || 0;
+    const projectedTotal = {};
+    for (const uid of uids) {
+        let delta = 0;
+        for (const { g, s } of scored) {
+            const b = (bets[uid] || {})[g.id];
+            const provisional = calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, s.team1Goals, s.team2Goals);
+            const counted = (b && typeof b.points === 'number') ? b.points : 0;
+            delta += provisional - counted;
+        }
+        projectedTotal[uid] = currentTotal(uid) + delta;
+    }
+    const oldPos = {};
+    [...uids].sort((a, b) => currentTotal(b) - currentTotal(a) || nameOf(a).localeCompare(nameOf(b)))
+        .forEach((uid, i) => { oldPos[uid] = i + 1; });
+    const orderedUids = Array.from(uids).sort((a, b) =>
+        projectedTotal[b] - projectedTotal[a] || currentTotal(b) - currentTotal(a) || nameOf(a).localeCompare(nameOf(b)));
+    return { orderedUids, projectedTotal, oldPos };
+}
+
 function buildLiveCard(m) {
     const live = m.live || null;
     const liveStatus = live ? live.status : null;            // 'IN_PLAY' | 'PAUSED' | 'FT'

@@ -337,3 +337,57 @@ test('computeLiveMinute: still ticks when data is fresh (<10 min)', () => {
     const now = 1_000_000_000_000;
     assert.equal(app.computeLiveMinute(now, now - 52 * 60000, 50, null, now - 2 * 60000, 'IN_PLAY'), "52'");
 });
+
+// --- projectLiveStandings (accumulate across concurrent live games) --------
+
+test('projectLiveStandings: two in-play games accumulate per member', () => {
+    const now = Date.parse('2026-06-24T20:30:00Z');
+    const games = [
+        { id: 'g1', date: '2026-06-24T20:00', live: { team1Goals: 1, team2Goals: 0 } },
+        { id: 'g2', date: '2026-06-24T20:00', live: { team1Goals: 2, team2Goals: 1 } },
+    ];
+    const members = { u1: { totalPoints: 10, name: 'A' }, u2: { totalPoints: 20, name: 'B' } };
+    const bets = {
+        u1: { g1: { team1Goals: 1, team2Goals: 0 }, g2: { team1Goals: 2, team2Goals: 1 } }, // both exact → +4 +4
+        u2: { g1: { team1Goals: 0, team2Goals: 0 }, g2: { team1Goals: 0, team2Goals: 0 } }, // both wrong → 0
+    };
+    const r = app.projectLiveStandings(games, members, bets, now);
+    assert.equal(r.projectedTotal.u1, 18); // 10 + 8
+    assert.equal(r.projectedTotal.u2, 20); // 20 + 0
+    assert.deepEqual(r.orderedUids, ['u2', 'u1']); // 20 > 18
+    assert.equal(r.oldPos.u2, 1);            // current standing by totalPoints
+    assert.equal(r.oldPos.u1, 2);
+});
+
+test('projectLiveStandings: a member gaining in only one game adds only that game', () => {
+    const now = Date.parse('2026-06-24T20:30:00Z');
+    const games = [
+        { id: 'g1', date: '2026-06-24T20:00', live: { team1Goals: 1, team2Goals: 0 } },
+        { id: 'g2', date: '2026-06-24T20:00', live: { team1Goals: 2, team2Goals: 1 } },
+    ];
+    const members = { u3: { totalPoints: 5, name: 'C' } };
+    const bets = { u3: { g1: { team1Goals: 1, team2Goals: 0 } } }; // exact g1 (+4); no g2 bet → 0–0 vs 2–1 → 0
+    const r = app.projectLiveStandings(games, members, bets, now);
+    assert.equal(r.projectedTotal.u3, 9); // 5 + 4
+});
+
+test('projectLiveStandings: a finalized game in the set contributes net 0 (no double-count)', () => {
+    const now = Date.parse('2026-06-24T20:30:00Z');
+    const games = [
+        { id: 'gf', date: '2026-06-24T18:00', result: { team1Goals: 2, team2Goals: 0 } },          // finalized
+        { id: 'gl', date: '2026-06-24T20:00', live: { team1Goals: 1, team2Goals: 0 } },             // in-play
+    ];
+    const members = { u1: { totalPoints: 14, name: 'A' } }; // 14 already includes gf's 4
+    const bets = { u1: { gf: { team1Goals: 2, team2Goals: 0, points: 4 }, gl: { team1Goals: 1, team2Goals: 0 } } };
+    const r = app.projectLiveStandings(games, members, bets, now);
+    assert.equal(r.projectedTotal.u1, 18); // 14 + (gf net 0) + (gl +4)
+});
+
+test('projectLiveStandings: not-started game (null score) contributes nothing', () => {
+    const now = Date.parse('2026-06-24T20:30:00Z');
+    const games = [{ id: 'gns', date: '2026-06-24T23:00' }]; // future → no score
+    const members = { u1: { totalPoints: 7, name: 'A' } };
+    const bets = { u1: { gns: { team1Goals: 1, team2Goals: 1 } } };
+    const r = app.projectLiveStandings(games, members, bets, now);
+    assert.equal(r.projectedTotal.u1, 7);
+});
