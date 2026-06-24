@@ -280,3 +280,9 @@ test('buildResultUpdates: scorers persisted to matches/{id}/scorers, not in the 
   const u2 = buildResultUpdates({ finished: [], live: noScorers, groups: {}, bets: {}, specialBets: {}, now });
   assert.deepEqual(u2['matches/m_live/scorers'], []);
 });
+
+import { norm as _norm } from "../scripts/lib/results-core.mjs";
+test("API alias: Bosnia & Herzegovina matches our Bosnia and Herzegovina", () => {
+  assert.equal(_norm("Bosnia & Herzegovina"), _norm("Bosnia and Herzegovina"));
+  assert.equal(_norm("Bosnia & Herzegovina"), "bosnia and herzegovina");
+});
