@@ -1487,11 +1487,18 @@ function renderLeaderboard() {
 
     // "Form": each member's points in the last 5 finished matches (oldest→newest),
     // shown as colored dots (gold = exact 4, green = correct 1, gray = miss 0).
+    // Ordered by KICKOFF date (same comparator as the Matches tab) — not finishedAt,
+    // which is the updater's write time and gets reset when a game is re-finalized (VAR),
+    // making games jump around out of chronological order.
     const last5 = Object.entries(matches)
         .map(([id, mm]) => ({ id, ...mm }))
         .filter(mm => (!mm.tournament || mm.tournament === activeTournament) && mm.stage !== 'special'
                    && mm.result && mm.result.team1Goals !== undefined)
-        .sort((a, b) => (a.finishedAt || parseMatchDate(a.date).getTime()) - (b.finishedAt || parseMatchDate(b.date).getTime()))
+        .sort((a, b) => {
+            const diff = parseMatchDate(a.date) - parseMatchDate(b.date);
+            if (diff !== 0) return diff;
+            return (a.group || '').localeCompare(b.group || '');
+        })
         .slice(-5);
     const formHtml = uid => last5.map(fm => {
         const p = ((allGroupBets[uid] || {})[fm.id] || {}).points;
