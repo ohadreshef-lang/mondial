@@ -297,11 +297,15 @@ function isInLiveTab(m, now) {
 // as the base and ticks forward by wall-clock since then; falls back to estimating
 // from kickoff when no API minute is available yet. Returns '' at halftime (the
 // status badge already says so).
-// A live game whose data hasn't refreshed in LIVE_STALE_MS is "stale" — the live API
-// stopped updating. Only in-play games run a clock, so only they can go stale.
+// A live game whose data hasn't refreshed in LIVE_STALE_MS is "paused" — the live feed
+// stopped (stale node) or never arrived (no node since kickoff). Returns the time of our
+// last live data when paused (updatedAt, or kickoff if we never got a node), else null.
+// Only in-play games run a clock, so only they can be paused.
 const LIVE_STALE_MS = 10 * 60 * 1000;
-function isLiveStale(now, upd, status) {
-    return status === 'IN_PLAY' && typeof upd === 'number' && (now - upd) > LIVE_STALE_MS;
+function livePausedSince(now, upd, kickoffMs, status) {
+    if (status !== 'IN_PLAY') return null;
+    const ref = (typeof upd === 'number') ? upd : kickoffMs;
+    return (now - ref > LIVE_STALE_MS) ? ref : null;
 }
 
 function computeLiveMinute(now, kickoffMs, elapsed, extra, upd, status, staleMs = LIVE_STALE_MS) {
