@@ -332,15 +332,20 @@ function updateLiveMinutes() {
         const extra = el.dataset.extra === '' ? null : +el.dataset.extra;
         const upd = el.dataset.upd === '' ? null : +el.dataset.upd;
         const status = el.dataset.status;
-        el.textContent = computeLiveMinute(now, +el.dataset.kickoff, elapsed, extra, upd, status);
-        // Toggle the "updates paused" (stale) state on the card and refresh the "X min ago".
+        const kickoff = +el.dataset.kickoff;
+        const hasNode = +el.dataset.hasnode;   // 1 = a live node exists; 0 = no data yet
+        const pausedSince = livePausedSince(now, upd, kickoff, status);
+        const paused = pausedSince !== null;
+        // Minute: hide for no-data paused; otherwise compute (freezes had-data via staleMs).
+        el.textContent = (paused && hasNode === 0) ? '' : computeLiveMinute(now, kickoff, elapsed, extra, upd, status);
         const card = el.closest('.live-card');
         if (!card) return;
-        const stale = isLiveStale(now, upd, status);
-        card.classList.toggle('live-stale', stale);
-        if (stale) {
+        card.classList.toggle('live-stale', paused);
+        if (paused) {
             const ago = card.querySelector('.live-stale-ago');
-            if (ago) ago.textContent = t('live.updatedAgo').replace('{n}', String(Math.round((now - upd) / 60000)));
+            if (ago) ago.textContent = (hasNode ? t('live.updatedAgo') : t('live.noLiveData'))
+                .replace('{n}', String(Math.round((now - pausedSince) / 60000)));
+            if (hasNode === 0) { const sc = card.querySelector('.live-score'); if (sc) sc.textContent = '–'; }
         }
     });
 }
@@ -1355,11 +1360,21 @@ function buildLiveCard(m, ctx) {
     const live = m.live || null;
     const liveStatus = live ? live.status : null;            // 'IN_PLAY' | 'PAUSED' | 'FT'
     const hasResult = m.result !== null && m.result !== undefined;
-    const started = parseMatchDate(m.date).getTime() <= Date.now();
+    const kickoffMs = parseMatchDate(m.date).getTime();
+    const started = kickoffMs <= Date.now();
     const isFt = liveStatus === 'FT';                        // API says full-time (await official result)
     const isPaused = liveStatus === 'PAUSED';
     const inPlay = started && !hasResult && !isFt && !isPaused;  // actively playing (IN_PLAY or pre-node estimate)
-    // Score: official result → live node (incl. FT) → 0-0 once kicked off → none (locked pre-kickoff).
+    // "Paused": in-play but no fresh live data — the feed died (stale node) or none has
+    // arrived since kickoff (e.g. API down). pausedSince = last data time (updatedAt, or
+    // kickoff if we never got a node).
+    const liveUpd = (live && typeof live.updatedAt === 'number') ? live.updatedAt : null;
+    const hadData = !!live;
+    const pausedSince = inPlay ? livePausedSince(Date.now(), liveUpd, kickoffMs, 'IN_PLAY') : null;
+    const paused = pausedSince !== null;
+    const noDataPaused = paused && !hadData;
+    // Score: official result → live node (incl. FT) → 0-0 once kicked off → none (locked
+    // pre-kickoff). When paused with NO data ever, show "–" (no real score to show).
     const score = hasResult ? m.result
                 : live ? live
                 : started ? { team1Goals: 0, team2Goals: 0 }
@@ -1371,9 +1386,11 @@ function buildLiveCard(m, ctx) {
     else if (inPlay) { statusKey = 'live.statusLive'; badgeClass = 'badge-live'; dot = '<span class="live-dot"></span>'; }
     else { statusKey = 'live.statusLocked'; badgeClass = 'badge-locked'; }   // locked, not started yet
 
-    const scoreHtml = score
-        ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
-        : `<span class="live-not-started">${t('live.notStarted')}</span>`;
+    const scoreHtml = noDataPaused
+        ? '–'
+        : (score
+            ? `${score.team1Goals}<span class="live-score-sep">–</span>${score.team2Goals}`
+            : `<span class="live-not-started">${t('live.notStarted')}</span>`);
 
     const scorers = Array.isArray(m.scorers) ? m.scorers : ((live && Array.isArray(live.scorers)) ? live.scorers : []);
     const scorersCol = team => scorers.filter(s => s.team === team).map(scorerLine).join('');
@@ -1416,28 +1433,27 @@ function buildLiveCard(m, ctx) {
 
     // Live minute label (only while actually playing — not at FT). Data attrs let the
     // 1s interval tick it between API polls; extra = stoppage minutes ("90+3'").
-    const kickoffMs = parseMatchDate(m.date).getTime();
     const apiMin = live && typeof live.minute === 'number' ? live.minute : '';
     const apiExtra = live && typeof live.extra === 'number' ? live.extra : '';
     const upd = live && live.updatedAt ? live.updatedAt : '';
     const minStatus = isPaused ? 'PAUSED' : 'IN_PLAY';
     const minuteHtml = (inPlay || isPaused)
-        ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-extra="${apiExtra}" data-upd="${upd}" data-status="${minStatus}">${computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, apiExtra === '' ? null : apiExtra, upd === '' ? null : upd, minStatus)}</span>`
+        ? `<span class="live-minute" data-kickoff="${kickoffMs}" data-min="${apiMin}" data-extra="${apiExtra}" data-upd="${upd}" data-status="${minStatus}" data-hasnode="${hadData ? 1 : 0}">${noDataPaused ? '' : computeLiveMinute(Date.now(), kickoffMs, apiMin === '' ? null : apiMin, apiExtra === '' ? null : apiExtra, upd === '' ? null : upd, minStatus)}</span>`
         : '';
 
-    // "Updates paused" (stale) state — only for actively-playing games. The card carries
-    // both a live badge and a paused badge; CSS shows one based on the .live-stale class
+    // "Updates paused" badge — covers a stale feed AND no data since kickoff. The card
+    // carries a live badge and a paused badge; CSS shows one based on the .live-stale class
     // (set here initially, kept current by updateLiveMinutes).
-    const liveUpd = live && typeof live.updatedAt === 'number' ? live.updatedAt : null;
-    const stale = inPlay && isLiveStale(Date.now(), liveUpd, 'IN_PLAY');
-    const agoInit = stale ? escapeHtml(t('live.updatedAgo').replace('{n}', String(Math.round((Date.now() - liveUpd) / 60000)))) : '';
+    const agoInit = paused
+        ? escapeHtml((hadData ? t('live.updatedAgo') : t('live.noLiveData')).replace('{n}', String(Math.round((Date.now() - pausedSince) / 60000))))
+        : '';
     const badgeHtml = inPlay
         ? `<span class="match-status-badge badge-live live-badge-active">${dot}${t('live.statusLive')}</span>`
           + `<span class="match-status-badge badge-stale live-badge-stale">⏸ <span class="live-stale-ago">${agoInit}</span></span>`
         : `<span class="match-status-badge ${badgeClass}">${dot}${t(statusKey)}</span>`;
 
     return `
-    <div class="match-card live-card${stale ? ' live-stale' : ''}" id="live-${m.id}">
+    <div class="match-card live-card${paused ? ' live-stale' : ''}" id="live-${m.id}">
         <div class="match-card-header">
             <span class="match-date-str">${formatDate(m.date)}</span>
             ${badgeHtml}
