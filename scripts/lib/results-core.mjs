@@ -166,8 +166,8 @@ export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
 
 // Match a DB match to a single API fixture by team pair + ±36h window.
 function findApiFixture(m, apiMatches) {
-    const en1 = HEB_TO_EN[m.team1] || m.team1;
-    const en2 = HEB_TO_EN[m.team2] || m.team2;
+    const en1 = HEB_TO_EN[m.team1];
+    const en2 = HEB_TO_EN[m.team2];
     if (!en1 || !en2) return { error: 'mapping', en1, en2 };
     const t1 = norm(en1), t2 = norm(en2);
     const kickoff = parseMatchDate(m.date);

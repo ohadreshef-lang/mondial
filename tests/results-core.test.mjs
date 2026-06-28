@@ -58,16 +58,16 @@ test('isKnockoutStage: group/special -> false, knockout stages -> true', () => {
 });
 
 test('classifyMatches: finalizes a knockout extra-time game on regularTime (90 min), not fullTime', () => {
-  const now = Date.parse('2026-07-01T22:00:00Z');
-  const matches = { ko: { team1: 'A', team2: 'B', date: '2026-07-01T19:00', stage: 'R32' } };
-  const apiMatches = [{
-    homeTeam: { name: 'A' }, awayTeam: { name: 'B' }, status: 'FINISHED',
-    utcDate: '2026-07-01T16:00:00Z',
+  const now2 = Date.parse('2026-07-01T22:00:00Z');
+  const matches2 = { ko: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-07-01T19:00', stage: 'R32' } };
+  const apiMatches2 = [{
+    id: 9, status: 'FINISHED', utcDate: '2026-07-01T16:00:00Z',
+    homeTeam: { name: 'England' }, awayTeam: { name: 'Croatia' },
     score: { duration: 'EXTRA_TIME', fullTime: { home: 2, away: 1 }, regularTime: { home: 1, away: 1 } },
   }];
-  const { finished } = classifyMatches({ matches, apiMatches, now, staleMinutes: 180, inPlayWindowMs: 9000000 });
+  const { finished } = classifyMatches({ matches: matches2, apiMatches: apiMatches2, now: now2, staleMinutes: 180, inPlayWindowMs: 9000000 });
   assert.equal(finished.length, 1);
-  assert.equal(finished[0].g1, 1);  // 90' score, not 2
+  assert.equal(finished[0].g1, 1);  // 90' score (regularTime), not 2 (fullTime)
   assert.equal(finished[0].g2, 1);
 });
 
