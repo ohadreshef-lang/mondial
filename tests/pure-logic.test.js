@@ -309,21 +309,30 @@ test('computeLiveMinute: estimate caps at 90+', () => {
     assert.equal(app.computeLiveMinute(now, now - 200*60000, null, null, null, 'IN_PLAY'), "90+'");
 });
 
-// --- isLiveStale -----------------------------------------------------------
+// --- livePausedSince -------------------------------------------------------
 
-test('isLiveStale: in-play with an update older than 10 min -> true', () => {
+test('livePausedSince: in-play, stale live node (>10 min) -> returns upd', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.isLiveStale(now, now - 11 * 60000, 'IN_PLAY'), true);
+    const upd = now - 11 * 60000;
+    assert.equal(app.livePausedSince(now, upd, now - 30 * 60000, 'IN_PLAY'), upd);
 });
-test('isLiveStale: in-play with a recent update -> false', () => {
+test('livePausedSince: in-play, fresh live node (<10 min) -> null', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.isLiveStale(now, now - 3 * 60000, 'IN_PLAY'), false);
+    assert.equal(app.livePausedSince(now, now - 3 * 60000, now - 30 * 60000, 'IN_PLAY'), null);
 });
-test('isLiveStale: PAUSED/FT or missing upd -> false', () => {
+test('livePausedSince: in-play, NO live node, kickoff 12 min ago -> returns kickoff', () => {
     const now = 1_000_000_000_000;
-    assert.equal(app.isLiveStale(now, now - 30 * 60000, 'PAUSED'), false);
-    assert.equal(app.isLiveStale(now, now - 30 * 60000, 'FT'), false);
-    assert.equal(app.isLiveStale(now, null, 'IN_PLAY'), false);
+    const ko = now - 12 * 60000;
+    assert.equal(app.livePausedSince(now, null, ko, 'IN_PLAY'), ko);
+});
+test('livePausedSince: in-play, NO live node, kickoff 4 min ago (grace) -> null', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.livePausedSince(now, null, now - 4 * 60000, 'IN_PLAY'), null);
+});
+test('livePausedSince: PAUSED/FT -> null', () => {
+    const now = 1_000_000_000_000;
+    assert.equal(app.livePausedSince(now, now - 30 * 60000, now - 60 * 60000, 'PAUSED'), null);
+    assert.equal(app.livePausedSince(now, now - 30 * 60000, now - 60 * 60000, 'FT'), null);
 });
 
 // --- computeLiveMinute: stale freeze ---------------------------------------
