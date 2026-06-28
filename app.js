@@ -192,9 +192,20 @@ function getOutcome(g1, g2) {
     return 'draw';
 }
 
-function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2) {
-    if (betGoals1 === resGoals1 && betGoals2 === resGoals2) return 4;
-    if (getOutcome(betGoals1, betGoals2) === getOutcome(resGoals1, resGoals2)) return 1;
+// Knockout = any stage that isn't the group stage or the special (champion/top-scorer) bets.
+function isKnockoutStage(stage) {
+    return stage != null && stage !== 'group' && stage !== 'special';
+}
+
+// Group: exact=4, direction=1, miss=0. Knockout (R32+): exact=5 (+2 if 5+ total goals), direction=2.
+// Knockout results are entered as the 90-minute score (see the updater's regularTime sourcing).
+function calcPoints(betGoals1, betGoals2, resGoals1, resGoals2, stage) {
+    const ko = isKnockoutStage(stage);
+    if (betGoals1 === resGoals1 && betGoals2 === resGoals2) {
+        if (ko) return (resGoals1 + resGoals2) >= 5 ? 7 : 5;
+        return 4;
+    }
+    if (getOutcome(betGoals1, betGoals2) === getOutcome(resGoals1, resGoals2)) return ko ? 2 : 1;
     return 0;
 }
 
@@ -1211,7 +1222,7 @@ function buildMatchCard(m) {
             const name = nameForUid(uid);
             const b = (allGroupBets[uid] || {})[m.id];
             const betStr = b ? `${b.team1Goals}–${b.team2Goals}` : '—';
-            const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals) : 0;
+            const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals, m.stage) : 0;
             const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
             return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span><span class="lp-bet">${betStr}</span><span class="lp-pts">${pts}</span></div>`;
         }).join('');
@@ -1342,7 +1353,7 @@ function projectLiveStandings(games, members, bets, now) {
         let delta = 0;
         for (const { g, s } of scored) {
             const b = (bets[uid] || {})[g.id];
-            const provisional = calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, s.team1Goals, s.team2Goals);
+            const provisional = calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, s.team1Goals, s.team2Goals, g.stage);
             const counted = (b && typeof b.points === 'number') ? b.points : 0;
             delta += provisional - counted;
         }
@@ -1403,7 +1414,7 @@ function buildLiveCard(m, ctx) {
     const nameOf = uid => (groupUsersCache[uid] && groupUsersCache[uid].name) || (groupMembers[uid] && groupMembers[uid].name) || t('groupSettings.unknownUser');
     // This card's OWN provisional points (for the +N pill / pick). Missing bet = 0–0,
     // matching the updater's auto-fill.
-    const matchOf = uid => { if (!score) return 0; const b = (allGroupBets[uid] || {})[m.id]; return calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, score.team1Goals, score.team2Goals); };
+    const matchOf = uid => { if (!score) return 0; const b = (allGroupBets[uid] || {})[m.id]; return calcPoints(b ? b.team1Goals : 0, b ? b.team2Goals : 0, score.team1Goals, score.team2Goals, m.stage); };
     const betOf  = uid => { const b = (allGroupBets[uid] || {})[m.id]; return b ? `${b.team1Goals}–${b.team2Goals}` : '0–0'; };
     // Standings are computed once across ALL live games (so concurrent games accumulate)
     // and shared via ctx — every live card shows the same combined projected total.
@@ -2062,6 +2073,7 @@ async function saveResult() {
 
 async function recalcPoints(matchId, resG1, resG2) {
     if (!db) return;
+    const stage = (matches[matchId] || {}).stage;
 
     const groupsSnap = await ref('groups').once('value');
     const groupsData = groupsSnap.val() || {};
@@ -2073,11 +2085,11 @@ async function recalcPoints(matchId, resG1, resG2) {
             const betSnap = await ref(`bets/${groupId}/${userId}/${matchId}`).once('value');
             if (!betSnap.exists()) {
                 // Write the full auto-fill object in one path to avoid conflicting parent/child writes
-                const pts = calcPoints(0, 0, resG1, resG2);
+                const pts = calcPoints(0, 0, resG1, resG2, stage);
                 updates[`bets/${groupId}/${userId}/${matchId}`] = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: pts };
             } else {
                 const bet = betSnap.val();
-                const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2);
+                const pts = calcPoints(bet.team1Goals, bet.team2Goals, resG1, resG2, stage);
                 updates[`bets/${groupId}/${userId}/${matchId}/points`] = pts;
             }
         }
