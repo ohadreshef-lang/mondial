@@ -49,9 +49,17 @@ export function getOutcome(g1, g2) {
     return g1 > g2 ? 'win1' : g1 < g2 ? 'win2' : 'draw';
 }
 
-export function calcPoints(b1, b2, r1, r2) {
-    if (b1 === r1 && b2 === r2) return 4;
-    if (getOutcome(b1, b2) === getOutcome(r1, r2)) return 1;
+// Knockout = any stage that isn't the group stage or the special (champion/top-scorer) bets.
+export function isKnockoutStage(stage) {
+    return stage != null && stage !== 'group' && stage !== 'special';
+}
+
+// Group: exact=4, direction=1, miss=0. Knockout (R32+): exact=5 (+2 if 5+ total goals), direction=2.
+// Knockout games are scored on the 90-minute result (see classifyMatches regularTime sourcing).
+export function calcPoints(b1, b2, r1, r2, stage) {
+    const ko = isKnockoutStage(stage);
+    if (b1 === r1 && b2 === r2) { if (ko) return (r1 + r2) >= 5 ? 7 : 5; return 4; }
+    if (getOutcome(b1, b2) === getOutcome(r1, r2)) return ko ? 2 : 1;
     return 0;
 }
 
@@ -158,8 +166,8 @@ export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
 
 // Match a DB match to a single API fixture by team pair + ±36h window.
 function findApiFixture(m, apiMatches) {
-    const en1 = HEB_TO_EN[m.team1];
-    const en2 = HEB_TO_EN[m.team2];
+    const en1 = HEB_TO_EN[m.team1] || m.team1;
+    const en2 = HEB_TO_EN[m.team2] || m.team2;
     if (!en1 || !en2) return { error: 'mapping', en1, en2 };
     const t1 = norm(en1), t2 = norm(en2);
     const kickoff = parseMatchDate(m.date);
@@ -201,7 +209,12 @@ export function classifyMatches({ matches, apiMatches, now, staleMinutes = 180, 
             continue;
         }
         const am = found.am;
-        const ft = am.score && am.score.fullTime;
+        // Score the 90-minute (regulation) result. football-data.org exposes score.regularTime
+        // (goals after 90') separately from extra time / penalties; for normal-time games it may
+        // be absent, so fall back to fullTime (which equals the 90' score when there was no ET).
+        const ft = (am.score && am.score.regularTime && am.score.regularTime.home != null)
+            ? am.score.regularTime
+            : (am.score && am.score.fullTime);
         const g1 = found.t1IsHome ? (ft && ft.home) : (ft && ft.away);
         const g2 = found.t1IsHome ? (ft && ft.away) : (ft && ft.home);
 
@@ -250,14 +263,14 @@ export function buildResultUpdates({ finished, live, groups, bets, specialBets, 
             const members = (groups[groupId] && groups[groupId].members) || {};
             for (const userId of Object.keys(members)) {
                 const userBets = ((allBets[groupId] || {})[userId]) || {};
-                for (const { matchId, g1, g2 } of scored) {
+                for (const { matchId, g1, g2, m } of scored) {
                     const bet = userBets[matchId];
                     if (!bet) {
-                        const filled = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: calcPoints(0, 0, g1, g2) };
+                        const filled = { team1Goals: 0, team2Goals: 0, placedAt: 0, points: calcPoints(0, 0, g1, g2, m.stage) };
                         updates[`bets/${groupId}/${userId}/${matchId}`] = filled;
                         userBets[matchId] = filled;
                     } else {
-                        bet.points = calcPoints(bet.team1Goals, bet.team2Goals, g1, g2);
+                        bet.points = calcPoints(bet.team1Goals, bet.team2Goals, g1, g2, m.stage);
                         updates[`bets/${groupId}/${userId}/${matchId}/points`] = bet.points;
                     }
                 }
