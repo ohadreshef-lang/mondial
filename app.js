@@ -1203,8 +1203,8 @@ function buildMatchCard(m) {
     if (!m.noPoints) {
         if (hasResult && bet && bet.points !== null && bet.points !== undefined) {
             const pts = bet.points;
-            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
-            const emoji = pts >= 3 ? '🎯' : pts === 1 ? '✅' : '❌';
+            const cls = pts >= 4 ? 'points-3' : pts > 0 ? 'points-1' : 'points-0';
+            const emoji = pts >= 4 ? '🎯' : pts > 0 ? '✅' : '❌';
             pointsHtml = `<div class="match-points-row ${cls}">${emoji} ${t('match.pointsRow')}: ${bet.team1Goals}–${bet.team2Goals} | ${pts} ${t('match.pointsLabel')}</div>`;
         } else if (hasResult && !bet) {
             pointsHtml = `<div class="match-points-row points-na">${t('match.noBetRow')}</div>`;
@@ -1223,7 +1223,7 @@ function buildMatchCard(m) {
             const b = (allGroupBets[uid] || {})[m.id];
             const betStr = b ? `${b.team1Goals}–${b.team2Goals}` : '—';
             const pts = b ? calcPoints(b.team1Goals, b.team2Goals, m.result.team1Goals, m.result.team2Goals, m.stage) : 0;
-            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const cls = pts >= 4 ? 'points-3' : pts > 0 ? 'points-1' : 'points-0';
             return `<div class="live-person-row ${cls}"><span class="lp-name">${escapeHtml(name)}</span><span class="lp-bet">${betStr}</span><span class="lp-pts">${pts}</span></div>`;
         }).join('');
         breakdownHtml = `
@@ -1430,7 +1430,7 @@ function buildLiveCard(m, ctx) {
                     : delta < 0 ? `<span class="live-lb-chg down">▼${-delta}</span>` : '';
         const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
         const meTag = isMe ? ` <span class="lb-me-tag">${t('leaderboard.meTag')}</span>` : '';
-        const pillCls = !score ? 'p0' : mp >= 3 ? 'p4' : mp === 1 ? 'p1' : 'p0';
+        const pillCls = !score ? 'p0' : mp >= 4 ? 'p4' : mp > 0 ? 'p1' : 'p0';
         const pillTxt = (!score || mp === 0) ? '–' : `+${mp}`;
         return `<div class="live-lb-row ${isMe ? 'is-me' : ''}">`
              + `<span class="live-lb-chgcol">${chg}</span>`
@@ -1534,7 +1534,7 @@ function renderLeaderboard() {
     const formHtml = uid => last5.map(fm => {
         const p = ((allGroupBets[uid] || {})[fm.id] || {}).points;
         const pts = (p === undefined || p === null) ? 0 : p;
-        const cls = pts >= 3 ? 'f4' : pts === 1 ? 'f1' : 'f0';
+        const cls = pts >= 4 ? 'f4' : pts > 0 ? 'f1' : 'f0';
         return `<span class="lb-form-dot ${cls}">${pts}</span>`;
     }).join('');
 
@@ -1582,7 +1582,7 @@ function renderMyBets() {
 
         let ptsBadge = '';
         if (hasResult && pts !== null && pts !== undefined) {
-            const cls = pts >= 3 ? 'points-3' : pts === 1 ? 'points-1' : 'points-0';
+            const cls = pts >= 4 ? 'points-3' : pts > 0 ? 'points-1' : 'points-0';
             ptsBadge = `<span class="match-points-row ${cls}" style="display:inline-block;padding:2px 10px;">${pts} ${t('common.pts')}</span>`;
         }
 
