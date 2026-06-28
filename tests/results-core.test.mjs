@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate, calcPoints } from '../scripts/lib/results-core.mjs';
+import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate, calcPoints, isKnockoutStage } from '../scripts/lib/results-core.mjs';
 
 const now = Date.parse('2026-06-17T22:30:00Z'); // 2.5h after the 20:00Z kickoff
 
@@ -33,10 +33,42 @@ test('buildResultUpdates: finished writes result + finishedAt + clears live', ()
   assert.equal(updates['matches/m_fin/live'], null);
 });
 
-test('calcPoints: exact score = 4, correct outcome = 1, miss = 0', () => {
-  assert.equal(calcPoints(2, 1, 2, 1), 4); // exact
-  assert.equal(calcPoints(2, 1, 3, 0), 1); // correct outcome (win1)
-  assert.equal(calcPoints(2, 1, 1, 2), 0); // wrong outcome
+test('calcPoints (group): exact=4, direction=1, miss=0', () => {
+  assert.equal(calcPoints(2, 1, 2, 1, 'group'), 4);
+  assert.equal(calcPoints(2, 1, 3, 0, 'group'), 1);
+  assert.equal(calcPoints(2, 1, 1, 2, 'group'), 0);
+  assert.equal(calcPoints(2, 1, 2, 1), 4); // missing stage -> group scoring
+});
+
+test('calcPoints (knockout): exact=5, exact w/ 5+ goals=7, direction=2, miss=0', () => {
+  assert.equal(calcPoints(2, 1, 2, 1, 'R32'), 5);   // exact, 3 goals
+  assert.equal(calcPoints(0, 0, 0, 0, 'Final'), 5); // exact, 0 goals
+  assert.equal(calcPoints(3, 2, 3, 2, 'QF'), 7);    // exact, 5 goals -> +2
+  assert.equal(calcPoints(5, 0, 5, 0, 'R16'), 7);   // exact, 5 goals -> +2
+  assert.equal(calcPoints(2, 1, 3, 0, 'SF'), 2);    // direction only
+  assert.equal(calcPoints(2, 1, 1, 2, '3rd'), 0);   // wrong
+});
+
+test('isKnockoutStage: group/special -> false, knockout stages -> true', () => {
+  assert.equal(isKnockoutStage('group'), false);
+  assert.equal(isKnockoutStage('special'), false);
+  assert.equal(isKnockoutStage(undefined), false);
+  assert.equal(isKnockoutStage('R32'), true);
+  assert.equal(isKnockoutStage('Final'), true);
+});
+
+test('classifyMatches: finalizes a knockout extra-time game on regularTime (90 min), not fullTime', () => {
+  const now2 = Date.parse('2026-07-01T22:00:00Z');
+  const matches2 = { ko: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-07-01T19:00', stage: 'R32' } };
+  const apiMatches2 = [{
+    id: 9, status: 'FINISHED', utcDate: '2026-07-01T16:00:00Z',
+    homeTeam: { name: 'England' }, awayTeam: { name: 'Croatia' },
+    score: { duration: 'EXTRA_TIME', fullTime: { home: 2, away: 1 }, regularTime: { home: 1, away: 1 } },
+  }];
+  const { finished } = classifyMatches({ matches: matches2, apiMatches: apiMatches2, now: now2, staleMinutes: 180, inPlayWindowMs: 9000000 });
+  assert.equal(finished.length, 1);
+  assert.equal(finished[0].g1, 1);  // 90' score (regularTime), not 2 (fullTime)
+  assert.equal(finished[0].g2, 1);
 });
 
 test('classifyMatches: in-play fixture becomes a live entry', () => {

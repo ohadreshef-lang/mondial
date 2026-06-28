@@ -33,9 +33,17 @@ const TRANSLATIONS = {
             <p>לפני כל משחק של המונדיאל אתה מנחש את התוצאה המדויקת (מספר השערים של כל קבוצה). מערכת הניקוד מזכה אותך אוטומטית ברגע שהמנהל מזין את התוצאה האמיתית.</p>
 
             <h4>🏆 מערכת הניקוד</h4>
+            <p><b>שלב הבתים</b></p>
             <ul>
-                <li><span class="rule-points">4 נק'</span> תוצאה מדויקת (גם התוצאה הסופית וגם מספר השערים של כל קבוצה נכונים)</li>
-                <li><span class="rule-points">1 נק'</span> רק הקבוצה המנצחת (או תיקו) נכונה – התוצאה שגויה</li>
+                <li><span class="rule-points">4 נק'</span> תוצאה מדויקת (גם המנצח וגם מספר השערים של כל קבוצה נכונים)</li>
+                <li><span class="rule-points">1 נק'</span> רק כיוון התוצאה נכון (ניצחון או תיקו) – התוצאה שגויה</li>
+                <li><span class="rule-points">0 נק'</span> ניחוש שגוי או ללא ניחוש</li>
+            </ul>
+            <p><b>שלב הנוקאאוט (משלב 32 ואילך)</b> — הניקוד נקבע לפי התוצאה בתום <b>90 הדקות</b> (כולל זמן פציעות; ללא הארכה ופנדלים):</p>
+            <ul>
+                <li><span class="rule-points">5 נק'</span> תוצאה מדויקת</li>
+                <li><span class="rule-points">+2 נק'</span> בונוס על תוצאה מדויקת עם <b>5 שערים או יותר</b> בסך הכול (כלומר 7 נק')</li>
+                <li><span class="rule-points">2 נק'</span> רק כיוון התוצאה נכון</li>
                 <li><span class="rule-points">0 נק'</span> ניחוש שגוי או ללא ניחוש</li>
             </ul>
 
@@ -336,9 +344,17 @@ const TRANSLATIONS = {
             <p>Before every World Cup match you predict the exact score (goals for each team). Points are awarded automatically once the admin enters the real result.</p>
 
             <h4>🏆 Scoring</h4>
+            <p><b>Group stage</b></p>
             <ul>
-                <li><span class="rule-points">4 pts</span> Exact score (both teams' goal counts correct)</li>
-                <li><span class="rule-points">1 pt</span> Correct winner (or draw) but wrong score</li>
+                <li><span class="rule-points">4 pts</span> Exact score (winner and both teams' goal counts correct)</li>
+                <li><span class="rule-points">1 pt</span> Correct direction only (winner or draw) — wrong score</li>
+                <li><span class="rule-points">0 pts</span> Wrong prediction or no prediction</li>
+            </ul>
+            <p><b>Knockout stage (Round of 32 onward)</b> — scored on the <b>90-minute</b> result (incl. stoppage time; no extra time or penalties):</p>
+            <ul>
+                <li><span class="rule-points">5 pts</span> Exact score</li>
+                <li><span class="rule-points">+2 pts</span> Bonus for an exact score with <b>5 or more total goals</b> (i.e. 7 pts)</li>
+                <li><span class="rule-points">2 pts</span> Correct direction only</li>
                 <li><span class="rule-points">0 pts</span> Wrong prediction or no prediction</li>
             </ul>
 
@@ -623,9 +639,17 @@ const TRANSLATIONS = {
             <p>Antes de cada partido del Mundial, predice el resultado exacto (goles de cada equipo). Los puntos se otorgan automáticamente cuando el administrador ingresa el resultado real.</p>
 
             <h4>🏆 Puntuación</h4>
+            <p><b>Fase de grupos</b></p>
             <ul>
-                <li><span class="rule-points">4 pts</span> Resultado exacto (goles de ambos equipos correctos)</li>
-                <li><span class="rule-points">1 pt</span> Ganador correcto (o empate) pero resultado incorrecto</li>
+                <li><span class="rule-points">4 pts</span> Resultado exacto (ganador y goles de ambos equipos correctos)</li>
+                <li><span class="rule-points">1 pt</span> Solo la dirección correcta (ganador o empate) — resultado incorrecto</li>
+                <li><span class="rule-points">0 pts</span> Predicción incorrecta o sin predicción</li>
+            </ul>
+            <p><b>Fase eliminatoria (desde dieciseisavos)</b> — se puntúa con el resultado a los <b>90 minutos</b> (incluido el tiempo añadido; sin prórroga ni penales):</p>
+            <ul>
+                <li><span class="rule-points">5 pts</span> Resultado exacto</li>
+                <li><span class="rule-points">+2 pts</span> Bono por un resultado exacto con <b>5 o más goles</b> en total (es decir, 7 pts)</li>
+                <li><span class="rule-points">2 pts</span> Solo la dirección correcta</li>
                 <li><span class="rule-points">0 pts</span> Predicción incorrecta o sin predicción</li>
             </ul>
 

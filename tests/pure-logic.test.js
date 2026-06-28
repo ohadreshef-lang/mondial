@@ -74,22 +74,38 @@ test('getOutcome: draw', () => {
 
 // --- calcPoints ------------------------------------------------------------
 
-test('calcPoints: exact score returns 4', () => {
-    assert.equal(app.calcPoints(2, 1, 2, 1), 4);
-    assert.equal(app.calcPoints(0, 0, 0, 0), 4);
-    assert.equal(app.calcPoints(1, 3, 1, 3), 4);
+test('calcPoints (group): exact=4', () => {
+    assert.equal(app.calcPoints(2, 1, 2, 1, 'group'), 4);
+    assert.equal(app.calcPoints(0, 0, 0, 0, 'group'), 4);
+    assert.equal(app.calcPoints(2, 1, 2, 1), 4);          // missing stage -> group
 });
 
-test('calcPoints: correct outcome but wrong score returns 1', () => {
-    assert.equal(app.calcPoints(2, 1, 3, 0), 1);   // both win1
-    assert.equal(app.calcPoints(0, 2, 1, 4), 1);   // both win2
-    assert.equal(app.calcPoints(1, 1, 2, 2), 1);   // both draw
+test('calcPoints (group): correct direction but wrong score = 1', () => {
+    assert.equal(app.calcPoints(2, 1, 3, 0, 'group'), 1);
+    assert.equal(app.calcPoints(0, 2, 1, 4, 'group'), 1);
+    assert.equal(app.calcPoints(1, 1, 2, 2, 'group'), 1);
 });
 
-test('calcPoints: wrong outcome returns 0', () => {
-    assert.equal(app.calcPoints(2, 1, 1, 2), 0);   // predicted win1, got win2
-    assert.equal(app.calcPoints(0, 0, 1, 0), 0);   // predicted draw, got win1
-    assert.equal(app.calcPoints(0, 3, 1, 1), 0);   // predicted win2, got draw
+test('calcPoints (group): wrong = 0', () => {
+    assert.equal(app.calcPoints(2, 1, 1, 2, 'group'), 0);
+    assert.equal(app.calcPoints(0, 0, 1, 0, 'group'), 0);
+});
+
+test('calcPoints (knockout): exact=5, exact 5+ goals=7, direction=2, miss=0', () => {
+    assert.equal(app.calcPoints(2, 1, 2, 1, 'R32'), 5);
+    assert.equal(app.calcPoints(0, 0, 0, 0, 'Final'), 5);
+    assert.equal(app.calcPoints(3, 2, 3, 2, 'QF'), 7);
+    assert.equal(app.calcPoints(4, 1, 4, 1, 'R16'), 7);
+    assert.equal(app.calcPoints(2, 1, 3, 0, 'SF'), 2);
+    assert.equal(app.calcPoints(2, 1, 1, 2, '3rd'), 0);
+});
+
+test('isKnockoutStage: group/special/undefined=false, knockout=true', () => {
+    assert.equal(app.isKnockoutStage('group'), false);
+    assert.equal(app.isKnockoutStage('special'), false);
+    assert.equal(app.isKnockoutStage(undefined), false);
+    assert.equal(app.isKnockoutStage('R32'), true);
+    assert.equal(app.isKnockoutStage('Final'), true);
 });
 
 // --- emailToId -------------------------------------------------------------
