@@ -37,15 +37,16 @@ const TRANSLATIONS = {
             <ul>
                 <li><span class="rule-points">4 נק'</span> תוצאה מדויקת (גם המנצח וגם מספר השערים של כל קבוצה נכונים)</li>
                 <li><span class="rule-points">1 נק'</span> רק כיוון התוצאה נכון (ניצחון או תיקו) – התוצאה שגויה</li>
-                <li><span class="rule-points">0 נק'</span> ניחוש שגוי או ללא ניחוש</li>
+                <li><span class="rule-points">0 נק'</span> ניחוש שגוי</li>
             </ul>
             <p><b>שלב הנוקאאוט (משלב 32 ואילך)</b> — הניקוד נקבע לפי התוצאה בתום <b>90 הדקות</b> (כולל זמן פציעות; ללא הארכה ופנדלים):</p>
             <ul>
                 <li><span class="rule-points">5 נק'</span> תוצאה מדויקת</li>
                 <li><span class="rule-points">+2 נק'</span> בונוס על תוצאה מדויקת עם <b>5 שערים או יותר</b> בסך הכול (כלומר 7 נק')</li>
                 <li><span class="rule-points">2 נק'</span> רק כיוון התוצאה נכון</li>
-                <li><span class="rule-points">0 נק'</span> ניחוש שגוי או ללא ניחוש</li>
+                <li><span class="rule-points">0 נק'</span> ניחוש שגוי</li>
             </ul>
+            <p>אם לא הזנת ניחוש, הוא נספר אוטומטית כ-<b>0:0</b> — כך שעדיין אפשר לזכות בנקודות אם המשחק יסתיים בתיקו (וניקוד מלא אם יסתיים 0:0).</p>
 
             <h4>🏅 ניחושי טורניר</h4>
             <ul>
@@ -348,15 +349,16 @@ const TRANSLATIONS = {
             <ul>
                 <li><span class="rule-points">4 pts</span> Exact score (winner and both teams' goal counts correct)</li>
                 <li><span class="rule-points">1 pt</span> Correct direction only (winner or draw) — wrong score</li>
-                <li><span class="rule-points">0 pts</span> Wrong prediction or no prediction</li>
+                <li><span class="rule-points">0 pts</span> Wrong prediction</li>
             </ul>
             <p><b>Knockout stage (Round of 32 onward)</b> — scored on the <b>90-minute</b> result (incl. stoppage time; no extra time or penalties):</p>
             <ul>
                 <li><span class="rule-points">5 pts</span> Exact score</li>
                 <li><span class="rule-points">+2 pts</span> Bonus for an exact score with <b>5 or more total goals</b> (i.e. 7 pts)</li>
                 <li><span class="rule-points">2 pts</span> Correct direction only</li>
-                <li><span class="rule-points">0 pts</span> Wrong prediction or no prediction</li>
+                <li><span class="rule-points">0 pts</span> Wrong prediction</li>
             </ul>
+            <p>If you don't enter a prediction, it counts automatically as <b>0–0</b> — so you can still earn points if the match ends in a draw (and full points if it ends 0–0).</p>
 
             <h4>🏅 Tournament predictions</h4>
             <ul>
@@ -643,15 +645,16 @@ const TRANSLATIONS = {
             <ul>
                 <li><span class="rule-points">4 pts</span> Resultado exacto (ganador y goles de ambos equipos correctos)</li>
                 <li><span class="rule-points">1 pt</span> Solo la dirección correcta (ganador o empate) — resultado incorrecto</li>
-                <li><span class="rule-points">0 pts</span> Predicción incorrecta o sin predicción</li>
+                <li><span class="rule-points">0 pts</span> Predicción incorrecta</li>
             </ul>
             <p><b>Fase eliminatoria (desde dieciseisavos)</b> — se puntúa con el resultado a los <b>90 minutos</b> (incluido el tiempo añadido; sin prórroga ni penales):</p>
             <ul>
                 <li><span class="rule-points">5 pts</span> Resultado exacto</li>
                 <li><span class="rule-points">+2 pts</span> Bono por un resultado exacto con <b>5 o más goles</b> en total (es decir, 7 pts)</li>
                 <li><span class="rule-points">2 pts</span> Solo la dirección correcta</li>
-                <li><span class="rule-points">0 pts</span> Predicción incorrecta o sin predicción</li>
+                <li><span class="rule-points">0 pts</span> Predicción incorrecta</li>
             </ul>
+            <p>Si no ingresas una predicción, cuenta automáticamente como <b>0–0</b>, así que aún puedes ganar puntos si el partido termina en empate (y todos los puntos si termina 0–0).</p>
 
             <h4>🏅 Predicciones del torneo</h4>
             <ul>
