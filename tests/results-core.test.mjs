@@ -228,3 +228,28 @@ test('parseEspnGoals: penalty and own-goal kinds', () => {
   assert.equal(goals.find(g => g.player === 'P').kind, 'pen');
   assert.equal(goals.find(g => g.player === 'O').kind, 'og');
 });
+
+test('mapEspnLive: a game far past kickoff (beyond inPlayWindowMs) is excluded', () => {
+  const now = Date.parse('2026-06-29T22:00:00Z');   // 5h after the 17:00 kickoff
+  const matches = { m1: { team1: 'ברזיל', team2: 'יפן', date: '2026-06-29T17:00' } };
+  const live = mapEspnLive({ matches, espnEvents: [espnEvent('Brazil', 'Japan', 0, 1, 'post')], now });
+  assert.equal(live.length, 0);
+});
+
+test('mapEspnLive: alias teams resolve (Congo DR)', () => {
+  const now = Date.parse('2026-07-04T02:00:00Z');
+  const matches = { m1: { team1: 'ארצות הברית', team2: 'בוסניה והרצגובינה', date: '2026-07-02T00:00' },
+                    m2: { team1: 'קונגו DR', team2: 'גאנה', date: '2026-07-04T01:30' } };
+  const live = mapEspnLive({
+    matches,
+    espnEvents: [
+      espnEvent('United States', 'Bosnia-Herzegovina', 1, 0, 'in', { date: '2026-07-02T00:00Z', id: '800' }),
+      espnEvent('Congo DR', 'Ghana', 2, 1, 'in', { date: '2026-07-04T01:30Z', id: '901' }),
+    ],
+    now,
+  });
+  const congoEntry = live.find(e => e.matchId === 'm2');
+  assert.ok(congoEntry, 'Congo DR match should be in live results');
+  assert.equal(congoEntry.g1, 2);
+  assert.equal(congoEntry.g2, 1);
+});

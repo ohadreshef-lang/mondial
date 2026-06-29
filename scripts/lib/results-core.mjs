@@ -86,6 +86,7 @@ export function mapEspnLive({ matches, espnEvents, now, inPlayWindowMs = 3 * 360
         if (!en1 || !en2) continue;
         const t1 = norm(en1), t2 = norm(en2);
         const kickoff = parseMatchDate(m.date);
+        if (now - kickoff > inPlayWindowMs) continue;   // too long after kickoff — not live anymore
         const hits = (espnEvents || []).filter(e => {
             const comp = (e.competitions || [])[0] || {};
             const state = comp.status && comp.status.type && comp.status.type.state;
@@ -132,7 +133,7 @@ export function parseEspnGoals(keyEvents, { homeName, homeIsT1 }) {
         if (!player) continue;
         const { minute, extra } = espnMinute(e.clock && e.clock.displayValue);
         const blob = `${(e.type && e.type.type) || ''} ${(e.type && e.type.text) || ''} ${e.text || ''}`.toLowerCase();
-        const kind = /own/.test(blob) ? 'og' : /penalt/.test(blob) ? 'pen' : 'goal';
+        const kind = /\bown goal\b|own-goal/.test(blob) ? 'og' : /penalt/.test(blob) ? 'pen' : 'goal';
         const eventIsHome = norm(e.team && e.team.displayName) === norm(homeName);
         const team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
         out.push({ team, player, minute, extra, kind });
