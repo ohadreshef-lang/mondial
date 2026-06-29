@@ -7,16 +7,15 @@
 // Runs from .github/workflows/update-results.yml on a 30-minute cron.
 //
 // Finished results + points come from football-data.org. Live in-play scores come
-// from API-Football (api-sports.io) — football-data.org's free tier never emits
-// IN_PLAY. The live layer is best-effort: if FOOTBALL_API_KEY is unset or the call
-// fails, finals/points still work and the Live tab simply shows no live score.
+// from ESPN's keyless public API (no key needed) — football-data.org's free tier
+// never emits IN_PLAY. The live layer is best-effort: if the ESPN call fails,
+// finals/points still work and the Live tab simply shows no live score.
 //
 // Env:
 //   FOOTBALL_DATA_TOKEN  (required) football-data.org API token — finals + points
-//   FOOTBALL_API_KEY     (optional) API-Football (api-sports.io) key — live scores
 //   DRY_RUN=1            print planned writes without touching Firebase
 
-import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate, parseGoalEvents } from './lib/results-core.mjs';
+import { classifyMatches, buildResultUpdates, mapEspnLive, parseMatchDate, parseEspnGoals } from './lib/results-core.mjs';
 import { buildPaulUpdates } from './lib/paul-core.mjs';
 
 const FIREBASE_API_KEY = 'AIzaSyAyOY_It3oq3Q4ferO_zE23sFLJ_bUZB9g';
@@ -24,7 +23,6 @@ const DB_URL = 'https://mondial2026-a77fc-default-rtdb.firebaseio.com';
 const ROOT = 'worldcup2026';
 
 const FD_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
-const AF_KEY = process.env.FOOTBALL_API_KEY;
 const DRY_RUN = !!process.env.DRY_RUN;
 
 // Tournament window: June 11 – July 19, 2026 (with margin). Outside it the
@@ -109,58 +107,30 @@ async function fetchApiMatches(dateFrom, dateTo) {
     return (await res.json()).matches || [];
 }
 
-// API-Football: all currently in-play fixtures (one call covers every live game).
-// We filter to our matches by team pair in mapApiFootballLive(). Returns [] on any
-// error so the live layer can never break the (authoritative) finals/points flow.
-async function fetchApiFootballLive() {
-    // Best-effort, single attempt (no retry loop). If the daily quota is reached the
-    // API returns HTTP 429 or a 200 with an `errors.requests` message — either way we
-    // just skip live for this run: finals + points (football-data.org) are unaffected,
-    // and live scores resume automatically when the quota resets at 00:00 UTC. No
-    // backoff retries — a 429 persists all day, and the next cron re-checks in minutes.
+// Live in-play scores from ESPN's keyless public API (no key, no quota). Best-effort:
+// any failure -> [] (finals via football-data.org are unaffected). One scoreboard call
+// covers all current games.
+async function fetchEspnScoreboard() {
     try {
-        const res = await fetch('https://v3.football.api-sports.io/fixtures?live=all', {
-            headers: { 'x-apisports-key': AF_KEY },
-        });
-        if (!res.ok) {
-            console.warn(`API-Football live unavailable (HTTP ${res.status}${res.status === 429 ? ' — daily limit/rate reached' : ''}) — skipping live scores this run.`);
-            return [];
-        }
-        const json = await res.json();
-        const errs = json.errors;
-        if (errs && ((Array.isArray(errs) && errs.length) || (typeof errs === 'object' && Object.keys(errs).length))) {
-            console.warn('API-Football limit/error — skipping live scores this run:', JSON.stringify(errs));
-            return [];
-        }
-        return json.response || [];
+        const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard');
+        if (!res.ok) { console.warn(`ESPN scoreboard unavailable (HTTP ${res.status}) — skipping live this run.`); return []; }
+        const j = await res.json();
+        return j.events || [];
     } catch (err) {
-        console.warn('API-Football live fetch failed (live scores skipped this run):', err.message);
+        console.warn('ESPN scoreboard fetch failed (live skipped this run):', err.message);
         return [];
     }
 }
 
-// Goal events for one fixture (scorers + minutes). Best-effort, single attempt, same
-// quota-graceful contract as fetchApiFootballLive: any failure -> [] (scorers stay
-// empty; score/finals unaffected).
-async function fetchApiFootballEvents(fixtureId) {
-    if (!fixtureId) return [];
+// Goal events (scorers) for one ESPN event. Best-effort: failure -> [] (scorers stay empty).
+async function fetchEspnSummary(eventId) {
     try {
-        const res = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`, {
-            headers: { 'x-apisports-key': AF_KEY },
-        });
-        if (!res.ok) {
-            console.warn(`API-Football events unavailable (HTTP ${res.status}) for fixture ${fixtureId} — scorers skipped.`);
-            return [];
-        }
-        const json = await res.json();
-        const errs = json.errors;
-        if (errs && ((Array.isArray(errs) && errs.length) || (typeof errs === 'object' && Object.keys(errs).length))) {
-            console.warn('API-Football events limit/error — scorers skipped:', JSON.stringify(errs));
-            return [];
-        }
-        return json.response || [];
+        const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
+        if (!res.ok) return [];
+        const j = await res.json();
+        return j.keyEvents || [];
     } catch (err) {
-        console.warn(`API-Football events fetch failed for fixture ${fixtureId} (scorers skipped):`, err.message);
+        console.warn(`ESPN summary fetch failed for event ${eventId} (scorers skipped):`, err.message);
         return [];
     }
 }
@@ -220,18 +190,13 @@ async function main() {
         refinalizeWindowMs: REFINALIZE_WINDOW_MS,
     });
 
-    // Live in-play scores from API-Football (best-effort). One call covers all live
-    // games; only spent when a started-unfinished match exists (i.e. a live window).
-    // Gate on `candidates` so the re-finalize loop (which keeps running for hours after a
-    // game to catch VAR corrections via football-data) does NOT burn API-Football calls
-    // while nothing is actually live.
     let live = [];
-    if (AF_KEY && candidates.length > 0) {
-        const apiFixtures = await fetchApiFootballLive();
-        live = mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs: 3 * 3600 * 1000 });
+    if (candidates.length > 0) {
+        const espnEvents = await fetchEspnScoreboard();
+        live = mapEspnLive({ matches, espnEvents, now, inPlayWindowMs: 3 * 3600 * 1000 });
         for (const entry of live) {
             const prev = entry.m.live;
-            // Scorers now live on the persistent matches/{id}/scorers path; fall back to the
+            // Scorers live on the persistent matches/{id}/scorers path; fall back to the
             // live node only for transitional data written before that move.
             const prevScorers = Array.isArray(entry.m.scorers) ? entry.m.scorers
                 : ((prev && Array.isArray(prev.scorers)) ? prev.scorers : []);
@@ -240,22 +205,14 @@ async function main() {
             const newTotal = entry.g1 + entry.g2;
             // Score back to 0 (e.g. a goal was cancelled) -> clear the list.
             if (newTotal === 0) { entry.scorers = []; continue; }
-            // No change and the stored list is already complete -> reuse, no call.
+            // No change and the stored list is already complete -> reuse, no extra call.
             if (newTotal === prevTotal && prevScorers.length === newTotal) {
                 entry.scorers = prevScorers;
                 continue;
             }
-            // Prefer inline events from live=all (no extra call); fall back to a single
-            // /fixtures/events call only if inline didn't yield enough goals.
-            const opts = { homeName: entry.homeName, homeIsT1: entry.homeIsT1 };
-            let scorers = entry.inlineEvents && entry.inlineEvents.length ? parseGoalEvents(entry.inlineEvents, opts) : [];
-            if (scorers.length < newTotal && entry.fixtureId) {
-                scorers = parseGoalEvents(await fetchApiFootballEvents(entry.fixtureId), opts);
-            }
-            entry.scorers = scorers;
+            const keyEvents = await fetchEspnSummary(entry.espnEventId);
+            entry.scorers = parseEspnGoals(keyEvents, { homeName: entry.homeName, homeIsT1: entry.homeIsT1 });
         }
-    } else {
-        console.warn('FOOTBALL_API_KEY not set — skipping live scores.');
     }
     console.log(`Classified: ${finished.length} finished, ${live.length} live.`);
 
