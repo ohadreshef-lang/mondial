@@ -3,9 +3,9 @@ name: Update match results
 on:
   schedule:
     # GitHub throttles high-frequency schedules (observed: every ~2h, not */5). So a
-    # single run polls internally every 5–10 min (adaptive by API quota, see the loop)
-    # for up to ~5.5h — one trigger blankets a whole evening of matches with fresh live
-    # scores, no matter how sparsely GitHub actually fires.
+    # single run polls internally every 5 min (fixed cadence, no API quota) for up to
+    # ~5.5h — one trigger blankets a whole evening of matches with fresh live scores,
+    # no matter how sparsely GitHub actually fires.
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
@@ -25,13 +25,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Poll finished + live matches (~adaptive 5/10-min by quota, up to ~5.5h)
+      - name: Poll finished + live matches (fixed 5-min cadence, up to ~5.5h)
         run: |
-          # Adaptive cadence: poll every 5 min when API-Football quota is healthy, every
-          # 10 min when it's low — scripts/poll-seconds.mjs decides from the FREE /status
-          # endpoint each iteration (auto-throttles, and auto-recovers after the daily
-          # 00:00 UTC reset). set +e so a single failing iteration (transient blip /
-          # stale-red) never aborts the loop; we exit with the LAST iteration's status.
+          # Fixed 5-min cadence: live scores from ESPN's keyless public API, finals from
+          # football-data.org — neither has a daily quota to throttle against. set +e so
+          # a single failing iteration (transient blip / stale-red) never aborts the
+          # loop; we exit with the LAST iteration's status.
           # The script prints LOOP_IDLE when no match is live and none starts within ~2h —
           # we end the run early then (the cron re-triggers before the next match).
           set +e
@@ -48,7 +47,7 @@ jobs:
               echo "No live game and none within ~2h — ending run early; cron will re-trigger."
               break
             fi
-            sleep_s=$(node scripts/poll-seconds.mjs 2>/dev/null || echo 600)
+            sleep_s=$(node scripts/poll-seconds.mjs 2>/dev/null || echo 300)
             echo "next poll in ${sleep_s}s"
             sleep "$sleep_s"
           done

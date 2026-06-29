@@ -1,25 +1,5 @@
-// Prints the updater's next poll interval in seconds (300 or 600), chosen from the
-// remaining API-Football quota via the FREE /status endpoint (does not consume quota).
-// Any failure -> 600 (conservative). Called by the GitHub Actions poll loop.
-import { choosePollSeconds } from './lib/poll-interval.mjs';
-
-const KEY = process.env.FOOTBALL_API_KEY;
-
-async function remainingQuota() {
-    if (!KEY) return undefined;
-    try {
-        const res = await fetch('https://v3.football.api-sports.io/status', {
-            headers: { 'x-apisports-key': KEY },
-            signal: AbortSignal.timeout(10000),   // never hang an unattended loop iteration
-        });
-        if (!res.ok) return undefined;
-        const json = await res.json();
-        const r = json && json.response && json.response.requests;
-        if (!r || typeof r.current !== 'number' || typeof r.limit_day !== 'number') return undefined;
-        return r.limit_day - r.current;
-    } catch {
-        return undefined;
-    }
-}
-
-console.log(choosePollSeconds(await remainingQuota()));
+// Prints the updater's poll interval in seconds. Live scores come from ESPN's keyless
+// public API and finals from football-data.org — neither has a daily quota to throttle —
+// so the cadence is a fixed 5 minutes. That's well under LIVE_STALE_MS (10 min), so the
+// live ticker stays fresh and never false-triggers the "no live update" paused state.
+console.log(300);
