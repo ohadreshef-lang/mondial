@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyMatches, buildResultUpdates, mapApiFootballLive, parseMatchDate, calcPoints, isKnockoutStage } from '../scripts/lib/results-core.mjs';
+import { classifyMatches, buildResultUpdates, parseMatchDate, calcPoints, isKnockoutStage, espnMinute, mapEspnLive, parseEspnGoals } from '../scripts/lib/results-core.mjs';
 
 const now = Date.parse('2026-06-17T22:30:00Z'); // 2.5h after the 20:00Z kickoff
 
@@ -107,168 +107,6 @@ test('buildResultUpdates: finished recalcs a member bet to points', () => {
   assert.equal(updates['groups/g1/members/u1/totalPoints'], 4);
 });
 
-// --- mapApiFootballLive (API-Football live source) -------------------------
-
-const afNow = Date.parse('2026-06-17T23:50:00Z'); // 50 min into a 23:00Z kickoff
-const afMatches = {
-  m_live: { team1: 'גאנה', team2: 'פנמה', date: '2026-06-17T23:00' },          // Ghana v Panama
-  m_kr:   { team1: 'קוריאה הדרומית', team2: 'יפן', date: '2026-06-17T23:00' },  // South Korea v Japan
-  m_done: { team1: 'אנגליה', team2: 'קרואטיה', date: '2026-06-17T20:00', result: { team1Goals: 4, team2Goals: 2 } },
-};
-const afFixture = (home, away, gh, ga, short) => ({
-  fixture: { id: 1, date: '2026-06-17T23:00:00+00:00', status: { short, elapsed: 50 } },
-  league: { id: 1, name: 'World Cup' },
-  teams: { home: { name: home }, away: { name: away } },
-  goals: { home: gh, away: ga },
-});
-
-test('mapApiFootballLive: in-play (1H) -> live entry with correct orientation', () => {
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 1, 0, '1H')], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].matchId, 'm_live');
-  assert.equal(live[0].g1, 1); // Ghana == team1
-  assert.equal(live[0].g2, 0);
-  assert.equal(live[0].status, 'IN_PLAY');
-  assert.equal(live[0].minute, 50); // captured from fixture.status.elapsed
-});
-
-test('mapApiFootballLive: stoppage time captured in extra', () => {
-  const f = afFixture('Ghana', 'Panama', 1, 0, '2H'); f.fixture.status.elapsed = 90; f.fixture.status.extra = 3;
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
-  assert.equal(live[0].minute, 90);
-  assert.equal(live[0].extra, 3);
-});
-
-test('mapApiFootballLive: FT closes the game (status FT, no clock)', () => {
-  const f = afFixture('Ghana', 'Panama', 1, 0, 'FT');
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].status, 'FT');
-  assert.equal(live[0].minute, null);
-  assert.equal(live[0].extra, null);
-});
-
-test('mapApiFootballLive: away-home swap orients to team1/team2', () => {
-  // API has Panama at home; our DB has Ghana as team1 -> g1 must follow Ghana.
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Panama', 'Ghana', 0, 2, '2H')], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].g1, 2); // Ghana (team1) scored 2
-  assert.equal(live[0].g2, 0);
-});
-
-test('mapApiFootballLive: HT -> PAUSED', () => {
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 1, 1, 'HT')], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].status, 'PAUSED');
-});
-
-test('mapApiFootballLive: team-name alias (Korea Republic -> South Korea)', () => {
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Korea Republic', 'Japan', 2, 2, '1H')], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].matchId, 'm_kr');
-  assert.equal(live[0].g1, 2);
-  assert.equal(live[0].status, 'IN_PLAY');
-});
-
-test('mapApiFootballLive: not-started (NS) is skipped', () => {
-  const ns = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 0, 0, 'NS')], now: afNow });
-  assert.equal(ns.length, 0);
-});
-
-test('mapApiFootballLive: null goals skipped; already-finished match skipped; unmatched skipped', () => {
-  const nullGoals = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', null, null, '1H')], now: afNow });
-  assert.equal(nullGoals.length, 0);
-  // m_done has a result -> never live even if a fixture matches its teams
-  const doneFix = { fixture: { date: '2026-06-17T20:00:00+00:00', status: { short: '2H' } }, teams: { home: { name: 'England' }, away: { name: 'Croatia' } }, goals: { home: 5, away: 0 } };
-  const done = mapApiFootballLive({ matches: afMatches, apiFixtures: [doneFix], now: Date.parse('2026-06-17T20:50:00Z') });
-  assert.equal(done.length, 0);
-  // a live fixture for teams not in our DB -> no entry
-  const other = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Brazil', 'Spain', 1, 1, '1H')], now: afNow });
-  assert.equal(other.length, 0);
-});
-
-test('mapApiFootballLive: past the in-play window is skipped', () => {
-  // 5h after kickoff, beyond the 3h window
-  const lateNow = Date.parse('2026-06-18T04:00:00Z');
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 1, 0, '2H')], now: lateNow });
-  assert.equal(live.length, 0);
-});
-
-// --- parseGoalEvents (API-Football goal events -> scorer list) -------------
-
-import { parseGoalEvents } from '../scripts/lib/results-core.mjs';
-
-const goalEv = (detail, teamName, player, elapsed, extra = null) => ({
-  type: 'Goal', detail, team: { name: teamName }, player: { name: player }, time: { elapsed, extra },
-});
-
-test('parseGoalEvents: normal goal -> scoring team, minute, kind goal', () => {
-  const out = parseGoalEvents([goalEv('Normal Goal', 'Netherlands', 'Brobbey', 5)],
-    { homeName: 'Netherlands', homeIsT1: true });
-  assert.deepEqual(out, [{ team: 1, player: 'Brobbey', minute: 5, extra: null, kind: 'goal' }]);
-});
-
-test('parseGoalEvents: penalty -> kind pen; missed penalty excluded', () => {
-  const out = parseGoalEvents([
-    goalEv('Penalty', 'Netherlands', 'Depay', 60),
-    goalEv('Missed Penalty', 'Netherlands', 'Depay', 70),
-  ], { homeName: 'Netherlands', homeIsT1: true });
-  assert.equal(out.length, 1);
-  assert.equal(out[0].kind, 'pen');
-  assert.equal(out[0].player, 'Depay');
-});
-
-test('parseGoalEvents: own goal credited to the benefiting team named by the API, kind og', () => {
-  // API-Football names the BENEFITING team on an own-goal event (player = own-goaler).
-  // Netherlands (home, team1) benefits from Lindelof's own goal.
-  const out = parseGoalEvents([goalEv('Own Goal', 'Netherlands', 'Lindelof', 80)],
-    { homeName: 'Netherlands', homeIsT1: true });
-  assert.deepEqual(out, [{ team: 1, player: 'Lindelof', minute: 80, extra: null, kind: 'og' }]);
-});
-
-test('parseGoalEvents: away orientation (homeIsT1 false) flips team numbers', () => {
-  // Home side scores but home is our team2.
-  const out = parseGoalEvents([goalEv('Normal Goal', 'Sweden', 'Gyokeres', 10)],
-    { homeName: 'Sweden', homeIsT1: false });
-  assert.equal(out[0].team, 2);
-});
-
-test('parseGoalEvents: stoppage captured and sorted by minute then extra', () => {
-  const out = parseGoalEvents([
-    goalEv('Normal Goal', 'Netherlands', 'C', 45, 2),
-    goalEv('Normal Goal', 'Netherlands', 'B', 45),
-    goalEv('Normal Goal', 'Netherlands', 'A', 10),
-  ], { homeName: 'Netherlands', homeIsT1: true });
-  assert.deepEqual(out.map(s => s.player), ['A', 'B', 'C']);
-  assert.equal(out[2].extra, 2);
-});
-
-test('parseGoalEvents: malformed/non-goal events skipped, never throws', () => {
-  const out = parseGoalEvents([
-    null,
-    { type: 'Card', detail: 'Yellow Card', team: { name: 'Netherlands' }, player: { name: 'X' }, time: { elapsed: 5 } },
-    { type: 'Goal', detail: 'Normal Goal', team: { name: 'Netherlands' }, time: { elapsed: 5 } }, // no player
-  ], { homeName: 'Netherlands', homeIsT1: true });
-  assert.deepEqual(out, []);
-});
-
-test('mapApiFootballLive: entry exposes fixtureId, homeName, homeIsT1, inlineEvents', () => {
-  const f = afFixture('Ghana', 'Panama', 1, 0, '1H');
-  f.fixture.id = 4242;
-  f.events = [{ type: 'Goal', detail: 'Normal Goal', team: { name: 'Ghana' }, player: { name: 'Z' }, time: { elapsed: 8 } }];
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [f], now: afNow });
-  assert.equal(live.length, 1);
-  assert.equal(live[0].fixtureId, 4242);
-  assert.equal(live[0].homeName, 'Ghana');
-  assert.equal(live[0].homeIsT1, true);       // Ghana is team1 in afMatches.m_live
-  assert.equal(live[0].inlineEvents.length, 1);
-});
-
-test('mapApiFootballLive: no events array -> inlineEvents null', () => {
-  const live = mapApiFootballLive({ matches: afMatches, apiFixtures: [afFixture('Ghana', 'Panama', 0, 0, '1H')], now: afNow });
-  assert.equal(live[0].inlineEvents, null);
-});
-
 const fdFinished = (h, a) => ([{ id: 1, status: 'FINISHED', utcDate: '2026-06-17T20:00:00Z',
   homeTeam: { name: 'England' }, awayTeam: { name: 'Croatia' },
   score: { duration: 'REGULAR', fullTime: { home: h, away: a } } }]);
@@ -317,4 +155,76 @@ import { norm as _norm } from "../scripts/lib/results-core.mjs";
 test("API alias: Bosnia & Herzegovina matches our Bosnia and Herzegovina", () => {
   assert.equal(_norm("Bosnia & Herzegovina"), _norm("Bosnia and Herzegovina"));
   assert.equal(_norm("Bosnia & Herzegovina"), "bosnia and herzegovina");
+});
+
+// --- ESPN live mapping -----------------------------------------------------
+
+const espnEvent = (homeName, awayName, hs, as, state, opts = {}) => ({
+  id: opts.id || '900', date: opts.date || '2026-06-29T17:00Z',
+  competitions: [{
+    status: { type: { state, completed: state === 'post', detail: opts.detail || '', shortDetail: opts.shortDetail || '' }, displayClock: opts.displayClock || "41'", period: 1 },
+    competitors: [
+      { homeAway: 'home', score: String(hs), team: { displayName: homeName } },
+      { homeAway: 'away', score: String(as), team: { displayName: awayName } },
+    ],
+  }],
+});
+
+test('espnMinute parses the display clock', () => {
+  assert.deepEqual(espnMinute("29'"), { minute: 29, extra: null });
+  assert.deepEqual(espnMinute("45'+2'"), { minute: 45, extra: 2 });
+  assert.deepEqual(espnMinute(""), { minute: null, extra: null });
+});
+
+test('mapEspnLive: in-play event -> entry with score/status/minute', () => {
+  const now = Date.parse('2026-06-29T17:41:00Z');
+  const matches = { m1: { team1: 'ברזיל', team2: 'יפן', date: '2026-06-29T17:00' } };
+  const live = mapEspnLive({ matches, espnEvents: [espnEvent('Brazil', 'Japan', 0, 1, 'in', { displayClock: "41'" })], now });
+  assert.equal(live.length, 1);
+  assert.equal(live[0].g1, 0); assert.equal(live[0].g2, 1);
+  assert.equal(live[0].status, 'IN_PLAY'); assert.equal(live[0].minute, 41);
+  assert.equal(live[0].homeIsT1, true); assert.equal(live[0].espnEventId, '900');
+});
+
+test('mapEspnLive: orientation when our team1 is the ESPN away side', () => {
+  const now = Date.parse('2026-06-29T17:41:00Z');
+  const matches = { m1: { team1: 'יפן', team2: 'ברזיל', date: '2026-06-29T17:00' } };
+  const live = mapEspnLive({ matches, espnEvents: [espnEvent('Brazil', 'Japan', 0, 1, 'in')], now });
+  assert.equal(live[0].g1, 1); assert.equal(live[0].g2, 0); assert.equal(live[0].homeIsT1, false);
+});
+
+test('mapEspnLive: halftime -> PAUSED, post -> FT, pre -> ignored', () => {
+  const now = Date.parse('2026-06-29T17:41:00Z');
+  const m = { m1: { team1: 'ברזיל', team2: 'יפן', date: '2026-06-29T17:00' } };
+  assert.equal(mapEspnLive({ matches: m, espnEvents: [espnEvent('Brazil', 'Japan', 0, 1, 'in', { detail: 'Halftime' })], now })[0].status, 'PAUSED');
+  assert.equal(mapEspnLive({ matches: m, espnEvents: [espnEvent('Brazil', 'Japan', 0, 1, 'post')], now })[0].status, 'FT');
+  assert.equal(mapEspnLive({ matches: m, espnEvents: [espnEvent('Brazil', 'Japan', 0, 0, 'pre')], now }).length, 0);
+});
+
+test('mapEspnLive: alias teams resolve (United States / Bosnia-Herzegovina)', () => {
+  const now = Date.parse('2026-07-02T00:30:00Z');
+  const matches = { m1: { team1: 'ארצות הברית', team2: 'בוסניה והרצגובינה', date: '2026-07-02T00:00' } };
+  const live = mapEspnLive({ matches, espnEvents: [espnEvent('United States', 'Bosnia-Herzegovina', 1, 0, 'in', { date: '2026-07-02T00:00Z' })], now });
+  assert.equal(live.length, 1); assert.equal(live[0].g1, 1);
+});
+
+test('parseEspnGoals: structured goal -> scorer; non-goal and shootout ignored', () => {
+  const keyEvents = [
+    { scoringPlay: true, shootout: false, type: { type: 'goal', text: 'Goal' }, clock: { displayValue: "29'" }, team: { displayName: 'Japan' }, participants: [{ athlete: { displayName: 'Kaishu Sano' } }], text: 'Goal! Brazil 0, Japan 1. Kaishu Sano (Japan)...' },
+    { scoringPlay: false, type: { type: 'yellow-card', text: 'Yellow Card' }, team: { displayName: 'Brazil' } },
+    { scoringPlay: true, shootout: true, type: { type: 'goal' }, clock: { displayValue: "0'" }, team: { displayName: 'Brazil' }, participants: [{ athlete: { displayName: 'X' } }] },
+  ];
+  const goals = parseEspnGoals(keyEvents, { homeName: 'Brazil', homeIsT1: true });
+  assert.equal(goals.length, 1);
+  assert.deepEqual(goals[0], { team: 2, player: 'Kaishu Sano', minute: 29, extra: null, kind: 'goal' });
+});
+
+test('parseEspnGoals: penalty and own-goal kinds', () => {
+  const keyEvents = [
+    { scoringPlay: true, type: { type: 'goal', text: 'Penalty - Scored' }, clock: { displayValue: "55'" }, team: { displayName: 'Brazil' }, participants: [{ athlete: { displayName: 'P' } }], text: 'Penalty! converts the penalty' },
+    { scoringPlay: true, type: { type: 'own-goal', text: 'Own Goal' }, clock: { displayValue: "70'" }, team: { displayName: 'Brazil' }, participants: [{ athlete: { displayName: 'O' } }], text: 'Own Goal!' },
+  ];
+  const goals = parseEspnGoals(keyEvents, { homeName: 'Brazil', homeIsT1: true });
+  assert.equal(goals.find(g => g.player === 'P').kind, 'pen');
+  assert.equal(goals.find(g => g.player === 'O').kind, 'og');
 });

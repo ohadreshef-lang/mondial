@@ -63,100 +63,77 @@ export function calcPoints(b1, b2, r1, r2, stage) {
     return 0;
 }
 
-// --- API-Football live source (in-play scores only) -----------------------
-// football-data.org's free tier never emits IN_PLAY, so live scores come from
-// API-Football (api-sports.io). This maps its `fixtures?live=all` response to our
-// `live` entries. Finished results + points still come from football-data.org.
+// --- ESPN live source (in-play scores + goal events) ----------------------
 
-// API-Football status.short -> our live status. Anything else (NS, FT, AET, PEN,
-// PST, CANC, ...) is not an in-play score and is skipped here.
-const AF_INPLAY = new Set(['1H', '2H', 'ET', 'BT', 'P', 'LIVE']);
-// Finished statuses — used to CLOSE the game promptly (football-data.org's free tier
-// is delayed, so we mark FT from API-Football and let football-data set the official
-// result + points when it catches up).
-const AF_FINISHED = new Set(['FT', 'AET', 'PEN']);
-
-// API-Football team-name spellings that differ from our canonical English
-// (post-base-normalisation). Unmatched live fixtures are skipped gracefully.
-const AF_NAME_FIX = {
-    'korea republic': 'South Korea',
-    'czech republic': 'Czechia',
-    'cape verde islands': 'Cape Verde',
-    'congo dr': 'DR Congo',
-    'bosnia': 'Bosnia and Herzegovina',
-    "cote d'ivoire": 'Ivory Coast',
-    'usa': 'USA',
-};
-
-function normAf(name) {
-    const b = norm(name);                 // NFD + lowercase + API_ALIASES
-    return AF_NAME_FIX[b] ? norm(AF_NAME_FIX[b]) : b;
+// Parse an ESPN displayClock ("29'", "45'+2'") to {minute, extra}.
+export function espnMinute(displayClock) {
+    const s = String(displayClock || '').replace(/'/g, '').trim();
+    if (!s) return { minute: null, extra: null };
+    const [base, plus] = s.split('+');
+    const minute = parseInt(base, 10);
+    const extra = plus != null ? parseInt(plus, 10) : null;
+    return { minute: Number.isNaN(minute) ? null : minute, extra: (extra == null || Number.isNaN(extra)) ? null : extra };
 }
 
-// Map API-Football live fixtures to our live entries. Pure — pass the fixtures in.
-// A DB match is matched to a single in-play fixture by team pair + ±36h window,
-// within inPlayWindowMs of kickoff. Returns [{ matchId, m, g1, g2, status }].
-export function mapApiFootballLive({ matches, apiFixtures, now, inPlayWindowMs = 3 * 3600 * 1000 }) {
-    const live = [];
+// Map ESPN scoreboard events to our live entries. Pure. One DB match -> a single ESPN event
+// by team pair (norm/HEB_TO_EN) within ±36h of kickoff, in a live-or-just-finished state.
+export function mapEspnLive({ matches, espnEvents, now, inPlayWindowMs = 3 * 3600 * 1000 }) {
+    const out = [];
     for (const [matchId, m] of Object.entries(matches || {})) {
         if (!m || !m.team1 || !m.team2 || !m.date) continue;
         if (m.result && m.result.team1Goals !== undefined) continue;
-        const kickoff = parseMatchDate(m.date);
-        if (kickoff > now || (now - kickoff) > inPlayWindowMs) continue;
         const en1 = HEB_TO_EN[m.team1], en2 = HEB_TO_EN[m.team2];
         if (!en1 || !en2) continue;
         const t1 = norm(en1), t2 = norm(en2);
-
-        const hits = (apiFixtures || []).filter(f => {
-            const short = f.fixture && f.fixture.status && f.fixture.status.short;
-            if (short !== 'HT' && !AF_INPLAY.has(short) && !AF_FINISHED.has(short)) return false;
-            const home = normAf(f.teams && f.teams.home && f.teams.home.name);
-            const away = normAf(f.teams && f.teams.away && f.teams.away.name);
-            const same = (home === t1 && away === t2) || (home === t2 && away === t1);
+        const kickoff = parseMatchDate(m.date);
+        const hits = (espnEvents || []).filter(e => {
+            const comp = (e.competitions || [])[0] || {};
+            const state = comp.status && comp.status.type && comp.status.type.state;
+            if (state !== 'in' && state !== 'post') return false;
+            const cs = comp.competitors || [];
+            const home = cs.find(c => c.homeAway === 'home') || {};
+            const away = cs.find(c => c.homeAway === 'away') || {};
+            const hn = norm(home.team && home.team.displayName);
+            const an = norm(away.team && away.team.displayName);
+            const same = (hn === t1 && an === t2) || (hn === t2 && an === t1);
             if (!same) return false;
-            const fdate = f.fixture && f.fixture.date ? Date.parse(f.fixture.date) : NaN;
-            return Number.isNaN(fdate) ? true : Math.abs(fdate - kickoff) <= 36 * 3600 * 1000;
+            const edate = e.date ? Date.parse(e.date) : NaN;
+            return Number.isNaN(edate) ? true : Math.abs(edate - kickoff) <= 36 * 3600 * 1000;
         });
-        if (hits.length !== 1) continue;  // 0 = not live/unmatched, >1 = ambiguous -> skip
-
-        const f = hits[0];
-        const gh = f.goals && f.goals.home, ga = f.goals && f.goals.away;
-        if (gh == null || ga == null) continue;
-        const homeIsT1 = normAf(f.teams.home.name) === t1;
-        const g1 = homeIsT1 ? gh : ga;
-        const g2 = homeIsT1 ? ga : gh;
-        const st = f.fixture.status || {};
-        const short = st.short;
-        const status = short === 'HT' ? 'PAUSED' : AF_FINISHED.has(short) ? 'FT' : 'IN_PLAY';
-        // FT carries no running clock; otherwise capture elapsed (caps 45/90) + stoppage.
-        const minute = status === 'FT' ? null : (typeof st.elapsed === 'number' ? st.elapsed : null);
-        const extra = status === 'FT' ? null : (typeof st.extra === 'number' ? st.extra : null);
-        const inlineEvents = Array.isArray(f.events) ? f.events : null;
-        live.push({ matchId, m, g1, g2, status, minute, extra,
-            fixtureId: f.fixture && f.fixture.id, homeName: f.teams.home.name, homeIsT1, inlineEvents });
+        if (hits.length !== 1) continue;
+        const e = hits[0];
+        const comp = (e.competitions || [])[0] || {};
+        const cs = comp.competitors || [];
+        const home = cs.find(c => c.homeAway === 'home') || {};
+        const away = cs.find(c => c.homeAway === 'away') || {};
+        const hs = parseInt(home.score, 10), as = parseInt(away.score, 10);
+        if (Number.isNaN(hs) || Number.isNaN(as)) continue;
+        const homeIsT1 = norm(home.team && home.team.displayName) === t1;
+        const g1 = homeIsT1 ? hs : as;
+        const g2 = homeIsT1 ? as : hs;
+        const type = (comp.status && comp.status.type) || {};
+        const det = `${type.detail || ''} ${type.shortDetail || ''}`;
+        const status = (type.state === 'post' || type.completed) ? 'FT'
+            : /half|halftime|(^|\s)ht(\s|$)/i.test(det) ? 'PAUSED' : 'IN_PLAY';
+        const { minute, extra } = espnMinute(comp.status && comp.status.displayClock);
+        out.push({ matchId, m, g1, g2, status, minute, extra,
+                   espnEventId: e.id, homeName: home.team && home.team.displayName, homeIsT1 });
     }
-    return live;
+    return out;
 }
 
-// Map API-Football goal events to our scorer list. Pure. Keeps real goals (incl.
-// penalties), drops missed penalties, credits own goals to the benefiting team (the
-// team the API already names on the event), and returns them time-ordered. `homeName`
-// is the API home-team name; `homeIsT1` says whether the API home side is our team1.
-export function parseGoalEvents(apiEvents, { homeName, homeIsT1 }) {
+// Parse ESPN summary keyEvents into our scorer shape. Pure. Best-effort: structured
+// participants give the scorer; own-goal/penalty inferred from type/text.
+export function parseEspnGoals(keyEvents, { homeName, homeIsT1 }) {
     const out = [];
-    for (const e of (apiEvents || [])) {
-        if (!e || e.type !== 'Goal') continue;
-        const detail = e.detail || '';
-        if (detail === 'Missed Penalty') continue;
-        const player = e.player && e.player.name;
+    for (const e of (keyEvents || [])) {
+        if (!e || e.scoringPlay !== true || e.shootout === true) continue;
+        const player = e.participants && e.participants[0] && e.participants[0].athlete && e.participants[0].athlete.displayName;
         if (!player) continue;
-        const time = e.time || {};
-        const minute = typeof time.elapsed === 'number' ? time.elapsed : null;
-        const extra = typeof time.extra === 'number' ? time.extra : null;
-        const kind = detail === 'Penalty' ? 'pen' : detail === 'Own Goal' ? 'og' : 'goal';
-        // API-Football already names the BENEFITING team on the event (including own
-        // goals, where `player` is the own-goaler) — so no flip is needed for any kind.
-        const eventIsHome = normAf(e.team && e.team.name) === normAf(homeName);
+        const { minute, extra } = espnMinute(e.clock && e.clock.displayValue);
+        const blob = `${(e.type && e.type.type) || ''} ${(e.type && e.type.text) || ''} ${e.text || ''}`.toLowerCase();
+        const kind = /own/.test(blob) ? 'og' : /penalt/.test(blob) ? 'pen' : 'goal';
+        const eventIsHome = norm(e.team && e.team.displayName) === norm(homeName);
         const team = eventIsHome ? (homeIsT1 ? 1 : 2) : (homeIsT1 ? 2 : 1);
         out.push({ team, player, minute, extra, kind });
     }
