@@ -220,7 +220,9 @@ let activeTab    = 'matches';
 let stageFilter  = 'all';
 let _matchesNeedsFocus = false; // scroll to the last-played match on next matches render
 let _lastPlayedMatchId = null;  // most recent match already kicked off (set in renderMatches)
+let _nextUpcomingMatchId = null; // next unplayed match (set in renderMatches)
 let _autoLiveTabPending = false; // on first matches load after login, open Live tab if a game is on
+let _autoStageFilterPending = false; // on first matches load, auto-select stage of next upcoming match
 let isAdminMode  = false;
 let isAdminAuthed = false;
 let pendingResultMatchId = null;
@@ -632,8 +634,9 @@ function enterAppForGroup(groupId) {
     $('header-username').textContent = currentUser.name;
     ensureUserProfile();
     _autoLiveTabPending = true;                             // open Live tab on first load if a game is on
+    _autoStageFilterPending = true;                         // auto-select stage of next upcoming match
     startFirebaseListeners();
-    if (activeTab === 'matches') _matchesNeedsFocus = true; // focus last-played on first load too
+    if (activeTab === 'matches') _matchesNeedsFocus = true; // focus next-upcoming on first load too
     renderCurrentTab();
 }
 
@@ -883,6 +886,11 @@ function startFirebaseListeners() {
             _autoLiveTabPending = false;
             if (hasLiveGameNow()) { switchTab('live'); return; }  // switchTab renders
         }
+        // On first load, set the stage filter to the stage of the next upcoming match.
+        if (_autoStageFilterPending) {
+            _autoStageFilterPending = false;
+            applyAutoStageFilter();
+        }
         if (activeTab === 'matches') renderMatches();
         if (activeTab === 'my-bets') renderMyBets();
         if (activeTab === 'tournament') renderTournament();
@@ -1006,10 +1014,35 @@ function renderCurrentTab() {
 
 function setStageFilter(stage) {
     stageFilter = stage;
+    _autoStageFilterPending = false; // user is choosing; don't override later
     document.querySelectorAll('.filter-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.stage === stage);
     });
     renderMatches();
+}
+
+function findNextUpcomingMatchStage() {
+    const now = Date.now();
+    let best = null;
+    Object.entries(matches).forEach(([id, m]) => {
+        if (!m || !m.date || !m.stage) return;
+        if (m.stage === 'special') return;
+        if (m.result) return;
+        const t = parseMatchDate(m.date).getTime();
+        if (isNaN(t) || t < now) return;
+        if (!best || t < best.t) best = { id, stage: m.stage, t };
+    });
+    return best;
+}
+
+function applyAutoStageFilter() {
+    if (!matches || Object.keys(matches).length === 0) return;
+    const next = findNextUpcomingMatchStage();
+    if (!next || !next.stage) return;
+    stageFilter = next.stage;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.stage === stageFilter);
+    });
 }
 
 function switchTournament(key) {
@@ -1090,11 +1123,13 @@ function renderMatches() {
     // so opening the tab can focus it instead of the top of the schedule.
     const _now = new Date();
     let lastPlayed = null;
+    let nextUpcoming = null;
     for (const m of matchList) {
         if (parseMatchDate(m.date) <= _now) lastPlayed = m;
-        else break;
+        else if (!nextUpcoming) nextUpcoming = m;
     }
     _lastPlayedMatchId = lastPlayed ? lastPlayed.id : null;
+    _nextUpcomingMatchId = nextUpcoming ? nextUpcoming.id : null;
 
     if (matchList.length === 0) {
         container.innerHTML = `<p class="state-msg">${t('match.emptyState')}</p>`;
@@ -1119,21 +1154,26 @@ function renderMatches() {
         });
     });
 
-    // Focus the last-played match only when the tab was just opened (not on every
-    // background data refresh, which would yank the user's scroll position). If the
-    // data hasn't loaded yet there's no target — keep the flag for the next render.
-    if (_matchesNeedsFocus && _lastPlayedMatchId) {
+    // On first open of the matches tab, focus the next upcoming match (or the most
+    // recent already-kicked-off match as a fallback). Only fires when the tab was
+    // just opened, not on every background data refresh — that would yank scroll.
+    const focusId = _nextUpcomingMatchId || _lastPlayedMatchId;
+    if (_matchesNeedsFocus && focusId) {
         _matchesNeedsFocus = false;
-        scrollToLastPlayedMatch();
+        scrollToFocusMatch(focusId, !!_nextUpcomingMatchId);
     }
 }
 
-function scrollToLastPlayedMatch() {
-    const id = _lastPlayedMatchId;
+function scrollToFocusMatch(id, highlight) {
     if (!id) return;
     requestAnimationFrame(() => {
         const el = document.getElementById(`card-${id}`);
-        if (el) el.scrollIntoView({ block: 'center' });
+        if (!el) return;
+        el.scrollIntoView({ block: 'center' });
+        if (highlight) {
+            el.classList.add('match-card-next');
+            setTimeout(() => el.classList.remove('match-card-next'), 2200);
+        }
     });
 }
 

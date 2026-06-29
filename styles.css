@@ -474,6 +474,14 @@ section { display: block; }
 }
 
 .match-card:hover { box-shadow: var(--shadow-lg); }
+.match-card-next {
+    animation: nextMatchPulse 2s ease-out 1;
+}
+@keyframes nextMatchPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(45,106,79,.55), var(--shadow); }
+    60%  { box-shadow: 0 0 0 6px rgba(45,106,79,.18), var(--shadow); }
+    100% { box-shadow: var(--shadow); }
+}
 
 .match-card--closing-soon {
     border-color: #f6ad55;
